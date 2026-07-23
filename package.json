@@ -4,23 +4,33 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
-    "next": "16.2.10",
+    "@animateicons/react": "^0.3.4",
+    "@prisma/client": "^6.3.1",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.24.0",
+    "next": "15.1.7",
+    "postcss": "^8.5.19",
+    "radix-ui": "^1.6.2",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "recharts": "^3.9.2",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
-    "tailwindcss": "^4",
+    "prisma": "6.3.1",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5"
   }
 }

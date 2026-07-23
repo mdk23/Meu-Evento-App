@@ -1,63 +1,290 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+import React, { useState, useEffect } from 'react';
+import { Sidebar } from '@/components/Sidebar';
+import Link from 'next/link';
+import { 
+  TrendingUp, 
+  Clock, 
+  DollarSign, 
+  Users, 
+  CalendarDays, 
+  Plus, 
+  Sparkles, 
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
+
+export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadDashboard() {
+      try {
+        await fetch('/api/seed', { method: 'POST' }).catch(() => {});
+        const res = await fetch('/api/dashboard');
+        const json = await res.json();
+        if (active) {
+          setData(json);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    loadDashboard();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center text-violet-400">
+          <Loader2 className="w-10 h-10 animate-spin" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+    );
+  }
+
+  const { kpis, todaysEvents, upcomingEvents, serviceStatusSummary } = data;
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex text-zinc-300 font-sans">
+      <Sidebar />
+
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* HEADER */}
+        <header className="h-16 border-b border-zinc-900 bg-zinc-950/50 flex items-center px-8 justify-between">
+          <div>
+            <h2 className="text-white font-bold text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-violet-400" /> Business Dashboard
+            </h2>
+            <p className="text-xs text-zinc-500">Royal Events Space • Main Operations Overview</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/bookings"
+              className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-violet-600/20"
+            >
+              <Plus className="w-4 h-4" /> New Booking
+            </Link>
+          </div>
+        </header>
+
+        {/* WORKSPACE */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          
+          {/* KPI METRICS */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Total Revenue</span>
+                <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <TrendingUp className="w-4 h-4" />
+                </span>
+              </div>
+              <span className="text-3xl font-black text-white block">{kpis.revenue.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">Cleared client payments</span>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Pending Income</span>
+                <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <Clock className="w-4 h-4" />
+                </span>
+              </div>
+              <span className="text-3xl font-black text-amber-400 block">{kpis.pendingAmount.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">Outstanding invoices</span>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Net Profit</span>
+                <span className="p-2 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                  <DollarSign className="w-4 h-4" />
+                </span>
+              </div>
+              <span className="text-3xl font-black text-violet-400 block">{kpis.netProfit.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">Revenue minus costs</span>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Active Bookings</span>
+                <span className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <CalendarDays className="w-4 h-4" />
+                </span>
+              </div>
+              <span className="text-3xl font-black text-white block">{kpis.totalBookings}</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">{kpis.totalClients} Total Clients</span>
+            </div>
+          </div>
+
+          {/* MAIN GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* UPCOMING & TODAY'S EVENTS (2 COLS) */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* TODAY'S EVENTS */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+                <h3 className="text-white font-bold text-base mb-4 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" /> Today&apos;s Operations
+                  </span>
+                  <span className="text-xs font-normal text-zinc-500">{todaysEvents.length} Events Scheduled</span>
+                </h3>
+
+                {todaysEvents.length === 0 ? (
+                  <p className="text-sm text-zinc-500 py-4">No events scheduled for execution today.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {todaysEvents.map((evt: any) => (
+                      <div key={evt.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 flex justify-between items-center">
+                        <div>
+                          <h4 className="text-white font-bold text-sm">{evt.name}</h4>
+                          <p className="text-xs text-zinc-400 mt-0.5">
+                            Client: {evt.booking?.client?.name} • {evt.guestCount} Guests
+                          </p>
+                        </div>
+                        <Link
+                          href={`/events/${evt.id}`}
+                          className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-violet-500/10 border border-violet-500/20 px-3 py-1.5 rounded-lg"
+                        >
+                          Manage Event <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* UPCOMING EVENTS */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-white font-bold text-base">Upcoming Event Schedule</h3>
+                  <Link href="/events" className="text-xs text-violet-400 hover:underline">View All Events</Link>
+                </div>
+
+                <div className="space-y-4">
+                  {upcomingEvents.map((evt: any) => (
+                    <div key={evt.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center hover:border-zinc-700 transition-colors">
+                      <div className="flex gap-4 items-center">
+                        <div className="p-3 bg-zinc-900 rounded-xl border border-zinc-800 text-center min-w-[65px]">
+                          <span className="text-[10px] text-zinc-500 uppercase block font-bold">
+                            {new Date(evt.date).toLocaleString('default', { month: 'short' })}
+                          </span>
+                          <span className="text-lg font-black text-white leading-none">
+                            {new Date(evt.date).getDate()}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="text-white font-bold text-sm">{evt.name}</h4>
+                          <p className="text-xs text-zinc-400 mt-0.5">
+                            {evt.booking?.client?.name} • {evt.guestCount} Guests
+                          </p>
+                          <div className="flex gap-2 mt-2">
+                            {evt.eventServices.map((es: any) => (
+                              <span
+                                key={es.id}
+                                className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                                  es.providerType === 'INTERNAL'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                }`}
+                              >
+                                {es.providerType === 'INTERNAL' ? '🟢' : '🔵'} {es.service?.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/events/${evt.id}`}
+                        className="text-xs text-zinc-400 hover:text-white p-2 rounded-lg bg-zinc-900 border border-zinc-800"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* SERVICE STATUS & QUICK AUDIT (1 COL) */}
+            <div className="space-y-6">
+              
+              {/* SERVICE STATUS SUMMARY */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <h3 className="text-white font-bold text-base">Service Execution Status</h3>
+                <p className="text-xs text-zinc-500">Live operational status across all active services.</p>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-850">
+                    <span className="text-xs text-zinc-300 flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" /> Planning / Preparing
+                    </span>
+                    <span className="text-xs font-bold text-amber-400">
+                      {(serviceStatusSummary.PLANNING || 0) + (serviceStatusSummary.PREPARING || 0)} Services
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-850">
+                    <span className="text-xs text-zinc-300 flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Ready / Executing
+                    </span>
+                    <span className="text-xs font-bold text-emerald-400">
+                      {(serviceStatusSummary.READY || 0) + (serviceStatusSummary.EXECUTING || 0)} Services
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-850">
+                    <span className="text-xs text-zinc-300 flex items-center gap-2">
+                      <Users className="w-3.5 h-3.5 text-blue-400" /> External Supplier Confirmed
+                    </span>
+                    <span className="text-xs font-bold text-blue-400">
+                      {serviceStatusSummary.CONFIRMED || 0} Suppliers
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* QUICK LINKS & SPACE BANNER */}
+              <div className="bg-gradient-to-br from-violet-900/30 to-purple-900/20 border border-violet-500/20 rounded-2xl p-6 shadow-xl space-y-4">
+                <h3 className="text-white font-bold text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-violet-400" /> Main Event Space
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Royal Events Main Space is configured with a 500-guest maximum capacity.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href="/resources"
+                    className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs py-2.5 rounded-xl block text-center transition-colors"
+                  >
+                    Manage Space & Resources
+                  </Link>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
       </main>
     </div>

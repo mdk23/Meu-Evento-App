@@ -1,0 +1,299 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum BookingType {
+  SPACE_ONLY
+  SERVICES_ONLY
+  SPACE_AND_SERVICES
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum EventStatus {
+  PLANNING
+  READY
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ExecutionType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum ServiceWorkOrderStatus {
+  DRAFT
+  PLANNING
+  PREPARING
+  READY
+  EXECUTING
+  REQUESTED
+  CONFIRMED
+  DELIVERED
+  COMPLETED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  logo      String?
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space          Space?
+  clients        Client[]
+  bookings       Booking[]
+  services       Service[]
+  suppliers      Supplier[]
+  inventoryItems InventoryItem[]
+  staff          Staff[]
+  invoices       Invoice[]
+  expenses       Expense[]
+
+  @@map("tenants")
+}
+
+model Space {
+  id          String   @id @default(cuid())
+  tenantId    String   @unique
+  name        String
+  capacity    Int
+  address     String?
+  description String?
+  photos      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("spaces")
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  phone       String?
+  email       String?
+  companyName String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@map("clients")
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  tenantId    String
+  clientId    String
+  bookingType BookingType   @default(SPACE_AND_SERVICES)
+  eventDate   DateTime
+  guestCount  Int           @default(0)
+  status      BookingStatus @default(DRAFT)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  event    Event?
+  invoices Invoice[]
+
+  @@map("bookings")
+}
+
+model Event {
+  id         String      @id @default(cuid())
+  bookingId  String      @unique
+  name       String
+  date       DateTime
+  guestCount Int         @default(0)
+  status     EventStatus @default(PLANNING)
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  eventServices EventService[]
+  guests        Guest[]
+  expenses      Expense[]
+
+  @@map("events")
+}
+
+model Service {
+  id             String        @id @default(cuid())
+  tenantId       String
+  name           String
+  category       String
+  executionType  ExecutionType @default(INTERNAL)
+  priceType      String        @default("FIXED")
+  defaultPrice   Float         @default(0)
+  templateSchema String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  eventServices EventService[]
+
+  @@map("services")
+}
+
+model EventService {
+  id                String                 @id @default(cuid())
+  eventId           String
+  serviceId         String
+  providerType      ExecutionType          @default(INTERNAL)
+  sellingPrice      Float                  @default(0)
+  cost              Float                  @default(0)
+  status            ServiceWorkOrderStatus @default(PLANNING)
+  notes             String?
+
+  customFields      String?
+  tasks             String?
+  assignedStaff     String?
+  reservedInventory String?
+
+  supplierId        String?
+  supplierCost      Float                  @default(0)
+  supplierStatus    ServiceWorkOrderStatus @default(REQUESTED)
+  paymentStatus     String                 @default("UNPAID")
+
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  service  Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@map("event_services")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String?
+  email     String?
+  category  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  eventServices EventService[]
+  expenses      Expense[]
+
+  @@map("suppliers")
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  quantity  Int      @default(0)
+  category  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_items")
+}
+
+model Staff {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  role      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("staff")
+}
+
+model Guest {
+  id             String   @id @default(cuid())
+  eventId        String
+  name           String
+  email          String?
+  status         String   @default("PENDING")
+  plusOnes       Int      @default(0)
+  menuPreference String?  @default("STANDARD")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("guests")
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  tenantId  String
+  bookingId String
+  amount    Float
+  status    InvoiceStatus @default(PENDING)
+  dueDate   DateTime
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  tenantId    String
+  eventId     String?
+  supplierId  String?
+  description String
+  amount      Float
+  category    String
+  status      ExpenseStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  event    Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
+}
