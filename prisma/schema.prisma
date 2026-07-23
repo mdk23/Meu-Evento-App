@@ -110,6 +110,7 @@ model Client {
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
+  @@index([tenantId])
   @@map("clients")
 }
 
@@ -130,6 +131,10 @@ model Booking {
   event    Event?
   invoices Invoice[]
 
+  @@index([tenantId])
+  @@index([clientId])
+  @@index([status])
+  @@index([eventDate])
   @@map("bookings")
 }
 
@@ -149,6 +154,9 @@ model Event {
   guests        Guest[]
   expenses      Expense[]
 
+  @@index([bookingId])
+  @@index([status])
+  @@index([date])
   @@map("events")
 }
 
@@ -167,6 +175,8 @@ model Service {
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   eventServices EventService[]
 
+  @@index([tenantId])
+  @@index([category])
   @@map("services")
 }
 
@@ -197,6 +207,11 @@ model EventService {
   service  Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
+  @@index([eventId])
+  @@index([serviceId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([providerType])
   @@map("event_services")
 }
 
@@ -214,6 +229,7 @@ model Supplier {
   eventServices EventService[]
   expenses      Expense[]
 
+  @@index([tenantId])
   @@map("suppliers")
 }
 
@@ -228,6 +244,7 @@ model InventoryItem {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@map("inventory_items")
 }
 
@@ -243,6 +260,7 @@ model Staff {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
   @@map("staff")
 }
 
@@ -259,6 +277,8 @@ model Guest {
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
+  @@index([eventId])
+  @@index([status])
   @@map("guests")
 }
 
@@ -276,6 +296,9 @@ model Invoice {
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([bookingId])
+  @@index([status])
   @@map("invoices")
 }
 
@@ -295,5 +318,9 @@ model Expense {
   event    Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId])
+  @@index([eventId])
+  @@index([supplierId])
+  @@index([status])
   @@map("expenses")
 }

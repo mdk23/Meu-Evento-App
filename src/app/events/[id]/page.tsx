@@ -223,9 +223,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   });
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex text-zinc-300 font-sans">
-      <Sidebar />
-
+    <>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* HEADER */}
         <header className="h-16 border-b border-zinc-900 bg-zinc-950/50 flex items-center px-8 justify-between">
@@ -768,6 +766,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

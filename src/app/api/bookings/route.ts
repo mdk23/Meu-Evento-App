@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         bookingType: bookingType || BookingType.SPACE_AND_SERVICES,
         eventDate: parsedDate,
         guestCount: parsedGuestCount,
-        status: BookingStatus.CONFIRMED,
+        status: BookingStatus.DRAFT,
         notes: notes || '',
       },
     });
