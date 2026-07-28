@@ -32,7 +32,7 @@ export default async function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/bookings"
+            href="/bookings/create"
             className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-violet-600/20"
           >
             <Plus className="w-4 h-4" /> New Booking

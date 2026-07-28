@@ -5,7 +5,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 enum BookingType {
@@ -15,11 +16,12 @@ enum BookingType {
 }
 
 enum BookingStatus {
+  RESERVED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
   DRAFT
   PENDING_CONFIRMATION
-  CONFIRMED
-  CANCELLED
-  COMPLETED
 }
 
 enum EventStatus {
@@ -121,7 +123,7 @@ model Booking {
   bookingType BookingType   @default(SPACE_AND_SERVICES)
   eventDate   DateTime
   guestCount  Int           @default(0)
-  status      BookingStatus @default(DRAFT)
+  status      BookingStatus @default(RESERVED)
   notes       String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
