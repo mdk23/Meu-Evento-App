@@ -22,6 +22,7 @@ enum BookingStatus {
   CANCELLED
   DRAFT
   PENDING_CONFIRMATION
+  WAITING_LIST
 }
 
 enum EventStatus {
@@ -123,10 +124,16 @@ model Booking {
   bookingType BookingType   @default(SPACE_AND_SERVICES)
   eventDate   DateTime
   guestCount  Int           @default(0)
-  status      BookingStatus @default(RESERVED)
-  notes       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  status             BookingStatus @default(RESERVED)
+  notes              String?
+  depositDueDate     DateTime?
+  discount           Float?        @default(0)
+  downPaymentAmount  Float?        @default(0)
+  downPaymentPercent Int?          @default(0)
+  installmentCount   Int?          @default(1)
+  installmentAmount  Float?        @default(0)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -290,10 +297,11 @@ model Invoice {
   bookingId String
   amount    Float
   status    InvoiceStatus @default(PENDING)
-  dueDate   DateTime
-  paidAt    DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  dueDate     DateTime
+  paidAt      DateTime?
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)

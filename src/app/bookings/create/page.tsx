@@ -10,11 +10,19 @@ export default async function CreateBookingPage() {
   });
   const services = await prisma.service.findMany({
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, executionType: true, defaultPrice: true },
+    select: { id: true, name: true, category: true, executionType: true, defaultPrice: true, priceType: true },
   });
   const spaces = await prisma.space.findMany({
     orderBy: { name: 'asc' },
     select: { id: true, name: true, capacity: true, description: true },
+  });
+  const bookings = await prisma.booking.findMany({
+    select: {
+      id: true,
+      eventDate: true,
+      status: true,
+      client: { select: { name: true } },
+    },
   });
 
   return (
@@ -22,6 +30,7 @@ export default async function CreateBookingPage() {
       initialClients={clients}
       initialServices={services}
       initialSpaces={spaces}
+      initialBookings={bookings}
     />
   );
 }

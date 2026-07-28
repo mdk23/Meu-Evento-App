@@ -35,7 +35,7 @@ interface ServiceItem {
   category: 'SPACE' | 'EVENT';
   providerType: 'INTERNAL' | 'EXTERNAL';
   providerName?: string;
-  priceType: 'FIXED' | 'PER_GUEST';
+  priceType: 'FIXED' | 'PER_GUEST' | 'HOURLY';
   price: number;
   description: string;
 }
@@ -52,26 +52,34 @@ interface BookingPOSTerminalProps {
   initialClients?: Client[];
   initialServices?: any[];
   initialSpaces?: any[];
+  initialBookings?: any[];
 }
 
 export default function BookingPOSTerminal({
   initialClients = [],
   initialServices = [],
   initialSpaces = [],
+  initialBookings = [],
 }: BookingPOSTerminalProps) {
   const router = useRouter();
 
   // 1. Client & Event State
   const [selectedClientId, setSelectedClientId] = useState<string>('NEW');
-  const [clientName, setClientName] = useState('Sofia Albuquerque');
-  const [clientPhone, setClientPhone] = useState('+258 84 123 4567');
-  const [clientEmail, setClientEmail] = useState('sofia.albuquerque@email.com');
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
 
-  const [eventTitle, setEventTitle] = useState('Casamento Sofia & Arthur');
-  const [eventType, setEventType] = useState('💍 Casamento');
-  const [guestCount, setGuestCount] = useState<number>(150);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventType, setEventType] = useState('');
+  const [guestCount, setGuestCount] = useState<number>(1);
 
-  const [eventDate, setEventDate] = useState('2026-11-28');
+  const [eventDate, setEventDate] = useState('');
+  const [depositDueDate, setDepositDueDate] = useState('');
+  
+  // Interactive calendar month selection
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
+  const [isWaitingList, setIsWaitingList] = useState(false);
+
   const [shift, setShift] = useState<'Almoço' | 'Jantar' | 'Dia Inteiro'>('Jantar');
   const [startTime, setStartTime] = useState('18:00');
   const [endTime, setEndTime] = useState('02:00');
@@ -106,7 +114,7 @@ export default function BookingPOSTerminal({
     : defaultSpaces;
 
   // Selected space (default sp-1)
-  const [selectedSpaceId, setSelectedSpaceId] = useState<string>('sp-1');
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string>('');
 
   // 2. Catalog Services State
   const defaultCatalogServices: ServiceItem[] = [
@@ -200,7 +208,7 @@ export default function BookingPOSTerminal({
       category: (s.category === 'SPACE' || idx % 2 === 0 ? 'SPACE' : 'EVENT') as 'SPACE' | 'EVENT',
       providerType: (s.executionType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
       providerName: s.executionType === 'EXTERNAL' ? 'Fornecedor Externo' : 'Interno Bellagio',
-      priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : 'FIXED') as 'FIXED' | 'PER_GUEST',
+      priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'HOURLY' ? 'HOURLY' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'HOURLY',
       price: s.defaultPrice || 15000,
       description: s.description || 'Serviço especializado para seu evento.',
     }));
@@ -212,48 +220,11 @@ export default function BookingPOSTerminal({
   const [originFilter, setOriginFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
 
   // 3. POS Cart State (Selected items)
-  const [selectedItems, setSelectedItems] = useState<{ id: string; serviceId: string; name: string; category: 'SPACE' | 'EVENT'; providerType: 'INTERNAL' | 'EXTERNAL'; providerName: string; priceType: 'FIXED' | 'PER_GUEST'; price: number; quantity: number; totalPrice: number }[]>([
-    {
-      id: 'cart-1',
-      serviceId: 'srv-5',
-      name: 'Gerador de Energia Silencioso 150 kVA',
-      category: 'SPACE',
-      providerType: 'EXTERNAL',
-      providerName: 'GERADORES VOLTA S/A',
-      priceType: 'FIXED',
-      price: 24000,
-      quantity: 1,
-      totalPrice: 24000,
-    },
-    {
-      id: 'cart-2',
-      serviceId: 'srv-6',
-      name: 'Buffet Banquete Real Gold (Completo)',
-      category: 'EVENT',
-      providerType: 'INTERNAL',
-      providerName: 'Interno Bellagio',
-      priceType: 'PER_GUEST',
-      price: 1200,
-      quantity: 150,
-      totalPrice: 180000,
-    },
-    {
-      id: 'cart-3',
-      serviceId: 'srv-7',
-      name: 'Open Bar Premium de Coquetéis & Drinks',
-      category: 'EVENT',
-      providerType: 'INTERNAL',
-      providerName: 'Interno Bellagio',
-      priceType: 'PER_GUEST',
-      price: 300,
-      quantity: 150,
-      totalPrice: 45000,
-    },
-  ]);
+  const [selectedItems, setSelectedItems] = useState<{ id: string; serviceId: string; name: string; category: 'SPACE' | 'EVENT'; providerType: 'INTERNAL' | 'EXTERNAL'; providerName: string; priceType: 'FIXED' | 'PER_GUEST' | 'HOURLY'; price: number; quantity: number; totalPrice: number }[]>([]);
 
-  const [discount, setDiscount] = useState<number>(10000);
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(30);
-  const [installmentCount, setInstallmentCount] = useState<number>(6);
+  const [discount, setDiscount] = useState<number>(0);
+  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(50);
+  const [installmentCount, setInstallmentCount] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
 
   // Sync Space Selection with Cart Item
@@ -370,6 +341,14 @@ export default function BookingPOSTerminal({
       return;
     }
 
+    const selectedDateBookings = initialBookings.filter((b: any) => {
+      if (b.status === 'CANCELLED') return false;
+      const bDate = new Date(b.eventDate).toISOString().split('T')[0];
+      return bDate === eventDate;
+    });
+    const hasConflict = selectedDateBookings.length > 0;
+    const finalStatus = (hasConflict && isWaitingList) ? 'WAITING_LIST' : targetStatus;
+
     setSubmitting(true);
     try {
       const payload = {
@@ -395,9 +374,12 @@ export default function BookingPOSTerminal({
         })),
         totalAmount: grandTotal,
         discount,
-        downPayment: `${downPaymentAmount.toLocaleString('pt-MZ')} MT (${downPaymentPercent}%)`,
-        installments: `${installmentCount}x sem juros (Restante: ${monthlyInstallment.toLocaleString('pt-MZ', { maximumFractionDigits: 0 })} MT/mês)`,
-        status: targetStatus,
+        downPaymentAmount,
+        downPaymentPercent,
+        depositDueDate,
+        installmentCount,
+        installmentAmount: monthlyInstallment,
+        status: finalStatus,
       };
 
       const res = await fetch('/api/bookings', {
@@ -408,7 +390,9 @@ export default function BookingPOSTerminal({
 
       if (res.ok) {
         toast.success(
-          targetStatus === 'CONFIRMED'
+          finalStatus === 'WAITING_LIST'
+            ? 'Reserva adicionada à Lista de Espera!'
+            : targetStatus === 'CONFIRMED'
             ? 'Reserva confirmada com sinal inicial!'
             : 'Reserva criada com sucesso!'
         );
@@ -435,6 +419,38 @@ export default function BookingPOSTerminal({
     setDiscount(0);
     toast.info('Atendimento reiniciado.');
   };
+
+  // Calendar math helpers
+  const calendarYear = calendarMonth.getFullYear();
+  const calendarMonthIndex = calendarMonth.getMonth();
+  
+  const firstDayIndex = new Date(calendarYear, calendarMonthIndex, 1).getDay();
+  const daysInCurrentMonth = new Date(calendarYear, calendarMonthIndex + 1, 0).getDate();
+
+  const calendarDaysArr: (number | null)[] = [];
+  for (let i = 0; i < firstDayIndex; i++) {
+    calendarDaysArr.push(null);
+  }
+  for (let i = 1; i <= daysInCurrentMonth; i++) {
+    calendarDaysArr.push(i);
+  }
+
+  // Get active bookings on a specific day of the currently displayed calendar month
+  const getBookingsOnDay = (day: number) => {
+    return initialBookings.filter((b: any) => {
+      if (b.status === 'CANCELLED') return false;
+      const d = new Date(b.eventDate);
+      return d.getFullYear() === calendarYear && d.getMonth() === calendarMonthIndex && d.getDate() === day;
+    });
+  };
+
+  // Check conflicts for currently selected eventDate
+  const selectedDateBookings = initialBookings.filter((b: any) => {
+    if (b.status === 'CANCELLED') return false;
+    const bDate = new Date(b.eventDate).toISOString().split('T')[0];
+    return bDate === eventDate;
+  });
+  const hasConflict = selectedDateBookings.length > 0;
 
   return (
     <div className="flex-1 flex flex-col h-full w-full bg-zinc-950 text-white font-sans overflow-hidden">
@@ -604,6 +620,7 @@ export default function BookingPOSTerminal({
                   onChange={(e) => setEventType(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500"
                 >
+                  <option value="">Selecione...</option>
                   <option value="💍 Casamento">💍 Casamento</option>
                   <option value="🎂 Aniversário / 15 Anos">🎂 Aniversário / 15 Anos</option>
                   <option value="🏢 Corporativo">🏢 Corporativo</option>
@@ -631,20 +648,126 @@ export default function BookingPOSTerminal({
             </div>
           </div>
 
-          {/* DATE SCHEDULE */}
-          <div className="space-y-3 bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
-            <h3 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-              <CalendarIcon className="w-3.5 h-3.5 text-violet-400" />
-              Data da Agenda
-            </h3>
+          {/* DATE & CALENDAR SCHEDULE */}
+          <div className="space-y-4 bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+            <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+              <h3 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                <CalendarIcon className="w-3.5 h-3.5 text-violet-400" />
+                Selecione a Data do Evento
+              </h3>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCalendarMonth(new Date(calendarYear, calendarMonthIndex - 1, 1))}
+                  className="p-1 hover:bg-zinc-850 rounded text-zinc-400 hover:text-white"
+                >
+                  &larr;
+                </button>
+                <span className="text-[10px] font-black text-white px-1">
+                  {calendarMonth.toLocaleString('pt-MZ', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCalendarMonth(new Date(calendarYear, calendarMonthIndex + 1, 1))}
+                  className="p-1 hover:bg-zinc-850 rounded text-zinc-400 hover:text-white"
+                >
+                  &rarr;
+                </button>
+              </div>
+            </div>
 
-            <div>
-              <input
-                type="date"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-violet-500"
-              />
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-500 mb-1">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => <span key={d}>{d}</span>)}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {calendarDaysArr.map((day, idx) => {
+                if (day === null) {
+                  return <div key={`empty-${idx}`} className="h-7" />;
+                }
+
+                const dayStr = `${calendarYear}-${String(calendarMonthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = eventDate === dayStr;
+                const bookingsOnDay = getBookingsOnDay(day);
+                const hasBookings = bookingsOnDay.length > 0;
+
+                // Determine color for dots
+                const hasConfirmed = bookingsOnDay.some(b => b.status === 'CONFIRMED');
+                const hasWaitingList = bookingsOnDay.some(b => b.status === 'WAITING_LIST');
+                const hasReserved = bookingsOnDay.some(b => b.status === 'RESERVED');
+
+                return (
+                  <button
+                    key={`day-${day}`}
+                    type="button"
+                    onClick={() => {
+                      setEventDate(dayStr);
+                      // Auto-set deposit due date to 14 days after today
+                      const d = new Date();
+                      d.setDate(d.getDate() + 14);
+                      setDepositDueDate(d.toISOString().split('T')[0]);
+                    }}
+                    className={`h-7 rounded-lg text-[10px] font-bold relative flex flex-col items-center justify-center transition-all ${
+                      isSelected
+                        ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+                        : hasBookings
+                        ? 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-zinc-700'
+                        : 'bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                    }`}
+                  >
+                    <span>{day}</span>
+                    {hasBookings && (
+                      <div className="absolute bottom-0.5 flex gap-0.5">
+                        {hasConfirmed && <span className="w-1 h-1 rounded-full bg-emerald-500" />}
+                        {hasReserved && <span className="w-1 h-1 rounded-full bg-amber-500" />}
+                        {hasWaitingList && <span className="w-1 h-1 rounded-full bg-purple-500" />}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected dates indicators & Conflict Alerts */}
+            <div className="pt-2 border-t border-zinc-900 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-zinc-400">
+                <span>Data do Evento:</span>
+                <strong className="text-white">{eventDate ? new Date(eventDate + 'T00:00:00').toLocaleDateString('pt-MZ') : 'Nenhuma'}</strong>
+              </div>
+              <div className="space-y-1 pt-1.5 border-t border-zinc-900/60">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
+                  Prazo para Depósito do Sinal (Entrada)
+                </label>
+                <input
+                  type="date"
+                  value={depositDueDate}
+                  onChange={(e) => setDepositDueDate(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                />
+              </div>
+
+              {/* Conflict Check Warning Banner */}
+              {hasConflict && (
+                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-3 rounded-xl space-y-2.5 animate-in fade-in zoom-in duration-200">
+                  <p className="font-bold flex items-center gap-1.5 text-[11px]">
+                    ⚠️ Data já Ocupada por outro Evento!
+                  </p>
+                  <p className="text-[10px] text-zinc-400 leading-normal">
+                    Já existe uma reserva cadastrada para este dia ({selectedDateBookings[0]?.client?.name || 'Cliente'}). Você pode cadastrar como Lista de Espera.
+                  </p>
+                  
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={isWaitingList}
+                      onChange={(e) => setIsWaitingList(e.target.checked)}
+                      className="rounded border-zinc-800 bg-zinc-950 text-violet-500 focus:ring-violet-500"
+                    />
+                    <span className="text-[11px] font-bold text-white uppercase">Colocar na Lista de Espera</span>
+                  </label>
+                </div>
+              )}
             </div>
           </div>
 
@@ -872,7 +995,7 @@ export default function BookingPOSTerminal({
                           {service.price.toLocaleString()} MT
                         </span>
                         <span className="text-[9px] font-bold text-zinc-500 uppercase">
-                          {service.priceType === 'PER_GUEST' ? 'POR CONVIDADO' : 'TAXA FIXA'}
+                          {service.priceType === 'PER_GUEST' ? 'P/ Pessoa' : service.priceType === 'HOURLY' ? 'Por Hora' : 'Taxa Fixa'}
                         </span>
                       </div>
                     </div>

@@ -62,6 +62,7 @@ export interface ClientCardDTO {
   companyName?: string | null;
   bookingCount: number;
   totalSpent: number;
+  notes?: string | null;
 }
 
 export interface ServiceCardDTO {

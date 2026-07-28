@@ -11,6 +11,7 @@ export class ClientRepository {
         email: true,
         phone: true,
         companyName: true,
+        notes: true,
         _count: {
           select: { bookings: true },
         },
@@ -38,6 +39,7 @@ export class ClientRepository {
         companyName: c.companyName,
         bookingCount: c._count.bookings,
         totalSpent,
+        notes: c.notes,
       };
     });
   }

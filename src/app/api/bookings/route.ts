@@ -39,15 +39,15 @@ export async function POST(request: Request) {
       guestCount,
       notes,
       title,
-      shift,
-      startTime,
-      endTime,
       selectedServices,
       status: requestedStatus,
       totalAmount,
       discount,
-      downPayment,
-      installments,
+      downPaymentAmount,
+      downPaymentPercent,
+      depositDueDate,
+      installmentCount,
+      installmentAmount,
     } = body;
 
     let tenant = await prisma.tenant.findFirst();
@@ -89,15 +89,23 @@ export async function POST(request: Request) {
     const parsedGuestCount = parseInt(guestCount || '0', 10);
     const finalStatus = requestedStatus === 'CONFIRMED' ? BookingStatus.CONFIRMED : BookingStatus.RESERVED;
 
+    const discountVal = parseFloat(discount || '0');
+    const downPaymentAmtVal = parseFloat(downPaymentAmount || '0');
+    const downPaymentPctVal = parseInt(downPaymentPercent || '0', 10);
+    const installmentCountVal = parseInt(installmentCount || '1', 10);
+    const installmentAmtVal = parseFloat(installmentAmount || '0');
+    
+    // Default deposit due date to 14 days/2 weeks from now if not specified
+    const parsedDepositDueDate = depositDueDate 
+      ? new Date(depositDueDate) 
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
     const formattedNotes = [
-      title ? `Título: ${title}` : '',
-      shift ? `Turno: ${shift}` : '',
-      startTime && endTime ? `Horário: ${startTime} - ${endTime}` : '',
-      discount ? `Desconto POS: R$ ${discount}` : '',
-      downPayment ? `Entrada: ${downPayment}` : '',
-      installments ? `Parcelamento: ${installments}` : '',
-      notes || '',
-    ].filter(Boolean).join(' | ');
+      `Desconto POS: R$ ${discountVal}`,
+      `Entrada: ${downPaymentAmtVal.toLocaleString('pt-MZ')} MT (${downPaymentPctVal}%)`,
+      `Parcelamento: ${installmentCountVal}x sem juros (Restante: ${Math.round(installmentAmtVal).toLocaleString('pt-MZ')} MT/mês)`,
+      notes ? `Observações: ${notes}` : '',
+    ].filter(Boolean).join('\n');
 
     // 1. Create Booking
     const booking = await prisma.booking.create({
@@ -109,6 +117,12 @@ export async function POST(request: Request) {
         guestCount: parsedGuestCount,
         status: finalStatus,
         notes: formattedNotes,
+        discount: discountVal,
+        downPaymentAmount: downPaymentAmtVal,
+        downPaymentPercent: downPaymentPctVal,
+        depositDueDate: parsedDepositDueDate,
+        installmentCount: installmentCountVal,
+        installmentAmount: installmentAmtVal,
       },
     });
 
@@ -119,18 +133,16 @@ export async function POST(request: Request) {
         name: title || `${client.name} Event`,
         date: parsedDate,
         guestCount: parsedGuestCount,
-        status: finalStatus === BookingStatus.CONFIRMED ? EventStatus.READY : EventStatus.PLANNING,
+        status: EventStatus.PLANNING,
         notes: formattedNotes,
       },
     });
 
     // 3. Attach selected services / items to the Event
-    let calculatedSellingTotal = totalAmount || 0;
     if (Array.isArray(selectedServices) && selectedServices.length > 0) {
       for (const item of selectedServices) {
         let catalogServiceId = item.serviceId;
 
-        // If service is ad-hoc or space item not yet in catalog, find or create
         if (!catalogServiceId) {
           const existingService = await prisma.service.findFirst({
             where: { name: item.name, tenantId: tenant.id },
@@ -169,18 +181,43 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Create Initial Invoice for Booking
-    const invoiceAmount = calculatedSellingTotal > 0 ? calculatedSellingTotal : 0;
-    if (invoiceAmount > 0) {
+    // 4. Create Individual Invoices: Deposit (Entrada) + Monthly Installments
+    // Initial Deposit Invoice
+    if (downPaymentAmtVal > 0) {
       await prisma.invoice.create({
         data: {
           tenantId: tenant.id,
           bookingId: booking.id,
-          amount: invoiceAmount,
+          amount: downPaymentAmtVal,
           status: finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING',
-          dueDate: parsedDate,
+          dueDate: parsedDepositDueDate,
+          description: 'Entrada (Sinal)',
         },
       });
+    }
+
+    // Installments Invoices
+    if (installmentCountVal > 1 && installmentAmtVal > 0) {
+      const remainingInstallments = installmentCountVal - 1;
+      for (let i = 1; i <= remainingInstallments; i++) {
+        // Calculate due date monthly from today, capped at eventDate
+        const installmentDueDate = new Date();
+        installmentDueDate.setMonth(installmentDueDate.getMonth() + i);
+        if (installmentDueDate > parsedDate) {
+          installmentDueDate.setTime(parsedDate.getTime());
+        }
+
+        await prisma.invoice.create({
+          data: {
+            tenantId: tenant.id,
+            bookingId: booking.id,
+            amount: installmentAmtVal,
+            status: 'PENDING',
+            dueDate: installmentDueDate,
+            description: `Parcela ${i} de ${remainingInstallments}`,
+          },
+        });
+      }
     }
 
     return NextResponse.json({ success: true, booking, event }, { status: 201 });

@@ -39,7 +39,16 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, eventDate, guestCount, notes, eventStatus } = body;
+    const {
+      status,
+      eventDate,
+      guestCount,
+      notes,
+      eventStatus,
+      paymentAction,
+      invoiceId,
+      invoiceStatus,
+    } = body;
 
     const existingBooking = await prisma.booking.findUnique({
       where: { id },
@@ -50,7 +59,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Prepare update data
+    // 1. Prepare update data for Booking
     const updateData: any = {};
     if (status && Object.values(BookingStatus).includes(status as BookingStatus)) {
       updateData.status = status;
@@ -65,17 +74,44 @@ export async function PATCH(
       updateData.notes = notes;
     }
 
+    // Handle Payment Actions
+    if (paymentAction === 'MARK_DEPOSIT_PAID') {
+      updateData.status = BookingStatus.CONFIRMED;
+    } else if (paymentAction === 'MARK_ALL_PAID') {
+      updateData.status = BookingStatus.CONFIRMED;
+    } else if (paymentAction === 'COMPLETE_FINANCIAL_CLOSURE') {
+      updateData.status = BookingStatus.COMPLETED;
+    }
+
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: updateData,
       include: {
         client: true,
-        event: true,
+        event: {
+          include: {
+            eventServices: { include: { service: true, supplier: true } },
+          },
+        },
         invoices: true,
       },
     });
 
-    // Sync Event Status if linked event exists
+    // 2. Handle Invoice Updates
+    if (invoiceId && invoiceStatus) {
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: { status: invoiceStatus },
+      });
+    } else if (paymentAction === 'MARK_DEPOSIT_PAID' || paymentAction === 'MARK_ALL_PAID') {
+      await prisma.invoice.updateMany({
+        where: { bookingId: id },
+        data: { status: 'PAID' },
+      });
+    }
+
+    // 3. Sync Event Status according to lifecycle rules:
+    // Event: PLANNING -> READY (when all payments are done) -> IN_PROGRESS -> COMPLETED
     if (existingBooking.event) {
       const eventUpdateData: any = {};
 
@@ -86,33 +122,21 @@ export async function PATCH(
         eventUpdateData.guestCount = parseInt(guestCount, 10);
       }
 
-      // Sync lifecycle rule:
-      // Booking: RESERVED -> CONFIRMED (when initial deposit made) -> COMPLETED (event completed + financial closure)
-      // Event: PLANNING -> READY (all payments done) -> IN_PROGRESS -> COMPLETED
       if (eventStatus && Object.values(EventStatus).includes(eventStatus as EventStatus)) {
         eventUpdateData.status = eventStatus;
+      } else if (paymentAction === 'MARK_ALL_PAID') {
+        // "Ready for Event when all payments are done"
+        eventUpdateData.status = EventStatus.READY;
+      } else if (paymentAction === 'COMPLETE_FINANCIAL_CLOSURE' || status === 'COMPLETED') {
+        eventUpdateData.status = EventStatus.COMPLETED;
       } else if (status === 'CONFIRMED' && existingBooking.event.status === 'PLANNING') {
-        // Initial deposit made -> Booking becomes CONFIRMED, Event stays PLANNING until ready
-        eventUpdateData.status = 'PLANNING';
-      } else if (status === 'COMPLETED') {
-        eventUpdateData.status = 'COMPLETED';
+        eventUpdateData.status = EventStatus.PLANNING;
       }
 
       await prisma.event.update({
         where: { id: existingBooking.event.id },
         data: eventUpdateData,
       });
-    }
-
-    // Auto-update Invoice status if Booking status is CONFIRMED (deposit made)
-    if (status === 'CONFIRMED' && existingBooking.invoices.length > 0) {
-      const pendingInvoice = existingBooking.invoices.find((i) => i.status === 'PENDING');
-      if (pendingInvoice) {
-        await prisma.invoice.update({
-          where: { id: pendingInvoice.id },
-          data: { status: 'PAID' },
-        });
-      }
     }
 
     return NextResponse.json({ success: true, booking: updatedBooking });
