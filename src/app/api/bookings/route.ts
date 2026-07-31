@@ -13,7 +13,7 @@ export async function GET() {
             eventServices: { include: { service: true, supplier: true } },
           },
         },
-        invoices: true,
+        scheduledPayments: true,
       },
     });
 
@@ -181,36 +181,52 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Create Individual Invoices: Deposit (Entrada) + Monthly Installments
-    // Initial Deposit Invoice
+    // 4. Create Scheduled Payments: Deposit (Entrada) + Monthly Installments
+    // Initial Deposit
     if (downPaymentAmtVal > 0) {
-      await prisma.invoice.create({
+      const depositStatus = finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING';
+      const scheduledPayment = await prisma.scheduledPayment.create({
         data: {
           tenantId: tenant.id,
           bookingId: booking.id,
+          name: 'Initial Deposit (Sinal)',
           amount: downPaymentAmtVal,
-          status: finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING',
+          paidAmount: depositStatus === 'PAID' ? downPaymentAmtVal : 0,
+          status: depositStatus,
           dueDate: parsedDepositDueDate,
-          description: 'Initial Deposit (Sinal)',
         },
       });
+
+      if (depositStatus === 'PAID') {
+        await prisma.paymentTransaction.create({
+          data: {
+            tenantId: tenant.id,
+            bookingId: booking.id,
+            scheduledPaymentId: scheduledPayment.id,
+            amount: downPaymentAmtVal,
+            method: 'CASH', // Defaulting for POS, can be configured later
+            recordedBy: 'POS Terminal',
+            notes: 'Initial Deposit paid at booking',
+          }
+        });
+      }
     }
 
-    // Single Payment Remaining Balance Invoice
+    // Single Payment Remaining Balance
     if (installmentCountVal === 1 && (totalAmount - downPaymentAmtVal) > 0) {
-      await prisma.invoice.create({
+      await prisma.scheduledPayment.create({
         data: {
           tenantId: tenant.id,
           bookingId: booking.id,
+          name: 'Remaining Balance (Saldo Final)',
           amount: Math.max(0, totalAmount - downPaymentAmtVal),
           status: 'PENDING',
           dueDate: parsedDate,
-          description: 'Remaining Balance (Saldo Final)',
         },
       });
     }
 
-    // Installments Invoices
+    // Installments
     if (installmentCountVal > 1 && installmentAmtVal > 0) {
       const remainingInstallments = installmentCountVal - 1;
       for (let i = 1; i <= remainingInstallments; i++) {
@@ -221,14 +237,14 @@ export async function POST(request: Request) {
           installmentDueDate.setTime(parsedDate.getTime());
         }
 
-        await prisma.invoice.create({
+        await prisma.scheduledPayment.create({
           data: {
             tenantId: tenant.id,
             bookingId: booking.id,
+            name: `Installment ${i} of ${remainingInstallments}`,
             amount: installmentAmtVal,
             status: 'PENDING',
             dueDate: installmentDueDate,
-            description: `Installment ${i} of ${remainingInstallments}`,
           },
         });
       }

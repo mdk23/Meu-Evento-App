@@ -1,13 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, Plus, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Sparkles, Plus, TrendingUp, FileText, CreditCard } from 'lucide-react';
 
 interface POSTerminalHeaderProps {
   onReset: () => void;
   isEdit?: boolean;
+  bookingId?: string;
+  activeTab?: 'details' | 'payments';
+  setActiveTab?: (tab: 'details' | 'payments') => void;
+  hasPaymentsTab?: boolean;
 }
 
-export default function POSTerminalHeader({ onReset, isEdit }: POSTerminalHeaderProps) {
+export default function POSTerminalHeader({ onReset, isEdit, bookingId, activeTab, setActiveTab, hasPaymentsTab }: POSTerminalHeaderProps) {
   return (
     <header className="h-16 border-b border-zinc-900 bg-zinc-950/80 px-8 flex items-center justify-between gap-4 shrink-0 backdrop-blur-md w-full">
       <div className="flex items-center gap-4">
@@ -32,6 +36,25 @@ export default function POSTerminalHeader({ onReset, isEdit }: POSTerminalHeader
           </div>
           <p className="text-xs text-zinc-500">AuraVenue • Commercial Booking Terminal</p>
         </div>
+
+        {hasPaymentsTab && setActiveTab && (
+          <div className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-xl border border-zinc-800 ml-4">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'details' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+            >
+              <FileText className="w-4 h-4" />
+              Details
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'payments' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm border border-emerald-500/20' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+            >
+              <CreditCard className="w-4 h-4" />
+              Financials
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
@@ -43,6 +66,8 @@ export default function POSTerminalHeader({ onReset, isEdit }: POSTerminalHeader
           <Plus className="w-4 h-4 text-violet-400" />
           New Service / Reset
         </button>
+
+        {/* Removed "Manage Payments" link since we now have tabs */}
 
         <Link
           href="/bookings"

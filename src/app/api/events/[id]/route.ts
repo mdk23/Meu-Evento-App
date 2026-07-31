@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         booking: {
           include: {
             client: true,
-            invoices: true,
+            scheduledPayments: true,
           },
         },
         eventServices: {

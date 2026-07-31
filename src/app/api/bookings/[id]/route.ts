@@ -17,7 +17,7 @@ export async function GET(
             eventServices: { include: { service: true, supplier: true } },
           },
         },
-        invoices: true,
+        scheduledPayments: true,
       },
     });
 
@@ -67,7 +67,7 @@ export async function PATCH(
 
     const existingBooking = await prisma.booking.findUnique({
       where: { id },
-      include: { event: true, invoices: true, client: true },
+      include: { event: true, scheduledPayments: true, client: true },
     });
 
     if (!existingBooking) {
@@ -144,18 +144,19 @@ export async function PATCH(
             eventServices: { include: { service: true, supplier: true } },
           },
         },
-        invoices: true,
+        scheduledPayments: true,
       },
     });
 
-    // 2. Handle Invoice Updates
+    // 2. Handle Payment Status Updates
     if (invoiceId && invoiceStatus) {
-      await prisma.invoice.update({
+      // Mapping old invoiceStatus (PENDING, PAID, etc.) to PaymentStatus
+      await prisma.scheduledPayment.update({
         where: { id: invoiceId },
-        data: { status: invoiceStatus },
+        data: { status: invoiceStatus as any },
       });
     } else if (paymentAction === 'MARK_DEPOSIT_PAID' || paymentAction === 'MARK_ALL_PAID') {
-      await prisma.invoice.updateMany({
+      await prisma.scheduledPayment.updateMany({
         where: { bookingId: id },
         data: { status: 'PAID' },
       });

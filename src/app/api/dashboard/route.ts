@@ -43,15 +43,11 @@ export async function GET() {
     });
 
     // Financial KPIs
-    const paidInvoices = await prisma.invoice.findMany({
-      where: { status: 'PAID' },
-    });
-    const revenue = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const paidTransactions = await prisma.paymentTransaction.findMany();
+    const revenue = paidTransactions.reduce((sum: number, pt: any) => sum + pt.amount, 0);
 
-    const pendingInvoices = await prisma.invoice.findMany({
-      where: { status: 'PENDING' },
-    });
-    const pendingAmount = pendingInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const scheduledPayments = await prisma.scheduledPayment.findMany();
+    const pendingAmount = scheduledPayments.reduce((sum: number, sp: any) => sum + Math.max(0, sp.amount - sp.paidAmount), 0);
 
     const paidExpenses = await prisma.expense.findMany({
       where: { status: 'PAID' },

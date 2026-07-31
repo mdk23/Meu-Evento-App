@@ -39,8 +39,8 @@ export interface BookingListDTO {
   bookingType: string;
   notes?: string | null;
   hasEvent: boolean;
-  totalInvoiceAmount: number;
-  paidInvoiceAmount: number;
+  totalScheduledAmount: number;
+  paidAmount: number;
   totalContractAmount: number;
   downPaymentAmount: number;
   downPaymentPercent: number;
@@ -88,12 +88,13 @@ export interface FinanceSummaryDTO {
   pendingInvoicesAmount: number;
   totalExpensesAmount: number;
   netProfit: number;
-  recentInvoices: Array<{
+  recentPayments: Array<{
     id: string;
     amount: number;
     status: string;
-    dueDate: string;
+    date: string;
     clientName: string;
+    method: string;
   }>;
   recentExpenses: Array<{
     id: string;

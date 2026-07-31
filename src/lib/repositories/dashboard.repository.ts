@@ -19,15 +19,13 @@ export class DashboardRepository {
       upcomingEventsRaw,
       serviceStatusGrouped,
     ] = await Promise.all([
-      // 1. PostgreSQL DB aggregate for Paid Revenue
-      prisma.invoice.aggregate({
+      // 1. PostgreSQL DB aggregate for Paid Revenue (Total from transactions)
+      prisma.paymentTransaction.aggregate({
         _sum: { amount: true },
-        where: { status: 'PAID' },
       }),
-      // 2. PostgreSQL DB aggregate for Pending Invoices
-      prisma.invoice.aggregate({
-        _sum: { amount: true },
-        where: { status: 'PENDING' },
+      // 2. PostgreSQL DB aggregate for Pending Amount
+      prisma.scheduledPayment.aggregate({
+        _sum: { amount: true, paidAmount: true },
       }),
       // 3. PostgreSQL DB aggregate for Paid Expenses
       prisma.expense.aggregate({
@@ -85,7 +83,7 @@ export class DashboardRepository {
     ]);
 
     const revenue = revenueResult._sum.amount || 0;
-    const pendingAmount = pendingResult._sum.amount || 0;
+    const pendingAmount = Math.max(0, (pendingResult._sum.amount || 0) - (pendingResult._sum.paidAmount || 0));
     const totalCosts = expenseResult._sum.amount || 0;
     const netProfit = revenue - totalCosts;
 

@@ -34,28 +34,26 @@ export class BookingRepository {
             },
           },
         },
-        invoices: {
-          select: { id: true, amount: true, status: true, description: true, dueDate: true },
+        scheduledPayments: {
+          select: { id: true, name: true, amount: true, paidAmount: true, status: true, description: true, dueDate: true },
         },
       },
     });
 
-    return bookings.map((b) => {
-      const invoicesSum = b.invoices.reduce((sum, inv) => sum + inv.amount, 0);
-      const paidInvoiceAmount = b.invoices
-        .filter((inv) => inv.status === 'PAID')
-        .reduce((sum, inv) => sum + inv.amount, 0);
+    return bookings.map((b: any) => {
+      const scheduledPaymentsSum = b.scheduledPayments?.reduce((sum: number, sp: any) => sum + sp.amount, 0) || 0;
+      const paidAmountSum = b.scheduledPayments?.reduce((sum: number, sp: any) => sum + sp.paidAmount, 0) || 0;
 
-      const eventServicesSum = b.event?.eventServices?.reduce((sum, es) => sum + es.sellingPrice, 0) || 0;
+      const eventServicesSum = b.event?.eventServices?.reduce((sum: number, es: any) => sum + es.sellingPrice, 0) || 0;
       const servicesMinusDiscount = Math.max(0, eventServicesSum - (b.discount || 0));
       const depositImpliedTotal = (b.downPaymentPercent && b.downPaymentPercent > 0 && b.downPaymentAmount)
         ? (b.downPaymentAmount * 100) / b.downPaymentPercent
         : 0;
 
-      const totalContractAmount = Math.max(invoicesSum, servicesMinusDiscount, depositImpliedTotal);
+      const totalContractAmount = Math.max(scheduledPaymentsSum, servicesMinusDiscount, depositImpliedTotal);
       
-      const depositInvoice = b.invoices.find(inv => inv.description?.toLowerCase().includes('entrada') || inv.description?.toLowerCase().includes('deposit'));
-      const depositStatus = (depositInvoice?.status === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED')
+      const depositSchedule = b.scheduledPayments?.find((sp: any) => sp.name?.toLowerCase().includes('entrada') || sp.name?.toLowerCase().includes('deposit'));
+      const depositStatus = (depositSchedule?.status === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED')
         ? 'PAID'
         : 'PENDING';
 
@@ -72,8 +70,8 @@ export class BookingRepository {
         bookingType: b.bookingType,
         notes: b.notes,
         hasEvent: !!b.event,
-        totalInvoiceAmount: invoicesSum,
-        paidInvoiceAmount,
+        totalScheduledAmount: scheduledPaymentsSum,
+        paidAmount: paidAmountSum,
         totalContractAmount,
         downPaymentAmount: b.downPaymentAmount || 0,
         downPaymentPercent: b.downPaymentPercent || 0,

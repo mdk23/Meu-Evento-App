@@ -49,11 +49,22 @@ enum ServiceWorkOrderStatus {
   COMPLETED
 }
 
-enum InvoiceStatus {
+enum PaymentStatus {
   PENDING
+  PARTIALLY_PAID
   PAID
   OVERDUE
   CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  M_PESA
+  E_MOLA
+  BCI
+  BIM
+  CONTA_MOVEL
+  OTHER
 }
 
 enum ExpenseStatus {
@@ -76,9 +87,10 @@ model Tenant {
   services       Service[]
   suppliers      Supplier[]
   inventoryItems InventoryItem[]
-  staff          Staff[]
-  invoices       Invoice[]
-  expenses       Expense[]
+  staff                Staff[]
+  scheduledPayments    ScheduledPayment[]
+  paymentTransactions  PaymentTransaction[]
+  expenses             Expense[]
 
   @@map("tenants")
 }
@@ -137,8 +149,9 @@ model Booking {
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  event    Event?
-  invoices Invoice[]
+  event                Event?
+  scheduledPayments    ScheduledPayment[]
+  paymentTransactions  PaymentTransaction[]
 
   @@index([tenantId])
   @@index([clientId])
@@ -291,25 +304,46 @@ model Guest {
   @@map("guests")
 }
 
-model Invoice {
-  id        String        @id @default(cuid())
-  tenantId  String
-  bookingId String
-  amount    Float
-  status    InvoiceStatus @default(PENDING)
+model ScheduledPayment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  bookingId   String
+  name        String
+  amount      Float
+  paidAmount  Float         @default(0)
+  status      PaymentStatus @default(PENDING)
   dueDate     DateTime
-  paidAt      DateTime?
   description String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking      Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
 
-  @@index([tenantId])
   @@index([bookingId])
-  @@index([status])
-  @@map("invoices")
+  @@map("scheduled_payments")
+}
+
+model PaymentTransaction {
+  id                 String        @id @default(cuid())
+  tenantId           String
+  bookingId          String
+  scheduledPaymentId String?
+  amount             Float
+  method             PaymentMethod
+  reference          String?
+  recordedBy         String
+  notes              String?
+  date               DateTime      @default(now())
+  createdAt          DateTime      @default(now())
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking          Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  scheduledPayment ScheduledPayment? @relation(fields: [scheduledPaymentId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@map("payment_transactions")
 }
 
 model Expense {

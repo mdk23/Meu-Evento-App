@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import BookingPOSTerminal from '@/components/bookings/BookingPOSTerminal';
+import BookingPaymentsClient from '@/components/bookings/payments/BookingPaymentsClient';
 import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ export default async function EditBookingPage({
           }
         }
       },
-      invoices: true,
+      scheduledPayments: true,
     }
   });
 
@@ -56,6 +57,36 @@ export default async function EditBookingPage({
     },
   });
 
+  const paymentTransactions = await prisma.paymentTransaction.findMany({
+    where: { bookingId: id },
+    orderBy: { date: 'desc' },
+    include: { scheduledPayment: true }
+  });
+
+  const totalContractAmount = initialBookingData.event?.eventServices.reduce((sum, service) => sum + (service.sellingPrice || 0), 0) || 0;
+
+  const serializedBooking = {
+    ...initialBookingData,
+    totalContractAmount: Math.max(totalContractAmount, initialBookingData.downPaymentAmount || 0),
+    createdAt: initialBookingData.createdAt.toISOString(),
+    updatedAt: initialBookingData.updatedAt.toISOString(),
+    eventDate: initialBookingData.eventDate.toISOString(),
+    depositDueDate: initialBookingData.depositDueDate?.toISOString() || null,
+  };
+
+  const serializedSchedules = initialBookingData.scheduledPayments.map(sp => ({
+    ...sp,
+    dueDate: sp.dueDate.toISOString(),
+    createdAt: sp.createdAt.toISOString(),
+    updatedAt: sp.updatedAt.toISOString(),
+  }));
+
+  const serializedTransactions = paymentTransactions.map(pt => ({
+    ...pt,
+    date: pt.date.toISOString(),
+    createdAt: pt.createdAt.toISOString(),
+  }));
+
   return (
     <BookingPOSTerminal
       initialClients={clients}
@@ -63,6 +94,13 @@ export default async function EditBookingPage({
       initialSpaces={spaces}
       initialBookings={bookings}
       initialBookingData={initialBookingData}
+      paymentsTabComponent={
+        <BookingPaymentsClient 
+          booking={serializedBooking}
+          initialScheduledPayments={serializedSchedules}
+          initialTransactions={serializedTransactions}
+        />
+      }
     />
   );
 }

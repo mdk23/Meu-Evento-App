@@ -420,12 +420,12 @@ export default function BookingsClient({ initialBookings, clients, services }: B
                       >
                         Edit Services <Edit3 className="w-3.5 h-3.5" />
                       </Link>
-                      <button
-                        onClick={() => openDrawer(b)}
+                      <Link
+                        href={`/bookings/${b.id}/payments`}
                         className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all"
                       >
-                        Financials <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                        Payments <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
 
                     <div className="flex items-center gap-1">

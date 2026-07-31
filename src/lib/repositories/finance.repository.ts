@@ -7,31 +7,32 @@ export class FinanceRepository {
       revenueAggregate,
       pendingAggregate,
       expenseAggregate,
-      recentInvoicesRaw,
+      recentPaymentsRaw,
       recentExpensesRaw,
     ] = await Promise.all([
       // DB-native SQL SUM
-      prisma.invoice.aggregate({
+      prisma.paymentTransaction.aggregate({
         _sum: { amount: true },
-        where: { status: 'PAID' },
       }),
-      prisma.invoice.aggregate({
-        _sum: { amount: true },
-        where: { status: 'PENDING' },
+      prisma.scheduledPayment.aggregate({
+        _sum: { amount: true, paidAmount: true },
       }),
       prisma.expense.aggregate({
         _sum: { amount: true },
         where: { status: 'PAID' },
       }),
-      // Recent Invoices projection
-      prisma.invoice.findMany({
+      // Recent Payments projection
+      prisma.paymentTransaction.findMany({
         take: 10,
-        orderBy: { dueDate: 'desc' },
+        orderBy: { date: 'desc' },
         select: {
           id: true,
           amount: true,
-          status: true,
-          dueDate: true,
+          method: true,
+          date: true,
+          scheduledPayment: {
+            select: { status: true }
+          },
           booking: {
             select: {
               client: { select: { name: true } },
@@ -54,7 +55,7 @@ export class FinanceRepository {
     ]);
 
     const totalRevenue = revenueAggregate._sum.amount || 0;
-    const pendingInvoicesAmount = pendingAggregate._sum.amount || 0;
+    const pendingInvoicesAmount = Math.max(0, (pendingAggregate._sum.amount || 0) - (pendingAggregate._sum.paidAmount || 0));
     const totalExpensesAmount = expenseAggregate._sum.amount || 0;
     const netProfit = totalRevenue - totalExpensesAmount;
 
@@ -63,12 +64,13 @@ export class FinanceRepository {
       pendingInvoicesAmount,
       totalExpensesAmount,
       netProfit,
-      recentInvoices: recentInvoicesRaw.map((inv) => ({
-        id: inv.id,
-        amount: inv.amount,
-        status: inv.status,
-        dueDate: inv.dueDate.toISOString(),
-        clientName: inv.booking?.client?.name || 'N/A',
+      recentPayments: recentPaymentsRaw.map((pt) => ({
+        id: pt.id,
+        amount: pt.amount,
+        status: pt.scheduledPayment?.status || 'PAID',
+        date: pt.date.toISOString(),
+        clientName: pt.booking?.client?.name || 'N/A',
+        method: pt.method,
       })),
       recentExpenses: recentExpensesRaw.map((exp) => ({
         id: exp.id,

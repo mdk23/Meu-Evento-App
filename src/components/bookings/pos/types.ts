@@ -37,10 +37,13 @@ export interface CartItem {
   totalPrice: number;
 }
 
+import React from 'react';
+
 export interface BookingPOSTerminalProps {
   initialClients?: Client[];
   initialServices?: any[];
   initialSpaces?: any[];
   initialBookings?: any[];
   initialBookingData?: any;
+  paymentsTabComponent?: React.ReactNode;
 }
