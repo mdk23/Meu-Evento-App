@@ -19,7 +19,8 @@ interface POSExtractSummarySectionProps {
   downPaymentAmount: number;
   monthlyInstallment: number;
   submitting: boolean;
-  handleSubmitPOS: (targetStatus: 'CONFIRMED' | 'RESERVED') => void;
+  handleSubmitPOS: (targetStatus?: 'CONFIRMED' | 'RESERVED') => void;
+  isEdit?: boolean;
 }
 
 export default function POSExtractSummarySection({
@@ -40,12 +41,13 @@ export default function POSExtractSummarySection({
   monthlyInstallment,
   submitting,
   handleSubmitPOS,
+  isEdit,
 }: POSExtractSummarySectionProps) {
   return (
-    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl flex flex-col justify-between gap-5">
-      <div className="space-y-5">
+    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl flex flex-col gap-5 h-full min-h-0">
+      <div className="flex-1 flex flex-col gap-5 overflow-hidden">
         {/* STEP HEADER */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 shrink-0">
           <div className="flex items-center gap-3">
             <span className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 text-xs font-black flex items-center justify-center">
               3
@@ -56,13 +58,13 @@ export default function POSExtractSummarySection({
             </div>
           </div>
 
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-zinc-950 text-violet-400 border border-zinc-800">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-zinc-950 text-violet-400 border border-zinc-800 shrink-0">
             {selectedItems.length} item(s)
           </span>
         </div>
 
         {/* CART ITEMS LIST */}
-        <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+        <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0">
           {selectedItems.length === 0 ? (
             <div className="text-center py-10 text-zinc-600 border border-dashed border-zinc-800 rounded-xl p-4">
               <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -102,15 +104,17 @@ export default function POSExtractSummarySection({
           )}
         </div>
 
-        {/* BREAKDOWN SUMMARY BOX */}
-        <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-2.5 text-xs">
-          <div className="flex justify-between items-center text-zinc-300 font-medium">
-            <span className="flex items-center gap-1.5">
-              <span>🏛️</span> Venue Services:
-            </span>
-            <span className="font-bold text-white">
-              {spaceServicesTotal.toLocaleString()} MT
-            </span>
+        {/* BOTTOM FIXED SUMMARY BLOCKS */}
+        <div className="shrink-0 space-y-5 pb-2">
+          {/* BREAKDOWN SUMMARY BOX */}
+          <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-2.5 text-xs">
+            <div className="flex justify-between items-center text-zinc-300 font-medium">
+              <span className="flex items-center gap-1.5">
+                <span>🏛️</span> Venue Services:
+              </span>
+              <span className="font-bold text-white">
+                {spaceServicesTotal.toLocaleString()} MT
+              </span>
           </div>
 
           <div className="flex justify-between items-center text-zinc-300 font-medium">
@@ -214,13 +218,14 @@ export default function POSExtractSummarySection({
           </div>
         </div>
       </div>
+      </div>
 
       {/* FINAL ACTION BUTTONS */}
       <div className="space-y-2.5 pt-2">
         <button
           type="button"
           disabled={submitting}
-          onClick={() => handleSubmitPOS('CONFIRMED')}
+          onClick={() => handleSubmitPOS()}
           className="w-full bg-violet-600 hover:bg-violet-500 text-white py-3.5 px-4 rounded-xl text-xs font-bold transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 border border-violet-500/30 disabled:opacity-50"
         >
           {submitting ? (
@@ -228,19 +233,9 @@ export default function POSExtractSummarySection({
           ) : (
             <>
               <CheckCircle2 className="w-4 h-4 text-violet-200" />
-              Complete Sale & Generate Contract
+              {isEdit ? 'Update Booking' : 'Save Booking'}
             </>
           )}
-        </button>
-
-        <button
-          type="button"
-          disabled={submitting}
-          onClick={() => handleSubmitPOS('RESERVED')}
-          className="w-full bg-zinc-950 hover:bg-zinc-800 text-zinc-300 py-3 px-4 rounded-xl text-xs font-bold transition-all border border-zinc-800 flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <FileText className="w-4 h-4 text-violet-400" />
-          Create Reservation (Pending Deposit)
         </button>
       </div>
     </section>

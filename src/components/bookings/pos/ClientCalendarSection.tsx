@@ -66,9 +66,9 @@ export default function ClientCalendarSection({
   setIsWaitingList,
 }: ClientCalendarSectionProps) {
   return (
-    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col gap-5">
+    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col gap-5 h-full min-h-0">
       {/* STEP HEADER */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 shrink-0">
         <div className="flex items-center gap-3">
           <span className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 text-xs font-black flex items-center justify-center">
             1
@@ -78,8 +78,9 @@ export default function ClientCalendarSection({
             <p className="text-[11px] text-zinc-500">Client details and event date</p>
           </div>
         </div>
-
       </div>
+
+      <div className="flex-1 overflow-y-auto space-y-5 pr-2 min-h-0">
 
       {/* CRM SELECTION OR NEW CLIENT */}
       <div className="space-y-2">
@@ -322,6 +323,7 @@ export default function ClientCalendarSection({
             </div>
           )}
         </div>
+      </div>
       </div>
     </section>
   );

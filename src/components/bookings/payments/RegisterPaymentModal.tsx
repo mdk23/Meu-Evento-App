@@ -98,10 +98,6 @@ export default function RegisterPaymentModal({ isOpen, onClose, bookingId, sched
               <option value="BCI">BCI</option>
               <option value="BIM">BIM</option>
               <option value="CONTA_MOVEL">Conta Movel</option>
-              <option value="POS">POS Terminal</option>
-              <option value="BANK_TRANSFER">Bank Transfer</option>
-              <option value="CREDIT_CARD">Credit Card</option>
-              <option value="OTHER">Other</option>
             </select>
           </div>
 

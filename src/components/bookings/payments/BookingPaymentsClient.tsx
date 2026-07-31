@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ScheduledPayment, PaymentTransaction, Booking } from '@prisma/client';
-import { Calendar, CreditCard, CheckCircle2, AlertCircle, Plus, Edit, DollarSign } from 'lucide-react';
+import { Calendar, CreditCard, CheckCircle2, AlertCircle, Plus, Edit, DollarSign, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import RegisterPaymentModal from './RegisterPaymentModal';
 import EditScheduleModal from './EditScheduleModal';
@@ -39,6 +39,22 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
       if (data.paymentTransactions) setTransactions(data.paymentTransactions);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/payments/${transactionId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete payment');
+      }
+      toast.success('Payment deleted successfully');
+      refreshData();
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -166,6 +182,7 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
                 <th className="px-6 py-4">Reference</th>
                 <th className="px-6 py-4">Recorded By</th>
                 <th className="px-6 py-4">Notes</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -181,11 +198,20 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
                   <td className="px-6 py-4 font-mono text-xs">{tx.reference || '-'}</td>
                   <td className="px-6 py-4">{tx.recordedBy}</td>
                   <td className="px-6 py-4 text-zinc-500">{tx.notes || '-'}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => handleDeleteTransaction(tx.id)}
+                      className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
+                      title="Delete Payment"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">No payments recorded yet.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-zinc-500">No payments recorded yet.</td>
                 </tr>
               )}
             </tbody>

@@ -240,6 +240,98 @@ export async function PATCH(
       }
     }
 
+    // 4. Sync Scheduled Payments if it's a full POS Edit
+    if (isEdit && (downPaymentAmount !== undefined || installmentCount !== undefined)) {
+      const hasPayments = existingBooking.scheduledPayments.some(s => s.paidAmount > 0);
+      
+      if (!hasPayments) {
+        // Safe to recreate schedules since no actual payments have been processed yet
+        await prisma.scheduledPayment.deleteMany({
+          where: { bookingId: id }
+        });
+
+        const tenantId = existingBooking.tenantId || (await prisma.tenant.findFirst())?.id || 'default';
+        const parsedDepositDueDate = depositDueDate 
+          ? new Date(depositDueDate) 
+          : existingBooking.depositDueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        const parsedDate = eventDate ? new Date(eventDate) : existingBooking.eventDate;
+        
+        const finalStatus = status || existingBooking.status;
+        const depositStatus = finalStatus === 'CONFIRMED' ? 'PAID' : 'PENDING';
+        
+        const downPaymentAmtVal = parseFloat(downPaymentAmount || '0');
+        const installmentCountVal = parseInt(installmentCount || '1', 10);
+        const installmentAmtVal = parseFloat(installmentAmount || '0');
+        const totalAmountVal = parseFloat(totalAmount || '0');
+
+        // Initial Deposit
+        if (downPaymentAmtVal > 0) {
+          const scheduledPayment = await prisma.scheduledPayment.create({
+            data: {
+              tenantId,
+              bookingId: id,
+              name: 'Initial Deposit (Sinal)',
+              amount: downPaymentAmtVal,
+              paidAmount: depositStatus === 'PAID' ? downPaymentAmtVal : 0,
+              status: depositStatus,
+              dueDate: parsedDepositDueDate,
+            },
+          });
+
+          if (depositStatus === 'PAID') {
+            await prisma.paymentTransaction.create({
+              data: {
+                tenantId,
+                bookingId: id,
+                scheduledPaymentId: scheduledPayment.id,
+                amount: downPaymentAmtVal,
+                method: 'CASH',
+                recordedBy: 'POS Terminal',
+                notes: 'Initial Deposit paid at booking (Edit)',
+              }
+            });
+          }
+        }
+
+        // Single Payment Remaining Balance
+        if (installmentCountVal === 1 && (totalAmountVal - downPaymentAmtVal) > 0) {
+          await prisma.scheduledPayment.create({
+            data: {
+              tenantId,
+              bookingId: id,
+              name: 'Remaining Balance (Saldo Final)',
+              amount: Math.max(0, totalAmountVal - downPaymentAmtVal),
+              status: 'PENDING',
+              dueDate: parsedDate,
+            },
+          });
+        }
+
+        // Installments
+        if (installmentCountVal > 1 && installmentAmtVal > 0) {
+          const remainingInstallments = installmentCountVal - 1;
+          for (let i = 1; i <= remainingInstallments; i++) {
+            const installmentDueDate = new Date();
+            installmentDueDate.setMonth(installmentDueDate.getMonth() + i);
+            if (installmentDueDate > parsedDate) {
+              installmentDueDate.setTime(parsedDate.getTime());
+            }
+
+            await prisma.scheduledPayment.create({
+              data: {
+                tenantId,
+                bookingId: id,
+                name: `Installment ${i} of ${remainingInstallments}`,
+                amount: installmentAmtVal,
+                status: 'PENDING',
+                dueDate: installmentDueDate,
+              },
+            });
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ success: true, booking: updatedBooking });
   } catch (error: unknown) {
     console.error('Failed to update booking:', error);

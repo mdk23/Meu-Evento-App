@@ -224,7 +224,7 @@ export function useBookingPOS({
   const hasConflict = selectedDateBookings.length > 0;
 
   // Submit Handler
-  const handleSubmitPOS = async (targetStatus: 'CONFIRMED' | 'RESERVED') => {
+  const handleSubmitPOS = async (targetStatus?: 'CONFIRMED' | 'RESERVED') => {
     if (!clientName.trim()) {
       toast.error('Please enter the client name.');
       return;
@@ -370,11 +370,11 @@ export function useBookingPOS({
     hasConflict,
     selectedDateBookings,
 
-    // Handlers
     handleSelectSpace,
     toggleCatalogService,
     removeItemFromCart,
     handleSubmitPOS,
     resetForm,
+    isEdit: !!initialBookingData,
   };
 }
