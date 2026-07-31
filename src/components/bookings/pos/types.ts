@@ -42,4 +42,5 @@ export interface BookingPOSTerminalProps {
   initialServices?: any[];
   initialSpaces?: any[];
   initialBookings?: any[];
+  initialBookingData?: any;
 }

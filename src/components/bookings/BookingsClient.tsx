@@ -53,15 +53,56 @@ export default function BookingsClient({ initialBookings, clients, services }: B
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Editable fields inside drawer
+  const [editClientName, setEditClientName] = useState('');
+  const [editClientPhone, setEditClientPhone] = useState('');
+  const [editClientEmail, setEditClientEmail] = useState('');
+  const [editEventTitle, setEditEventTitle] = useState('');
+  const [editBookingType, setEditBookingType] = useState('SPACE_AND_SERVICES');
   const [editDate, setEditDate] = useState('');
   const [editGuests, setEditGuests] = useState(0);
+  const [editDiscount, setEditDiscount] = useState(0);
+  const [editDownPaymentPercent, setEditDownPaymentPercent] = useState(50);
+  const [editDepositDueDate, setEditDepositDueDate] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  const openDrawer = (booking: any) => {
+  const openDrawer = async (booking: any) => {
     setSelectedBooking(booking);
+    setEditClientName(booking.client?.name || booking.clientName || '');
+    setEditClientPhone(booking.client?.phone || booking.clientPhone || '');
+    setEditClientEmail(booking.client?.email || booking.clientEmail || '');
+    setEditEventTitle(booking.eventTitle || booking.event?.name || '');
+    setEditBookingType(booking.bookingType || 'SPACE_AND_SERVICES');
     setEditDate(booking.eventDate ? new Date(booking.eventDate).toISOString().split('T')[0] : '');
     setEditGuests(booking.guestCount || 0);
+    setEditDiscount(booking.discount || 0);
+    setEditDownPaymentPercent(booking.downPaymentPercent || 50);
+    setEditDepositDueDate(booking.depositDueDate ? new Date(booking.depositDueDate).toISOString().split('T')[0] : '');
     setEditNotes(booking.notes || '');
+
+    // Fetch complete detailed record for drawer
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.booking) {
+          const fullB = data.booking;
+          setSelectedBooking({ ...booking, ...fullB });
+          if (fullB.client) {
+            setEditClientName(fullB.client.name || '');
+            setEditClientPhone(fullB.client.phone || '');
+            setEditClientEmail(fullB.client.email || '');
+          }
+          if (fullB.event) {
+            setEditEventTitle(fullB.event.name || '');
+          }
+          if (fullB.bookingType) {
+            setEditBookingType(fullB.bookingType);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load full booking details:', e);
+    }
   };
 
   // Status & Payment Lifecycle Updater
@@ -99,7 +140,7 @@ export default function BookingsClient({ initialBookings, clients, services }: B
     }
   };
 
-  // Save Inline Form Edits (Date, Guest Count, Notes)
+  // Save Inline Form Edits
   const handleSaveDetails = async (bookingId: string) => {
     setUpdating(true);
     try {
@@ -107,21 +148,29 @@ export default function BookingsClient({ initialBookings, clients, services }: B
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          clientName: editClientName,
+          clientPhone: editClientPhone,
+          clientEmail: editClientEmail,
+          title: editEventTitle,
+          bookingType: editBookingType,
           eventDate: editDate,
           guestCount: editGuests,
+          discount: editDiscount,
+          downPaymentPercent: editDownPaymentPercent,
+          depositDueDate: editDepositDueDate,
           notes: editNotes,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        toast.success('Booking details saved!');
-        if (selectedBooking && selectedBooking.id === bookingId) {
-          setSelectedBooking(data.booking || { ...selectedBooking, eventDate: editDate, guestCount: editGuests, notes: editNotes });
+        toast.success('Booking details updated successfully!');
+        if (data.booking) {
+          setSelectedBooking(data.booking);
         }
         router.refresh();
       } else {
-        toast.error('Failed to save details.');
+        toast.error('Failed to save booking details.');
       }
     } catch (err) {
       console.error(err);
@@ -150,7 +199,7 @@ export default function BookingsClient({ initialBookings, clients, services }: B
         const updatedRes = await fetch(`/api/bookings/${bookingId}`);
         if (updatedRes.ok) {
           const data = await updatedRes.json();
-          setSelectedBooking(data.booking);
+          setSelectedBooking((prev: any) => ({ ...prev, ...data.booking }));
         }
         router.refresh();
       } else {
@@ -276,9 +325,12 @@ export default function BookingsClient({ initialBookings, clients, services }: B
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedBookings.map((b: any) => {
               const isDeleting = deletingId === b.id;
-              const totalAmt = b.totalInvoiceAmount || 0;
+              const contractAmt = b.totalContractAmount || b.totalInvoiceAmount || 0;
               const paidAmt = b.paidInvoiceAmount || 0;
-              const isFullyPaid = totalAmt > 0 && paidAmt >= totalAmt;
+              const isFullyPaid = contractAmt > 0 && paidAmt >= contractAmt;
+              const depositAmt = b.downPaymentAmount || 0;
+              const depositPct = b.downPaymentPercent || 50;
+              const depositIsPaid = b.depositStatus === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED';
 
               return (
                 <div
@@ -311,10 +363,10 @@ export default function BookingsClient({ initialBookings, clients, services }: B
                       <h3 className="text-white font-bold text-lg group-hover:text-violet-300 transition-colors">
                         {b.client?.name || b.clientName || 'Client Name'}
                       </h3>
-                      <p className="text-xs text-zinc-500">{b.client?.email || b.client?.phone || 'Direct Client'}</p>
+                      <p className="text-xs text-zinc-500">{b.eventTitle || b.event?.name || b.client?.email || b.client?.phone || 'Direct Client'}</p>
                     </div>
 
-                    <div className="space-y-1.5 text-xs text-zinc-400 pt-2 border-t border-zinc-800">
+                    <div className="space-y-2 text-xs text-zinc-400 pt-2 border-t border-zinc-800">
                       <p className="flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5 text-violet-400" /> Event Date:{' '}
                         <strong className="text-zinc-200">{new Date(b.eventDate).toLocaleDateString()}</strong>
@@ -323,16 +375,32 @@ export default function BookingsClient({ initialBookings, clients, services }: B
                         <Users className="w-3.5 h-3.5 text-violet-400" /> Guest Count:{' '}
                         <strong className="text-zinc-200">{b.guestCount} pax</strong>
                       </p>
-                      {totalAmt > 0 && (
+                      {contractAmt > 0 && (
                         <p className="flex items-center gap-2">
-                          <CreditCard className="w-3.5 h-3.5 text-violet-400" /> Financials:{' '}
-                          <strong className="text-zinc-200">{totalAmt.toLocaleString()} MT</strong>
+                          <CreditCard className="w-3.5 h-3.5 text-violet-400" /> Total Contract:{' '}
+                          <strong className="text-white font-bold">{contractAmt.toLocaleString()} MT</strong>
                           {isFullyPaid && (
                             <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
                               Fully Paid
                             </span>
                           )}
                         </p>
+                      )}
+
+                      {/* INITIAL DEPOSIT & STATUS IN THE SAME BLOCK BELOW */}
+                      {depositAmt > 0 && (
+                        <div className="flex items-center justify-between text-[11px] bg-zinc-950/80 px-2.5 py-1.5 rounded-lg border border-zinc-800/80 mt-1">
+                          <span className="text-zinc-400">
+                            Initial Deposit: <strong className="text-zinc-200">{depositAmt.toLocaleString()} MT</strong> ({depositPct}%)
+                          </span>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                            depositIsPaid
+                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                              : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                          }`}>
+                            {depositIsPaid ? '● PAID' : '● PENDING'}
+                          </span>
+                        </div>
                       )}
                     </div>
 
@@ -345,12 +413,20 @@ export default function BookingsClient({ initialBookings, clients, services }: B
 
                   {/* ACTION CONTROLS */}
                   <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => openDrawer(b)}
-                      className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-violet-500/10 hover:bg-violet-500/20 px-3 py-1.5 rounded-lg border border-violet-500/20 transition-all"
-                    >
-                      View & Manage <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/bookings/${b.id}/edit`}
+                        className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-violet-500/10 hover:bg-violet-500/20 px-3 py-1.5 rounded-lg border border-violet-500/20 transition-all"
+                      >
+                        Edit Services <Edit3 className="w-3.5 h-3.5" />
+                      </Link>
+                      <button
+                        onClick={() => openDrawer(b)}
+                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all"
+                      >
+                        Financials <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
                     <div className="flex items-center gap-1">
                       {/* STATUS QUICK TOGGLE ACTIONS */}
@@ -493,27 +569,39 @@ export default function BookingsClient({ initialBookings, clients, services }: B
               {/* PAYMENT MANAGEMENT & FINANCIAL CLOSURE */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
                 <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-violet-400" /> Payment & Financial Management
+                  <CreditCard className="w-4 h-4 text-violet-400" /> Payment & Financial Breakdown
                 </h3>
 
                 <div className="bg-zinc-900 p-3 rounded-lg border border-zinc-800 space-y-2 text-xs">
                   <div className="flex justify-between text-zinc-400">
                     <span>Total Contract Value:</span>
-                    <strong className="text-white">{(selectedBooking.totalInvoiceAmount || 0).toLocaleString()} MT</strong>
+                    <strong className="text-white font-bold">
+                      {(selectedBooking.totalContractAmount || selectedBooking.totalInvoiceAmount || 0).toLocaleString()} MT
+                    </strong>
+                  </div>
+                  <div className="flex justify-between text-zinc-400">
+                    <span>Initial Deposit:</span>
+                    <strong className="text-zinc-200">
+                      {(selectedBooking.downPaymentAmount || 0).toLocaleString()} MT ({selectedBooking.downPaymentPercent || 50}%)
+                    </strong>
                   </div>
                   <div className="flex justify-between text-emerald-400">
-                    <span>Paid Amount:</span>
+                    <span>Total Paid to Date:</span>
                     <strong className="font-bold">{(selectedBooking.paidInvoiceAmount || 0).toLocaleString()} MT</strong>
                   </div>
                   <div className="flex justify-between text-zinc-400 border-t border-zinc-800 pt-2">
                     <span>Outstanding Balance:</span>
                     <strong className="text-amber-400">
-                      {Math.max(0, (selectedBooking.totalInvoiceAmount || 0) - (selectedBooking.paidInvoiceAmount || 0)).toLocaleString()} MT
+                      {Math.max(
+                        0,
+                        (selectedBooking.totalContractAmount || selectedBooking.totalInvoiceAmount || 0) -
+                          (selectedBooking.paidInvoiceAmount || 0)
+                      ).toLocaleString()} MT
                     </strong>
                   </div>
                   {selectedBooking.depositDueDate && (
                     <div className="flex justify-between text-zinc-500 text-[10px] pt-1">
-                      <span>Deposit Due Date (Prazo Sinal):</span>
+                      <span>Deposit Due Date:</span>
                       <span>{new Date(selectedBooking.depositDueDate).toLocaleDateString()}</span>
                     </div>
                   )}
@@ -611,44 +699,139 @@ export default function BookingsClient({ initialBookings, clients, services }: B
                   <Edit3 className="w-4 h-4 text-violet-400" /> Edit Booking Details
                 </h3>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
+                  {/* CLIENT INFORMATION EDIT */}
                   <div>
-                    <label className="text-[11px] text-zinc-400 font-bold block mb-1">Event Date</label>
+                    <label className="text-[11px] text-zinc-400 font-bold block mb-1">Client Name</label>
                     <input
-                      type="date"
-                      value={editDate}
-                      onChange={(e) => setEditDate(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                      type="text"
+                      value={editClientName}
+                      onChange={(e) => setEditClientName(e.target.value)}
+                      placeholder="Client Name"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 font-medium"
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-zinc-400 font-bold block mb-1">Phone</label>
+                      <input
+                        type="text"
+                        value={editClientPhone}
+                        onChange={(e) => setEditClientPhone(e.target.value)}
+                        placeholder="Phone"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-zinc-400 font-bold block mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={editClientEmail}
+                        onChange={(e) => setEditClientEmail(e.target.value)}
+                        placeholder="Email"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* EVENT TITLE & BOOKING TYPE */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-zinc-400 font-bold block mb-1">Event Title</label>
+                      <input
+                        type="text"
+                        value={editEventTitle}
+                        onChange={(e) => setEditEventTitle(e.target.value)}
+                        placeholder="e.g. Wedding Reception"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-zinc-400 font-bold block mb-1">Booking Type</label>
+                      <select
+                        value={editBookingType}
+                        onChange={(e) => setEditBookingType(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500"
+                      >
+                        <option value="SPACE_AND_SERVICES">Space & Services</option>
+                        <option value="SPACE_ONLY">Space Only</option>
+                        <option value="SERVICES_ONLY">Services Only</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* DATE & GUEST COUNT */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-zinc-400 font-bold block mb-1">Event Date</label>
+                      <input
+                        type="date"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-zinc-400 font-bold block mb-1">Guest Count (pax)</label>
+                      <input
+                        type="number"
+                        value={editGuests}
+                        onChange={(e) => setEditGuests(parseInt(e.target.value || '0', 10))}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* FINANCIAL TERMS */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] text-zinc-400 font-bold block mb-1">Discount (MT)</label>
+                      <input
+                        type="number"
+                        value={editDiscount}
+                        onChange={(e) => setEditDiscount(parseFloat(e.target.value || '0'))}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-400 font-bold block mb-1">Deposit %</label>
+                      <input
+                        type="number"
+                        value={editDownPaymentPercent}
+                        onChange={(e) => setEditDownPaymentPercent(parseInt(e.target.value || '50', 10))}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-400 font-bold block mb-1">Deposit Due</label>
+                      <input
+                        type="date"
+                        value={editDepositDueDate}
+                        onChange={(e) => setEditDepositDueDate(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-[11px] text-zinc-400 font-bold block mb-1">Guest Count (pax)</label>
-                    <input
-                      type="number"
-                      value={editGuests}
-                      onChange={(e) => setEditGuests(parseInt(e.target.value || '0', 10))}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                    <label className="text-[11px] text-zinc-400 font-bold block mb-1">Agreement Notes</label>
+                    <textarea
+                      rows={3}
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-violet-500 font-mono"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] text-zinc-400 font-bold block mb-1">Agreement Notes</label>
-                  <textarea
-                    rows={3}
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-violet-500 font-mono"
-                  />
                 </div>
 
                 <button
                   disabled={updating}
                   onClick={() => handleSaveDetails(selectedBooking.id)}
-                  className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md"
+                  className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md mt-2"
                 >
-                  {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Details</>}
+                  {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Booking Changes</>}
                 </button>
               </div>
             </div>

@@ -14,7 +14,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
   return (
     <div className="flex-1 flex flex-col h-full w-full bg-zinc-950 text-white font-sans overflow-hidden">
       {/* TOP HEADER BAR */}
-      <POSTerminalHeader onReset={pos.resetForm} />
+      <POSTerminalHeader onReset={pos.resetForm} isEdit={!!props.initialBookingData} />
 
       {/* MAIN 3-COLUMN WORKSPACE */}
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto w-full">

@@ -4,9 +4,10 @@ import { ArrowLeft, Sparkles, Plus, TrendingUp } from 'lucide-react';
 
 interface POSTerminalHeaderProps {
   onReset: () => void;
+  isEdit?: boolean;
 }
 
-export default function POSTerminalHeader({ onReset }: POSTerminalHeaderProps) {
+export default function POSTerminalHeader({ onReset, isEdit }: POSTerminalHeaderProps) {
   return (
     <header className="h-16 border-b border-zinc-900 bg-zinc-950/80 px-8 flex items-center justify-between gap-4 shrink-0 backdrop-blur-md w-full">
       <div className="flex items-center gap-4">
@@ -22,7 +23,7 @@ export default function POSTerminalHeader({ onReset }: POSTerminalHeaderProps) {
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-violet-400" />
-              New Booking
+              {isEdit ? 'Edit Booking' : 'New Booking'}
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse"></span>

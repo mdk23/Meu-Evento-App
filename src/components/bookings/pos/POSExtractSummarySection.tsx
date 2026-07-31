@@ -153,14 +153,12 @@ export default function POSExtractSummarySection({
         {/* GRAND TOTAL BANNER */}
         <div className="bg-gradient-to-r from-violet-950 via-zinc-900 to-violet-950 border border-violet-500/30 rounded-2xl p-5 shadow-xl text-center space-y-1">
           <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest block">
-            Total Contract Amount (POS)
+            Total Contract Amount
           </span>
           <span className="text-3xl md:text-4xl font-black text-white tracking-tight block">
             {grandTotal.toLocaleString()} MT
           </span>
-          <span className="text-[10px] text-zinc-400 block">
-            (Includes 5,000 MT security deposit held in escrow)
-          </span>
+
         </div>
 
         {/* PAYMENT CONDITIONS */}

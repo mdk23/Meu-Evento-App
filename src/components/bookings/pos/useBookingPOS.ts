@@ -9,25 +9,26 @@ export function useBookingPOS({
   initialServices = [],
   initialSpaces = [],
   initialBookings = [],
+  initialBookingData = null,
 }: BookingPOSTerminalProps) {
   const router = useRouter();
 
   // 1. Client & Event State
-  const [selectedClientId, setSelectedClientId] = useState<string>('NEW');
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<string>(initialBookingData?.clientId || 'NEW');
+  const [clientName, setClientName] = useState(initialBookingData?.client?.name || initialBookingData?.clientName || '');
+  const [clientPhone, setClientPhone] = useState(initialBookingData?.client?.phone || '');
+  const [clientEmail, setClientEmail] = useState(initialBookingData?.client?.email || '');
 
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventType, setEventType] = useState('');
-  const [guestCount, setGuestCount] = useState<number>(1);
+  const [eventTitle, setEventTitle] = useState(initialBookingData?.event?.name || initialBookingData?.title || '');
+  const [eventType, setEventType] = useState(initialBookingData?.bookingType || '');
+  const [guestCount, setGuestCount] = useState<number>(initialBookingData?.guestCount || 1);
 
-  const [eventDate, setEventDate] = useState('');
-  const [depositDueDate, setDepositDueDate] = useState('');
+  const [eventDate, setEventDate] = useState(initialBookingData?.eventDate ? new Date(initialBookingData.eventDate).toISOString().split('T')[0] : '');
+  const [depositDueDate, setDepositDueDate] = useState(initialBookingData?.depositDueDate ? new Date(initialBookingData.depositDueDate).toISOString().split('T')[0] : '');
 
   // Interactive calendar month selection
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
-  const [isWaitingList, setIsWaitingList] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => initialBookingData?.eventDate ? new Date(initialBookingData.eventDate) : new Date());
+  const [isWaitingList, setIsWaitingList] = useState(initialBookingData?.status === 'WAITING_LIST');
 
   const [shift, setShift] = useState<'Lunch' | 'Dinner' | 'Full Day'>('Dinner');
   const [startTime, setStartTime] = useState('18:00');
@@ -75,11 +76,31 @@ export function useBookingPOS({
   const [originFilter, setOriginFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
 
   // 3. POS Cart State (Selected items)
-  const [selectedItems, setSelectedItems] = useState<CartItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<CartItem[]>(() => {
+    if (initialBookingData?.event?.eventServices) {
+      return initialBookingData.event.eventServices.map((es: any) => {
+        const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : 1;
+        const unitPrice = es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0);
+        return {
+          id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
+          serviceId: es.serviceId,
+          name: es.service?.name || 'Service',
+          category: (es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
+          providerType: es.providerType || es.service?.executionType || 'INTERNAL',
+          providerName: es.providerType === 'EXTERNAL' || es.service?.executionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
+          priceType: es.service?.priceType || 'FIXED',
+          price: unitPrice,
+          quantity: qty,
+          totalPrice: es.sellingPrice || 0,
+        };
+      });
+    }
+    return [];
+  });
 
-  const [discount, setDiscount] = useState<number>(0);
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(50);
-  const [installmentCount, setInstallmentCount] = useState<number>(1);
+  const [discount, setDiscount] = useState<number>(initialBookingData?.discount || 0);
+  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(initialBookingData?.downPaymentPercent || 50);
+  const [installmentCount, setInstallmentCount] = useState<number>(initialBookingData?.installmentCount || 1);
   const [submitting, setSubmitting] = useState(false);
 
   // Sync Space Selection with Cart Item using real catalog service
@@ -196,6 +217,7 @@ export function useBookingPOS({
   // Check conflicts for currently selected eventDate
   const selectedDateBookings = initialBookings.filter((b: any) => {
     if (b.status === 'CANCELLED') return false;
+    if (initialBookingData && b.id === initialBookingData.id) return false;
     const bDate = new Date(b.eventDate).toISOString().split('T')[0];
     return bDate === eventDate;
   });
@@ -245,10 +267,14 @@ export function useBookingPOS({
         installmentCount,
         installmentAmount: monthlyInstallment,
         status: finalStatus,
+        isEdit: !!initialBookingData,
       };
 
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
+      const url = initialBookingData ? `/api/bookings/${initialBookingData.id}` : '/api/bookings';
+      const method = initialBookingData ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });

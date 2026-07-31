@@ -191,7 +191,21 @@ export async function POST(request: Request) {
           amount: downPaymentAmtVal,
           status: finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING',
           dueDate: parsedDepositDueDate,
-          description: 'Entrada (Sinal)',
+          description: 'Initial Deposit (Sinal)',
+        },
+      });
+    }
+
+    // Single Payment Remaining Balance Invoice
+    if (installmentCountVal === 1 && (totalAmount - downPaymentAmtVal) > 0) {
+      await prisma.invoice.create({
+        data: {
+          tenantId: tenant.id,
+          bookingId: booking.id,
+          amount: Math.max(0, totalAmount - downPaymentAmtVal),
+          status: 'PENDING',
+          dueDate: parsedDate,
+          description: 'Remaining Balance (Saldo Final)',
         },
       });
     }
@@ -214,7 +228,7 @@ export async function POST(request: Request) {
             amount: installmentAmtVal,
             status: 'PENDING',
             dueDate: installmentDueDate,
-            description: `Parcela ${i} de ${remainingInstallments}`,
+            description: `Installment ${i} of ${remainingInstallments}`,
           },
         });
       }

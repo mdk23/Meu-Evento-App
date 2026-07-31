@@ -30,6 +30,9 @@ export interface BookingListDTO {
   id: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  eventTitle?: string | null;
   eventDate: string;
   guestCount: number;
   status: string;
@@ -38,6 +41,12 @@ export interface BookingListDTO {
   hasEvent: boolean;
   totalInvoiceAmount: number;
   paidInvoiceAmount: number;
+  totalContractAmount: number;
+  downPaymentAmount: number;
+  downPaymentPercent: number;
+  discount: number;
+  depositStatus: 'PAID' | 'PENDING';
+  depositDueDate?: string | null;
 }
 
 export interface EventOverviewDTO {
