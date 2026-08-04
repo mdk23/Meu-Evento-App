@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ExecutionType, ServiceWorkOrderStatus } from '@prisma/client';
+import { ServiceWorkOrderStatus } from '@prisma/client';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,16 +38,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await params;
+    const { id: eventId } = await params;
     const body = await request.json();
-    const { 
-      eventServiceId, 
-      status, 
-      customFields, 
-      tasks, 
-      assignedStaff, 
-      reservedInventory, 
-      sellingPrice, 
+    const {
+      eventServiceId,
+      status,
+      customFields,
+      tasks,
+      assignedStaff,
+      reservedInventory,
+      sellingPrice,
       cost,
       supplierId,
       supplierCost,
@@ -60,10 +60,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'eventServiceId is required' }, { status: 400 });
     }
 
+    const existing = await prisma.eventService.findUnique({ where: { id: eventServiceId } });
+    if (!existing || existing.eventId !== eventId) {
+      return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
+    }
+
     const updated = await prisma.eventService.update({
       where: { id: eventServiceId },
       data: {
-        status: status as ServiceWorkOrderStatus,
+        status: status && Object.values(ServiceWorkOrderStatus).includes(status) ? (status as ServiceWorkOrderStatus) : undefined,
         customFields: typeof customFields === 'object' ? JSON.stringify(customFields) : customFields,
         tasks: typeof tasks === 'object' ? JSON.stringify(tasks) : tasks,
         assignedStaff: typeof assignedStaff === 'object' ? JSON.stringify(assignedStaff) : assignedStaff,
@@ -72,7 +77,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         cost: cost !== undefined ? parseFloat(cost) : undefined,
         supplierId: supplierId || undefined,
         supplierCost: supplierCost !== undefined ? parseFloat(supplierCost) : undefined,
-        supplierStatus: supplierStatus as ServiceWorkOrderStatus,
+        supplierStatus: supplierStatus && Object.values(ServiceWorkOrderStatus).includes(supplierStatus) ? (supplierStatus as ServiceWorkOrderStatus) : undefined,
         paymentStatus: paymentStatus || undefined,
         notes: notes || undefined,
       },
@@ -85,13 +90,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: eventId } = await params;
     const { searchParams } = new URL(request.url);
     const eventServiceId = searchParams.get('eventServiceId');
 
     if (!eventServiceId) {
       return NextResponse.json({ error: 'eventServiceId query param is required' }, { status: 400 });
+    }
+
+    const existing = await prisma.eventService.findUnique({ where: { id: eventServiceId } });
+    if (!existing || existing.eventId !== eventId) {
+      return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
 
     await prisma.eventService.delete({

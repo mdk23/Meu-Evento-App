@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus, PaymentMethod } from '@prisma/client';
 
 export async function GET(
@@ -44,7 +44,7 @@ export async function POST(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    const transaction = await prisma.$transaction(async (tx) => {
+    const transaction = await prismaTransaction.$transaction(async (tx) => {
       // Create transaction
       const newTransaction = await tx.paymentTransaction.create({
         data: {
@@ -87,7 +87,7 @@ export async function POST(
       }
 
       return newTransaction;
-    });
+    }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json({ success: true, transaction }, { status: 201 });
   } catch (error: unknown) {

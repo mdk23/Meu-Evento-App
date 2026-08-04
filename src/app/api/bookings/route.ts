@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, prismaTransaction } from '@/lib/prisma';
 import { BookingStatus, BookingType, EventStatus, ExecutionType } from '@prisma/client';
+import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
 
 export async function GET() {
   try {
@@ -87,17 +88,20 @@ export async function POST(request: Request) {
 
     const parsedDate = new Date(eventDate);
     const parsedGuestCount = parseInt(guestCount || '0', 10);
-    const finalStatus = requestedStatus === 'CONFIRMED' ? BookingStatus.CONFIRMED : BookingStatus.RESERVED;
+    const finalStatus =
+      requestedStatus === 'CONFIRMED' ? BookingStatus.CONFIRMED
+      : requestedStatus === 'WAITING_LIST' ? BookingStatus.WAITING_LIST
+      : BookingStatus.RESERVED;
 
     const discountVal = parseFloat(discount || '0');
     const downPaymentAmtVal = parseFloat(downPaymentAmount || '0');
     const downPaymentPctVal = parseInt(downPaymentPercent || '0', 10);
     const installmentCountVal = parseInt(installmentCount || '1', 10);
     const installmentAmtVal = parseFloat(installmentAmount || '0');
-    
+
     // Default deposit due date to 14 days/2 weeks from now if not specified
-    const parsedDepositDueDate = depositDueDate 
-      ? new Date(depositDueDate) 
+    const parsedDepositDueDate = depositDueDate
+      ? new Date(depositDueDate)
       : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
     const formattedNotes = [
@@ -107,151 +111,166 @@ export async function POST(request: Request) {
       notes ? `Observações: ${notes}` : '',
     ].filter(Boolean).join('\n');
 
-    // 1. Create Booking
-    const booking = await prisma.booking.create({
-      data: {
-        tenantId: tenant.id,
-        clientId: targetClientId,
-        bookingType: bookingType || BookingType.SPACE_AND_SERVICES,
-        eventDate: parsedDate,
-        guestCount: parsedGuestCount,
-        status: finalStatus,
-        notes: formattedNotes,
-        discount: discountVal,
-        downPaymentAmount: downPaymentAmtVal,
-        downPaymentPercent: downPaymentPctVal,
-        depositDueDate: parsedDepositDueDate,
-        installmentCount: installmentCountVal,
-        installmentAmount: installmentAmtVal,
-      },
-    });
+    // Create the Booking, its linked Event, attached services, and payment schedule atomically —
+    // a partial failure here must not leave a Booking/Event without its services or payments.
+    const { booking, event } = await prismaTransaction.$transaction(async (tx) => {
+      // Only WAITING_LIST bookings are allowed to stack on an already-booked date —
+      // the venue has a single Space, so any other status must have the date free.
+      if (finalStatus !== BookingStatus.WAITING_LIST) {
+        await assertNoBookingConflict(tx, parsedDate);
+      }
 
-    // 2. Automatically create linked Execution Event
-    const event = await prisma.event.create({
-      data: {
-        bookingId: booking.id,
-        name: title || `${client.name} Event`,
-        date: parsedDate,
-        guestCount: parsedGuestCount,
-        status: EventStatus.PLANNING,
-        notes: formattedNotes,
-      },
-    });
+      // 1. Create Booking
+      const booking = await tx.booking.create({
+        data: {
+          tenantId: tenant.id,
+          clientId: targetClientId,
+          bookingType: bookingType || BookingType.SPACE_AND_SERVICES,
+          eventDate: parsedDate,
+          guestCount: parsedGuestCount,
+          status: finalStatus,
+          notes: formattedNotes,
+          discount: discountVal,
+          downPaymentAmount: downPaymentAmtVal,
+          downPaymentPercent: downPaymentPctVal,
+          depositDueDate: parsedDepositDueDate,
+          installmentCount: installmentCountVal,
+          installmentAmount: installmentAmtVal,
+        },
+      });
 
-    // 3. Attach selected services / items to the Event
-    if (Array.isArray(selectedServices) && selectedServices.length > 0) {
-      for (const item of selectedServices) {
-        let catalogServiceId = item.serviceId;
+      // 2. Automatically create linked Execution Event
+      const event = await tx.event.create({
+        data: {
+          bookingId: booking.id,
+          name: title || `${client.name} Event`,
+          date: parsedDate,
+          guestCount: parsedGuestCount,
+          status: EventStatus.PLANNING,
+          notes: formattedNotes,
+        },
+      });
 
-        if (!catalogServiceId) {
-          const existingService = await prisma.service.findFirst({
-            where: { name: item.name, tenantId: tenant.id },
-          });
+      // 3. Attach selected services / items to the Event
+      if (Array.isArray(selectedServices) && selectedServices.length > 0) {
+        for (const item of selectedServices) {
+          let catalogServiceId = item.serviceId;
 
-          if (existingService) {
-            catalogServiceId = existingService.id;
-          } else {
-            const newService = await prisma.service.create({
-              data: {
-                tenantId: tenant.id,
-                name: item.name,
-                category: item.category || 'GERAL',
-                executionType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
-                priceType: item.priceType || 'FIXED',
-                defaultPrice: item.price || 0,
-              },
+          if (!catalogServiceId) {
+            const existingService = await tx.service.findFirst({
+              where: { name: item.name, tenantId: tenant.id },
             });
-            catalogServiceId = newService.id;
+
+            if (existingService) {
+              catalogServiceId = existingService.id;
+            } else {
+              const newService = await tx.service.create({
+                data: {
+                  tenantId: tenant.id,
+                  name: item.name,
+                  category: item.category || 'GERAL',
+                  executionType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
+                  priceType: item.priceType || 'FIXED',
+                  defaultPrice: item.price || 0,
+                },
+              });
+              catalogServiceId = newService.id;
+            }
           }
+
+          const itemSellingPrice = item.totalPrice || item.price || 0;
+
+          await tx.eventService.create({
+            data: {
+              eventId: event.id,
+              serviceId: catalogServiceId,
+              providerType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
+              sellingPrice: itemSellingPrice,
+              cost: item.cost || (itemSellingPrice * 0.4),
+              status: 'PLANNING',
+              notes: item.details || '',
+            },
+          });
         }
-
-        const itemSellingPrice = item.totalPrice || item.price || 0;
-
-        await prisma.eventService.create({
-          data: {
-            eventId: event.id,
-            serviceId: catalogServiceId,
-            providerType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
-            sellingPrice: itemSellingPrice,
-            cost: item.cost || (itemSellingPrice * 0.4),
-            status: 'PLANNING',
-            notes: item.details || '',
-          },
-        });
       }
-    }
 
-    // 4. Create Scheduled Payments: Deposit (Entrada) + Monthly Installments
-    // Initial Deposit
-    if (downPaymentAmtVal > 0) {
-      const depositStatus = finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING';
-      const scheduledPayment = await prisma.scheduledPayment.create({
-        data: {
-          tenantId: tenant.id,
-          bookingId: booking.id,
-          name: 'Initial Deposit (Sinal)',
-          amount: downPaymentAmtVal,
-          paidAmount: depositStatus === 'PAID' ? downPaymentAmtVal : 0,
-          status: depositStatus,
-          dueDate: parsedDepositDueDate,
-        },
-      });
-
-      if (depositStatus === 'PAID') {
-        await prisma.paymentTransaction.create({
+      // 4. Create Scheduled Payments: Deposit (Entrada) + Monthly Installments
+      // Initial Deposit
+      if (downPaymentAmtVal > 0) {
+        const depositStatus = finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING';
+        const scheduledPayment = await tx.scheduledPayment.create({
           data: {
             tenantId: tenant.id,
             bookingId: booking.id,
-            scheduledPaymentId: scheduledPayment.id,
+            name: 'Initial Deposit (Sinal)',
             amount: downPaymentAmtVal,
-            method: 'CASH', // Defaulting for POS, can be configured later
-            recordedBy: 'POS Terminal',
-            notes: 'Initial Deposit paid at booking',
-          }
+            paidAmount: depositStatus === 'PAID' ? downPaymentAmtVal : 0,
+            status: depositStatus,
+            dueDate: parsedDepositDueDate,
+          },
         });
-      }
-    }
 
-    // Single Payment Remaining Balance
-    if (installmentCountVal === 1 && (totalAmount - downPaymentAmtVal) > 0) {
-      await prisma.scheduledPayment.create({
-        data: {
-          tenantId: tenant.id,
-          bookingId: booking.id,
-          name: 'Remaining Balance (Saldo Final)',
-          amount: Math.max(0, totalAmount - downPaymentAmtVal),
-          status: 'PENDING',
-          dueDate: parsedDate,
-        },
-      });
-    }
-
-    // Installments
-    if (installmentCountVal > 1 && installmentAmtVal > 0) {
-      const remainingInstallments = installmentCountVal - 1;
-      for (let i = 1; i <= remainingInstallments; i++) {
-        // Calculate due date monthly from today, capped at eventDate
-        const installmentDueDate = new Date();
-        installmentDueDate.setMonth(installmentDueDate.getMonth() + i);
-        if (installmentDueDate > parsedDate) {
-          installmentDueDate.setTime(parsedDate.getTime());
+        if (depositStatus === 'PAID') {
+          await tx.paymentTransaction.create({
+            data: {
+              tenantId: tenant.id,
+              bookingId: booking.id,
+              scheduledPaymentId: scheduledPayment.id,
+              amount: downPaymentAmtVal,
+              method: 'CASH', // Defaulting for POS, can be configured later
+              recordedBy: 'POS Terminal',
+              notes: 'Initial Deposit paid at booking',
+            }
+          });
         }
+      }
 
-        await prisma.scheduledPayment.create({
+      // Single Payment Remaining Balance
+      if (installmentCountVal === 1 && (totalAmount - downPaymentAmtVal) > 0) {
+        await tx.scheduledPayment.create({
           data: {
             tenantId: tenant.id,
             bookingId: booking.id,
-            name: `Installment ${i} of ${remainingInstallments}`,
-            amount: installmentAmtVal,
+            name: 'Remaining Balance (Saldo Final)',
+            amount: Math.max(0, totalAmount - downPaymentAmtVal),
             status: 'PENDING',
-            dueDate: installmentDueDate,
+            dueDate: parsedDate,
           },
         });
       }
-    }
+
+      // Installments
+      if (installmentCountVal > 1 && installmentAmtVal > 0) {
+        const remainingInstallments = installmentCountVal - 1;
+        for (let i = 1; i <= remainingInstallments; i++) {
+          // Calculate due date monthly from today, capped at eventDate
+          const installmentDueDate = new Date();
+          installmentDueDate.setMonth(installmentDueDate.getMonth() + i);
+          if (installmentDueDate > parsedDate) {
+            installmentDueDate.setTime(parsedDate.getTime());
+          }
+
+          await tx.scheduledPayment.create({
+            data: {
+              tenantId: tenant.id,
+              bookingId: booking.id,
+              name: `Installment ${i} of ${remainingInstallments}`,
+              amount: installmentAmtVal,
+              status: 'PENDING',
+              dueDate: installmentDueDate,
+            },
+          });
+        }
+      }
+
+      return { booking, event };
+    }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json({ success: true, booking, event }, { status: 201 });
   } catch (error: unknown) {
+    if (error instanceof BookingConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Failed to create booking in POS:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
   }

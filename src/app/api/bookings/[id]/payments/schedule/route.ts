@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
 
 interface ScheduleInput {
@@ -29,7 +29,7 @@ export async function PUT(
     // Basic validation: sum of scheduled amounts should equal booking total
     // (Assuming totalContractAmount is known, but we'll let client handle strict validation for now or we can query it)
     
-    await prisma.$transaction(async (tx) => {
+    await prismaTransaction.$transaction(async (tx) => {
       // Get existing schedules
       const existingSchedules = await tx.scheduledPayment.findMany({
         where: { bookingId: id }
@@ -86,7 +86,7 @@ export async function PUT(
           });
         }
       }
-    });
+    }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: unknown) {

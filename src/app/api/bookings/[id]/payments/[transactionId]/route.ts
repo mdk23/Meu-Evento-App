@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
 
 export async function DELETE(
@@ -21,7 +21,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Transaction does not belong to this booking' }, { status: 400 });
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prismaTransaction.$transaction(async (tx) => {
       // 1. Delete the transaction
       await tx.paymentTransaction.delete({
         where: { id: transactionId },
@@ -52,7 +52,7 @@ export async function DELETE(
           });
         }
       }
-    });
+    }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
