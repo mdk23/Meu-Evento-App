@@ -38,12 +38,35 @@ export interface CartItem {
 }
 
 import React from 'react';
+import { Prisma } from '@prisma/client';
+
+export type CatalogService = Prisma.ServiceGetPayload<{
+  select: { id: true; name: true; category: true; executionType: true; defaultPrice: true; priceType: true };
+}>;
+
+export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
+
+export type BookingSummary = Prisma.BookingGetPayload<{
+  select: { id: true; eventDate: true; status: true; client: { select: { name: true } } };
+}>;
+
+/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. */
+export type BookingPOSInitialData = Prisma.BookingGetPayload<{
+  include: {
+    client: true;
+    event: { include: { eventServices: { include: { service: true } } } };
+    scheduledPayments: true;
+  };
+}> & {
+  clientName?: string;
+  title?: string;
+};
 
 export interface BookingPOSTerminalProps {
   initialClients?: Client[];
-  initialServices?: any[];
-  initialSpaces?: any[];
-  initialBookings?: any[];
-  initialBookingData?: any;
+  initialServices?: CatalogService[];
+  initialSpaces?: CatalogSpace[];
+  initialBookings?: BookingSummary[];
+  initialBookingData?: BookingPOSInitialData | null;
   paymentsTabComponent?: React.ReactNode;
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { BookingStatus, EventStatus, BookingType } from '@prisma/client';
+import { BookingStatus, EventStatus, BookingType, PaymentStatus, Prisma } from '@prisma/client';
 
 export async function GET(
   request: Request,
@@ -75,7 +75,7 @@ export async function PATCH(
     }
 
     // 1. Prepare update data for Booking
-    const updateData: any = {};
+    const updateData: Prisma.BookingUpdateInput = {};
     if (status && Object.values(BookingStatus).includes(status as BookingStatus)) {
       updateData.status = status;
     }
@@ -89,7 +89,7 @@ export async function PATCH(
       updateData.notes = notes;
     }
     if (clientId) {
-      updateData.clientId = clientId;
+      updateData.client = { connect: { id: clientId } };
     }
     if (bookingType && Object.values(BookingType).includes(bookingType as BookingType)) {
       updateData.bookingType = bookingType;
@@ -153,7 +153,7 @@ export async function PATCH(
       // Mapping old invoiceStatus (PENDING, PAID, etc.) to PaymentStatus
       await prisma.scheduledPayment.update({
         where: { id: invoiceId },
-        data: { status: invoiceStatus as any },
+        data: { status: invoiceStatus as PaymentStatus },
       });
     } else if (paymentAction === 'MARK_DEPOSIT_PAID' || paymentAction === 'MARK_ALL_PAID') {
       await prisma.scheduledPayment.updateMany({
@@ -164,7 +164,7 @@ export async function PATCH(
 
     // 3. Sync Event details and status
     if (existingBooking.event) {
-      const eventUpdateData: any = {};
+      const eventUpdateData: Prisma.EventUpdateInput = {};
 
       if (title) {
         eventUpdateData.name = title;

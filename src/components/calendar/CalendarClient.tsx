@@ -3,18 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Users, ArrowRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { BookingListDTO } from '@/types/dtos';
 
 interface CalendarClientProps {
-  initialBookings: any[];
-  clients: any[];
-  services: any[];
+  initialBookings: BookingListDTO[];
 }
 
 export default function CalendarClient({
   initialBookings,
-  clients,
-  services,
 }: CalendarClientProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -116,7 +113,7 @@ export default function CalendarClient({
                   </div>
 
                   <div className="space-y-1 overflow-y-auto max-h-20">
-                    {dayBookings.map((b: any) => (
+                    {dayBookings.map((b) => (
                       <div
                         key={b.id}
                         className={`text-[10px] p-1.5 rounded-lg border truncate font-semibold ${
@@ -127,7 +124,7 @@ export default function CalendarClient({
                             : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
                         }`}
                       >
-                        {b.client?.name || 'Booking'}
+                        {b.clientName || 'Booking'}
                       </div>
                     ))}
                   </div>

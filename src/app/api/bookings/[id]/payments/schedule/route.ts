@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
 
+interface ScheduleInput {
+  id?: string;
+  name: string;
+  amount: string | number;
+  dueDate: string;
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -9,7 +16,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { schedules } = body; // Array of { id?: string, name: string, amount: number, dueDate: string }
+    const schedules: ScheduleInput[] = body.schedules;
 
     const booking = await prisma.booking.findUnique({
       where: { id }
@@ -28,7 +35,7 @@ export async function PUT(
         where: { bookingId: id }
       });
 
-      const incomingIds = schedules.filter((s: any) => s.id).map((s: any) => s.id);
+      const incomingIds = schedules.filter((s) => s.id).map((s) => s.id);
       
       // Prevent deleting schedules that have payments
       const schedulesToDelete = existingSchedules.filter(es => !incomingIds.includes(es.id));
@@ -43,13 +50,13 @@ export async function PUT(
       for (const s of schedules) {
         if (s.id) {
           const existing = existingSchedules.find(es => es.id === s.id);
-          if (existing && existing.paidAmount > parseFloat(s.amount)) {
+          if (existing && existing.paidAmount > parseFloat(String(s.amount))) {
              throw new Error(`Cannot set amount of "${s.name}" lower than already paid amount (${existing.paidAmount}).`);
           }
 
           let newStatus = existing?.status || PaymentStatus.PENDING;
           if (existing) {
-             if (existing.paidAmount >= parseFloat(s.amount)) {
+             if (existing.paidAmount >= parseFloat(String(s.amount))) {
                  newStatus = PaymentStatus.PAID;
              } else if (existing.paidAmount > 0) {
                  newStatus = PaymentStatus.PARTIALLY_PAID;
@@ -62,7 +69,7 @@ export async function PUT(
             where: { id: s.id },
             data: {
               name: s.name,
-              amount: parseFloat(s.amount),
+              amount: parseFloat(String(s.amount)),
               dueDate: new Date(s.dueDate),
               status: newStatus
             }
@@ -73,7 +80,7 @@ export async function PUT(
               tenantId: booking.tenantId,
               bookingId: id,
               name: s.name,
-              amount: parseFloat(s.amount),
+              amount: parseFloat(String(s.amount)),
               dueDate: new Date(s.dueDate),
             }
           });
@@ -82,8 +89,8 @@ export async function PUT(
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to update schedule:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
   }
 }

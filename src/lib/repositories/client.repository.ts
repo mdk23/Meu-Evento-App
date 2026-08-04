@@ -17,7 +17,7 @@ export class ClientRepository {
         },
         bookings: {
           select: {
-            invoices: {
+            scheduledPayments: {
               where: { status: 'PAID' },
               select: { amount: true },
             },
@@ -28,7 +28,7 @@ export class ClientRepository {
 
     return clients.map((c) => {
       const totalSpent = c.bookings.reduce((sum, b) => {
-        return sum + b.invoices.reduce((invSum, inv) => invSum + inv.amount, 0);
+        return sum + b.scheduledPayments.reduce((spSum, sp) => spSum + sp.amount, 0);
       }, 0);
 
       return {

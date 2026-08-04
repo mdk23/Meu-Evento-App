@@ -61,7 +61,7 @@ export function useBookingPOS({
       providerName: s.executionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
       priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'HOURLY' ? 'HOURLY' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'HOURLY',
       price: s.defaultPrice || 15000,
-      description: s.description || 'Specialized service for your event.',
+      description: 'Specialized service for your event.',
     }));
   }, [initialServices]);
 
@@ -78,7 +78,7 @@ export function useBookingPOS({
   // 3. POS Cart State (Selected items)
   const [selectedItems, setSelectedItems] = useState<CartItem[]>(() => {
     if (initialBookingData?.event?.eventServices) {
-      return initialBookingData.event.eventServices.map((es: any) => {
+      return initialBookingData.event.eventServices.map((es) => {
         const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : 1;
         const unitPrice = es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0);
         return {
@@ -88,7 +88,7 @@ export function useBookingPOS({
           category: (es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
           providerType: es.providerType || es.service?.executionType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.executionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
-          priceType: es.service?.priceType || 'FIXED',
+          priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'HOURLY' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
           price: unitPrice,
           quantity: qty,
           totalPrice: es.sellingPrice || 0,
@@ -207,7 +207,7 @@ export function useBookingPOS({
 
   // Get active bookings on a specific day of the currently displayed calendar month
   const getBookingsOnDay = (day: number) => {
-    return initialBookings.filter((b: any) => {
+    return initialBookings.filter((b) => {
       if (b.status === 'CANCELLED') return false;
       const d = new Date(b.eventDate);
       return d.getFullYear() === calendarYear && d.getMonth() === calendarMonthIndex && d.getDate() === day;
@@ -215,7 +215,7 @@ export function useBookingPOS({
   };
 
   // Check conflicts for currently selected eventDate
-  const selectedDateBookings = initialBookings.filter((b: any) => {
+  const selectedDateBookings = initialBookings.filter((b) => {
     if (b.status === 'CANCELLED') return false;
     if (initialBookingData && b.id === initialBookingData.id) return false;
     const bDate = new Date(b.eventDate).toISOString().split('T')[0];

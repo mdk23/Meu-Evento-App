@@ -3,13 +3,19 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Boxes, Building2, Package, Users, Truck, Plus, Loader2, X } from 'lucide-react';
+import { Prisma } from '@prisma/client';
+
+type ResourceSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
+type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; quantity: true; category: true } }>;
+type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
+type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
 
 interface ResourcesClientProps {
   initialData: {
-    space: any;
-    inventory: any[];
-    staff: any[];
-    suppliers: any[];
+    space: ResourceSpace | null;
+    inventory: ResourceInventoryItem[];
+    staff: ResourceStaff[];
+    suppliers: ResourceSupplier[];
   };
 }
 
@@ -144,7 +150,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
           {/* TAB 2: INVENTORY */}
           {activeTab === 'inventory' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inventory.map((item: any) => (
+              {inventory.map((item) => (
                 <div key={item.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] bg-zinc-800 text-zinc-400 font-bold px-2 py-0.5 rounded-md">
@@ -165,7 +171,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
           {/* TAB 3: STAFF */}
           {activeTab === 'staff' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {staff.map((st: any) => (
+              {staff.map((st) => (
                 <div key={st.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                   <div>
                     <h3 className="text-white font-bold text-lg">{st.name}</h3>
@@ -183,7 +189,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
           {/* TAB 4: SUPPLIERS */}
           {activeTab === 'suppliers' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {suppliers.map((sup: any) => (
+              {suppliers.map((sup) => (
                 <div key={sup.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md font-bold">

@@ -21,9 +21,9 @@ export async function GET(
     });
 
     return NextResponse.json({ scheduledPayments, paymentTransactions });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch payments:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -90,8 +90,8 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, transaction }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to register payment:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
   }
 }

@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { SerializedSchedule } from './types';
 
 interface RegisterPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   bookingId: string;
-  scheduledPayments: any[];
+  scheduledPayments: SerializedSchedule[];
   onSuccess: () => void;
 }
 
@@ -55,8 +56,8 @@ export default function RegisterPaymentModal({ isOpen, onClose, bookingId, sched
       toast.success('Payment registered successfully!');
       onSuccess();
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to register payment');
     } finally {
       setIsSubmitting(false);
     }

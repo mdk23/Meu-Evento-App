@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { ScheduledPayment, PaymentTransaction, Booking } from '@prisma/client';
-import { Calendar, CreditCard, CheckCircle2, AlertCircle, Plus, Edit, DollarSign, Trash2 } from 'lucide-react';
+import { Calendar, CreditCard, Plus, Edit, DollarSign, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import RegisterPaymentModal from './RegisterPaymentModal';
 import EditScheduleModal from './EditScheduleModal';
+import { SerializedBooking, SerializedSchedule, SerializedTransaction } from './types';
 
 interface BookingPaymentsClientProps {
-  booking: any;
-  initialScheduledPayments: any[];
-  initialTransactions: any[];
+  booking: SerializedBooking;
+  initialScheduledPayments: SerializedSchedule[];
+  initialTransactions: SerializedTransaction[];
 }
 
 export default function BookingPaymentsClient({ booking, initialScheduledPayments, initialTransactions }: BookingPaymentsClientProps) {
@@ -53,8 +53,8 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
       }
       toast.success('Payment deleted successfully');
       refreshData();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete payment');
     }
   };
 
@@ -137,7 +137,7 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {scheduledPayments.map((sp: any) => (
+              {scheduledPayments.map((sp) => (
                 <tr key={sp.id} className="hover:bg-zinc-800/20 transition-colors">
                   <td className="px-6 py-4 font-medium text-white">{sp.name}</td>
                   <td className="px-6 py-4">{new Date(sp.dueDate).toLocaleDateString('pt-MZ')}</td>
@@ -186,7 +186,7 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {transactions.map((tx: any) => (
+              {transactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-zinc-800/20 transition-colors">
                   <td className="px-6 py-4">{new Date(tx.date).toLocaleDateString('pt-MZ')}</td>
                   <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400">{tx.amount.toLocaleString('pt-MZ')} MT</td>

@@ -40,19 +40,19 @@ export class BookingRepository {
       },
     });
 
-    return bookings.map((b: any) => {
-      const scheduledPaymentsSum = b.scheduledPayments?.reduce((sum: number, sp: any) => sum + sp.amount, 0) || 0;
-      const paidAmountSum = b.scheduledPayments?.reduce((sum: number, sp: any) => sum + sp.paidAmount, 0) || 0;
+    return bookings.map((b) => {
+      const scheduledPaymentsSum = b.scheduledPayments?.reduce((sum, sp) => sum + sp.amount, 0) || 0;
+      const paidAmountSum = b.scheduledPayments?.reduce((sum, sp) => sum + sp.paidAmount, 0) || 0;
 
-      const eventServicesSum = b.event?.eventServices?.reduce((sum: number, es: any) => sum + es.sellingPrice, 0) || 0;
+      const eventServicesSum = b.event?.eventServices?.reduce((sum, es) => sum + es.sellingPrice, 0) || 0;
       const servicesMinusDiscount = Math.max(0, eventServicesSum - (b.discount || 0));
       const depositImpliedTotal = (b.downPaymentPercent && b.downPaymentPercent > 0 && b.downPaymentAmount)
         ? (b.downPaymentAmount * 100) / b.downPaymentPercent
         : 0;
 
       const totalContractAmount = Math.max(scheduledPaymentsSum, servicesMinusDiscount, depositImpliedTotal);
-      
-      const depositSchedule = b.scheduledPayments?.find((sp: any) => sp.name?.toLowerCase().includes('entrada') || sp.name?.toLowerCase().includes('deposit'));
+
+      const depositSchedule = b.scheduledPayments?.find((sp) => sp.name?.toLowerCase().includes('entrada') || sp.name?.toLowerCase().includes('deposit'));
       const depositStatus = (depositSchedule?.status === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED')
         ? 'PAID'
         : 'PENDING';

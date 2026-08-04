@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ExpenseStatus, InvoiceStatus } from '@prisma/client';
+import { ExpenseStatus, PaymentStatus } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -24,10 +24,10 @@ export async function GET() {
       },
     });
 
-    const totalRevenue = scheduledPayments.filter((i: any) => i.status === 'PAID').reduce((a: number, b: any) => a + b.amount, 0);
-    const pendingRevenue = scheduledPayments.filter((i: any) => i.status === 'PENDING').reduce((a: number, b: any) => a + (b.amount - (b.paidAmount || 0)), 0);
-    const totalExpenses = expenses.filter((e: any) => e.status === 'PAID').reduce((a: number, b: any) => a + b.amount, 0);
-    const pendingExpenses = expenses.filter((e: any) => e.status === 'PENDING').reduce((a: number, b: any) => a + b.amount, 0);
+    const totalRevenue = scheduledPayments.filter(i => i.status === 'PAID').reduce((a, b) => a + b.amount, 0);
+    const pendingRevenue = scheduledPayments.filter(i => i.status === 'PENDING').reduce((a, b) => a + (b.amount - (b.paidAmount || 0)), 0);
+    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((a, b) => a + b.amount, 0);
+    const pendingExpenses = expenses.filter(e => e.status === 'PENDING').reduce((a, b) => a + b.amount, 0);
     const netProfit = totalRevenue - totalExpenses;
 
     const suppliers = await prisma.supplier.findMany();
@@ -113,7 +113,7 @@ export async function PUT(request: Request) {
       const updatedScheduledPayment = await prisma.scheduledPayment.update({
         where: { id: invoiceId },
         data: {
-          status: status as any,
+          status: status as PaymentStatus,
           paidAmount: status === 'PAID' ? undefined : 0, // Incomplete but prevents crash
         },
       });

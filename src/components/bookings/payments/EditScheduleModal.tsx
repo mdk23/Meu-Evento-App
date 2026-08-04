@@ -3,18 +3,19 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ScheduleFormItem, SerializedSchedule } from './types';
 
 interface EditScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
   bookingId: string;
   totalContractAmount: number;
-  initialSchedules: any[];
+  initialSchedules: SerializedSchedule[];
   onSuccess: () => void;
 }
 
 export default function EditScheduleModal({ isOpen, onClose, bookingId, totalContractAmount, initialSchedules, onSuccess }: EditScheduleModalProps) {
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleFormItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function EditScheduleModal({ isOpen, onClose, bookingId, totalCon
 
   if (!isOpen) return null;
 
-  const currentTotal = schedules.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+  const currentTotal = schedules.reduce((acc, curr) => acc + (parseFloat(String(curr.amount)) || 0), 0);
   const difference = totalContractAmount - currentTotal;
 
   const handleAddSchedule = () => {
@@ -53,7 +54,7 @@ export default function EditScheduleModal({ isOpen, onClose, bookingId, totalCon
     setSchedules(newSchedules);
   };
 
-  const handleUpdateSchedule = (index: number, field: string, value: any) => {
+  const handleUpdateSchedule = (index: number, field: keyof ScheduleFormItem, value: string) => {
     const newSchedules = [...schedules];
     newSchedules[index] = { ...newSchedules[index], [field]: value };
     setSchedules(newSchedules);
@@ -83,8 +84,8 @@ export default function EditScheduleModal({ isOpen, onClose, bookingId, totalCon
       toast.success('Payment schedule updated successfully!');
       onSuccess();
       onClose();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update schedule');
     } finally {
       setIsSubmitting(false);
     }

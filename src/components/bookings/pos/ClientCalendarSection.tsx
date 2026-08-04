@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users, Calendar as CalendarIcon } from 'lucide-react';
-import { Client } from './types';
+import { Client, BookingSummary } from './types';
 
 interface ClientCalendarSectionProps {
   initialClients: Client[];
@@ -27,9 +27,9 @@ interface ClientCalendarSectionProps {
   calendarYear: number;
   calendarMonthIndex: number;
   calendarDaysArr: (number | null)[];
-  getBookingsOnDay: (day: number) => any[];
+  getBookingsOnDay: (day: number) => BookingSummary[];
   hasConflict: boolean;
-  selectedDateBookings: any[];
+  selectedDateBookings: BookingSummary[];
   isWaitingList: boolean;
   setIsWaitingList: (val: boolean) => void;
 }

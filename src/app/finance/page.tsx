@@ -9,7 +9,7 @@ export default async function FinancePage() {
     FinanceService.getSummary(),
     prisma.supplier.findMany({ select: { id: true, name: true, category: true }, orderBy: { name: 'asc' } }),
     prisma.booking.findMany({ select: { id: true, eventDate: true, client: { select: { name: true } } }, orderBy: { eventDate: 'desc' } }),
-    prisma.invoice.findMany({ select: { id: true, amount: true, status: true, dueDate: true, booking: { select: { client: { select: { name: true } } } } }, orderBy: { dueDate: 'desc' } }),
+    prisma.scheduledPayment.findMany({ select: { id: true, amount: true, status: true, dueDate: true, booking: { select: { client: { select: { name: true } } } } }, orderBy: { dueDate: 'desc' } }),
     prisma.expense.findMany({ select: { id: true, description: true, amount: true, category: true, status: true, supplier: { select: { name: true } } }, orderBy: { createdAt: 'desc' } }),
   ]);
 

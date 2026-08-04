@@ -3,14 +3,24 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TrendingUp, Plus, Loader2, X } from 'lucide-react';
+import { Prisma } from '@prisma/client';
 import { FinanceSummaryDTO } from '@/types/dtos';
+
+type FinanceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true } }>;
+type FinanceBooking = Prisma.BookingGetPayload<{ select: { id: true; eventDate: true; client: { select: { name: true } } } }>;
+type FinanceInvoice = Prisma.ScheduledPaymentGetPayload<{
+  select: { id: true; amount: true; status: true; dueDate: true; booking: { select: { client: { select: { name: true } } } } };
+}>;
+type FinanceExpense = Prisma.ExpenseGetPayload<{
+  select: { id: true; description: true; amount: true; category: true; status: true; supplier: { select: { name: true } } };
+}>;
 
 interface FinanceClientProps {
   initialSummary: FinanceSummaryDTO;
-  suppliers: any[];
-  bookings: any[];
-  invoices: any[];
-  expenses: any[];
+  suppliers: FinanceSupplier[];
+  bookings: FinanceBooking[];
+  invoices: FinanceInvoice[];
+  expenses: FinanceExpense[];
 }
 
 export default function FinanceClient({
@@ -71,7 +81,7 @@ export default function FinanceClient({
       }
     } catch (err) {
       console.error(err);
-    } fontally: {
+    } finally {
       setSubmitting(false);
     }
   };
@@ -151,7 +161,7 @@ export default function FinanceClient({
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
               <h3 className="text-white font-bold text-base">Client Invoices</h3>
               <div className="space-y-3">
-                {invoices.map((inv: any) => (
+                {invoices.map((inv) => (
                   <div key={inv.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
                     <div>
                       <h4 className="text-white font-bold text-sm">{inv.booking?.client?.name || 'Client'}</h4>
@@ -186,7 +196,7 @@ export default function FinanceClient({
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
               <h3 className="text-white font-bold text-base">Supplier Expenses & Operational Costs</h3>
               <div className="space-y-3">
-                {expenses.map((exp: any) => (
+                {expenses.map((exp) => (
                   <div key={exp.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
                     <div>
                       <h4 className="text-white font-bold text-sm">{exp.description}</h4>
@@ -255,7 +265,7 @@ export default function FinanceClient({
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
                   >
                     <option value="">-- Choose Booking --</option>
-                    {bookings.map((b: any) => (
+                    {bookings.map((b) => (
                       <option key={b.id} value={b.id}>{b.client?.name} ({new Date(b.eventDate).toLocaleDateString()})</option>
                     ))}
                   </select>
@@ -281,7 +291,7 @@ export default function FinanceClient({
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
                     >
                       <option value="">-- Optional Supplier --</option>
-                      {suppliers.map((s: any) => (
+                      {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
                       ))}
                     </select>
