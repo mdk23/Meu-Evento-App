@@ -24,6 +24,7 @@ export interface DashboardDTO {
     serviceSummary: Array<{ id: string; name: string; providerType: string }>;
   }>;
   serviceStatusSummary: Record<string, number>;
+  supplierStatusSummary: Record<string, number>;
 }
 
 export interface BookingListDTO {

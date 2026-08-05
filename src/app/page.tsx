@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const data = await DashboardService.getDashboardSummary();
-  const { kpis, todaysEvents, upcomingEvents, serviceStatusSummary } = data;
+  const { kpis, todaysEvents, upcomingEvents, serviceStatusSummary, supplierStatusSummary } = data;
 
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -194,19 +194,19 @@ export default async function DashboardPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-850">
                   <span className="text-xs text-zinc-300 flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" /> Planning / Preparing
+                    <Clock className="w-3.5 h-3.5 text-amber-400" /> Planning / In Progress
                   </span>
                   <span className="text-xs font-bold text-amber-400">
-                    {(serviceStatusSummary.PLANNING || 0) + (serviceStatusSummary.PREPARING || 0)} Services
+                    {(serviceStatusSummary.PLANNING || 0) + (serviceStatusSummary.IN_PROGRESS || 0)} Services
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-850">
                   <span className="text-xs text-zinc-300 flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Ready / Executing
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Ready / Completed
                   </span>
                   <span className="text-xs font-bold text-emerald-400">
-                    {(serviceStatusSummary.READY || 0) + (serviceStatusSummary.EXECUTING || 0)} Services
+                    {(serviceStatusSummary.READY || 0) + (serviceStatusSummary.COMPLETED || 0)} Services
                   </span>
                 </div>
 
@@ -215,7 +215,7 @@ export default async function DashboardPage() {
                     <Users className="w-3.5 h-3.5 text-blue-400" /> External Supplier Confirmed
                   </span>
                   <span className="text-xs font-bold text-blue-400">
-                    {serviceStatusSummary.CONFIRMED || 0} Suppliers
+                    {supplierStatusSummary.CONFIRMED || 0} Suppliers
                   </span>
                 </div>
               </div>

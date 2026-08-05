@@ -106,12 +106,12 @@ export default function ClientsClient({ initialClients }: ClientsClientProps) {
     }
   };
 
-  // Sonner Delete Confirmation Handler
+  // Sonner Deactivate Confirmation Handler
   const handleDeletePrompt = (clientId: string, clientName: string) => {
-    toast(`Delete client "${clientName}"?`, {
-      description: 'This will remove the contact from CRM. Note: Clients with active bookings cannot be deleted.',
+    toast(`Deactivate client "${clientName}"?`, {
+      description: 'This hides them from new booking creation. Their existing bookings and history stay intact and unaffected.',
       action: {
-        label: 'Confirm Delete',
+        label: 'Confirm Deactivate',
         onClick: () => executeDeleteClient(clientId),
       },
       cancel: {
@@ -129,11 +129,11 @@ export default function ClientsClient({ initialClients }: ClientsClientProps) {
         method: 'DELETE',
       });
       if (res.ok) {
-        toast.success('Client profile deleted successfully!');
+        toast.success('Client deactivated successfully!');
         router.refresh();
       } else {
         const errData = await res.json();
-        toast.error(errData.error || 'Failed to delete client.');
+        toast.error(errData.error || 'Failed to deactivate client.');
       }
     } catch (err) {
       console.error(err);
@@ -228,7 +228,7 @@ export default function ClientsClient({ initialClients }: ClientsClientProps) {
                       disabled={isDeleting}
                       onClick={() => handleDeletePrompt(c.id, c.name)}
                       className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
-                      title="Delete Client"
+                      title="Deactivate Client"
                     >
                       {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>

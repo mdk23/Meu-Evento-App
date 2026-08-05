@@ -5,15 +5,18 @@ import { useRouter } from 'next/navigation';
 import { TrendingUp, Plus, Loader2, X } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 import { FinanceSummaryDTO } from '@/types/dtos';
+import { DecimalToNumber } from '@/lib/money';
 
 type FinanceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true } }>;
 type FinanceBooking = Prisma.BookingGetPayload<{ select: { id: true; eventDate: true; client: { select: { name: true } } } }>;
-type FinanceInvoice = Prisma.ScheduledPaymentGetPayload<{
+// `amount` is typed as `number`, not `Decimal`: `src/lib/money.ts`'s `serializeDecimals` converts every
+// Decimal field to a plain number before this data crosses the server/client boundary.
+type FinanceInvoice = DecimalToNumber<Prisma.ScheduledPaymentGetPayload<{
   select: { id: true; amount: true; status: true; dueDate: true; booking: { select: { client: { select: { name: true } } } } };
-}>;
-type FinanceExpense = Prisma.ExpenseGetPayload<{
+}>>;
+type FinanceExpense = DecimalToNumber<Prisma.ExpenseGetPayload<{
   select: { id: true; description: true; amount: true; category: true; status: true; supplier: { select: { name: true } } };
-}>;
+}>>;
 
 interface FinanceClientProps {
   initialSummary: FinanceSummaryDTO;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { BookingStatus, BookingType, EventStatus, ExecutionType } from '@prisma/client';
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
+import { serializeDecimals } from '@/lib/money';
 
 export async function GET() {
   try {
@@ -22,7 +23,7 @@ export async function GET() {
     const services = await prisma.service.findMany({ orderBy: { name: 'asc' } });
     const spaces = await prisma.space.findMany({ orderBy: { name: 'asc' } });
 
-    return NextResponse.json({ bookings, clients, services, spaces });
+    return NextResponse.json(serializeDecimals({ bookings, clients, services, spaces }));
   } catch (error: unknown) {
     console.error('Failed to fetch bookings:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -184,6 +185,7 @@ export async function POST(request: Request) {
             data: {
               eventId: event.id,
               serviceId: catalogServiceId,
+              serviceNameSnapshot: item.name || null,
               providerType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
               sellingPrice: itemSellingPrice,
               cost: item.cost || (itemSellingPrice * 0.4),
@@ -266,7 +268,7 @@ export async function POST(request: Request) {
       return { booking, event };
     }, { timeout: 15000, maxWait: 10000 });
 
-    return NextResponse.json({ success: true, booking, event }, { status: 201 });
+    return NextResponse.json(serializeDecimals({ success: true, booking, event }), { status: 201 });
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });

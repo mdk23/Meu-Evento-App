@@ -1,7 +1,6 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
-import { Sidebar } from '@/components/Sidebar';
 import { useEventDetail } from './useEventDetail';
 import EventDetailHeader from './EventDetailHeader';
 import EventDetailTabs from './EventDetailTabs';
@@ -23,16 +22,13 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
 
   if (detail.loading || !detail.data || !detail.data.event) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center text-violet-400">
-          <Loader2 className="w-10 h-10 animate-spin" />
-        </div>
+      <div className="flex-1 flex items-center justify-center text-violet-400">
+        <Loader2 className="w-10 h-10 animate-spin" />
       </div>
     );
   }
 
-  const { event, space, suppliers, catalogServices } = detail.data;
+  const { event, space, suppliers, catalogServices, staff, inventoryItems } = detail.data;
 
   return (
     <>
@@ -75,7 +71,6 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           setWorkOrderStatus={detail.setWorkOrderStatus}
           customFields={detail.customFields}
           setCustomFields={detail.setCustomFields}
-          tasks={detail.tasks}
           newTaskTitle={detail.newTaskTitle}
           setNewTaskTitle={detail.setNewTaskTitle}
           supplierId={detail.supplierId}
@@ -88,8 +83,22 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           setPaymentStatus={detail.setPaymentStatus}
           suppliers={suppliers || []}
           savingWorkOrder={detail.savingWorkOrder}
+          workOrderError={detail.workOrderError}
           onToggleTask={detail.toggleTaskCompleted}
           onAddTask={detail.handleAddTask}
+          onRemoveTask={detail.handleRemoveTask}
+          staff={staff || []}
+          selectedStaffId={detail.selectedStaffId}
+          setSelectedStaffId={detail.setSelectedStaffId}
+          onAssignStaff={detail.handleAssignStaff}
+          onUnassignStaff={detail.handleUnassignStaff}
+          inventoryItems={inventoryItems || []}
+          selectedInventoryId={detail.selectedInventoryId}
+          setSelectedInventoryId={detail.setSelectedInventoryId}
+          reserveQuantity={detail.reserveQuantity}
+          setReserveQuantity={detail.setReserveQuantity}
+          onReserveInventory={detail.handleReserveInventoryItem}
+          onRemoveReservedInventory={detail.handleRemoveReservedInventory}
           onSave={detail.handleSaveWorkOrder}
           onClose={detail.closeServiceWorkOrder}
         />

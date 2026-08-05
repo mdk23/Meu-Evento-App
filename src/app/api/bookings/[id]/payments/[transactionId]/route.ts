@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
+import { isMoneyGreaterThan, isMoneyPositive, subtractMoneyFloor0 } from '@/lib/money';
 
 export async function DELETE(
   request: Request,
@@ -34,12 +35,12 @@ export async function DELETE(
         });
 
         if (schedule) {
-          const newPaidAmount = Math.max(0, schedule.paidAmount - transaction.amount);
-          
+          const newPaidAmount = subtractMoneyFloor0(schedule.paidAmount, transaction.amount);
+
           let newStatus = schedule.status;
-          if (newPaidAmount === 0) {
+          if (!isMoneyPositive(newPaidAmount)) {
             newStatus = PaymentStatus.PENDING;
-          } else if (newPaidAmount < schedule.amount) {
+          } else if (isMoneyGreaterThan(schedule.amount, newPaidAmount)) {
             newStatus = PaymentStatus.PARTIALLY_PAID;
           }
 

@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Users, Package } from 'lucide-react';
 import { EventServiceWithRelations } from '../types';
 
 interface ServicesTabProps {
@@ -26,6 +26,8 @@ export default function ServicesTab({ eventServices, onOpenWorkOrder, onOpenAddS
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {eventServices.map((es) => {
           const isInternal = es.providerType === 'INTERNAL';
+          const staffCount = es.staffAssignments.length;
+          const inventoryCount = es.inventoryReservations.length;
           return (
             <div
               key={es.id}
@@ -53,6 +55,20 @@ export default function ServicesTab({ eventServices, onOpenWorkOrder, onOpenAddS
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 text-xs text-zinc-400 space-y-1">
                     <p>Operational Status: <strong className="text-emerald-400">{es.status}</strong></p>
                     <p>Selling Price: <strong className="text-zinc-200">{es.sellingPrice.toLocaleString()} MT</strong></p>
+                    {(staffCount > 0 || inventoryCount > 0) && (
+                      <div className="flex gap-3 pt-1">
+                        {staffCount > 0 && (
+                          <span className="flex items-center gap-1 text-emerald-400">
+                            <Users className="w-3 h-3" /> {staffCount} staff
+                          </span>
+                        )}
+                        {inventoryCount > 0 && (
+                          <span className="flex items-center gap-1 text-emerald-400">
+                            <Package className="w-3 h-3" /> {inventoryCount} items
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 text-xs text-zinc-400 space-y-1">

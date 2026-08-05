@@ -39,10 +39,13 @@ export interface CartItem {
 
 import React from 'react';
 import { Prisma } from '@prisma/client';
+import { DecimalToNumber } from '@/lib/money';
 
-export type CatalogService = Prisma.ServiceGetPayload<{
+// `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
+// `serializeDecimals` converts every one to a plain number before this data reaches the client.
+export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
   select: { id: true; name: true; category: true; executionType: true; defaultPrice: true; priceType: true };
-}>;
+}>>;
 
 export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
 
@@ -51,13 +54,13 @@ export type BookingSummary = Prisma.BookingGetPayload<{
 }>;
 
 /** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. */
-export type BookingPOSInitialData = Prisma.BookingGetPayload<{
+export type BookingPOSInitialData = DecimalToNumber<Prisma.BookingGetPayload<{
   include: {
     client: true;
     event: { include: { eventServices: { include: { service: true } } } };
     scheduledPayments: true;
   };
-}> & {
+}>> & {
   clientName?: string;
   title?: string;
 };

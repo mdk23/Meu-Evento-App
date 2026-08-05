@@ -12,16 +12,20 @@ export function useEventDetail(id: string) {
   const [data, setData] = useState<EventDetailApiResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('services');
 
-  const [selectedService, setSelectedService] = useState<EventServiceWithRelations | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [workOrderStatus, setWorkOrderStatus] = useState('');
   const [customFields, setCustomFields] = useState<WorkOrderCustomFields>({});
-  const [tasks, setTasks] = useState<WorkOrderTask[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [supplierCost, setSupplierCost] = useState('0');
   const [supplierStatus, setSupplierStatus] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('UNPAID');
   const [savingWorkOrder, setSavingWorkOrder] = useState(false);
+  const [workOrderError, setWorkOrderError] = useState('');
+
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [selectedInventoryId, setSelectedInventoryId] = useState('');
+  const [reserveQuantity, setReserveQuantity] = useState('1');
 
   const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
   const [catalogServiceId, setCatalogServiceId] = useState('');
@@ -32,6 +36,9 @@ export function useEventDetail(id: string) {
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [addingGuest, setAddingGuest] = useState(false);
+
+  const selectedService: EventServiceWithRelations | null =
+    (selectedServiceId && data?.event.eventServices.find((es) => es.id === selectedServiceId)) || null;
 
   const reloadEvent = async () => {
     try {
@@ -67,25 +74,27 @@ export function useEventDetail(id: string) {
   }, [id]);
 
   const openServiceWorkOrder = (es: EventServiceWithRelations) => {
-    setSelectedService(es);
+    setSelectedServiceId(es.id);
     setWorkOrderStatus(es.status || 'PLANNING');
     try {
       setCustomFields(es.customFields ? JSON.parse(es.customFields) : {});
     } catch {
       setCustomFields({});
     }
-    try {
-      setTasks(es.tasks ? JSON.parse(es.tasks) : []);
-    } catch {
-      setTasks([]);
-    }
     setSupplierId(es.supplierId || '');
     setSupplierCost(String(es.supplierCost || es.cost || 0));
     setSupplierStatus(es.supplierStatus || 'REQUESTED');
     setPaymentStatus(es.paymentStatus || 'UNPAID');
+    setSelectedStaffId('');
+    setSelectedInventoryId('');
+    setReserveQuantity('1');
+    setWorkOrderError('');
   };
 
-  const closeServiceWorkOrder = () => setSelectedService(null);
+  const closeServiceWorkOrder = () => {
+    setSelectedServiceId(null);
+    setWorkOrderError('');
+  };
 
   const handleSaveWorkOrder = async () => {
     if (!selectedService) return;
@@ -98,7 +107,6 @@ export function useEventDetail(id: string) {
           eventServiceId: selectedService.id,
           status: workOrderStatus,
           customFields,
-          tasks,
           supplierId: supplierId || null,
           supplierCost,
           cost: supplierCost,
@@ -106,7 +114,7 @@ export function useEventDetail(id: string) {
           paymentStatus,
         }),
       });
-      setSelectedService(null);
+      setSelectedServiceId(null);
       await reloadEvent();
     } catch (err) {
       console.error('Failed to save work order:', err);
@@ -141,19 +149,110 @@ export function useEventDetail(id: string) {
     }
   };
 
-  const toggleTaskCompleted = (taskId: string) => {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t)));
+  const toggleTaskCompleted = async (taskId: string) => {
+    if (!selectedService) return;
+    const task = selectedService.serviceTasks.find((t) => t.id === taskId);
+    if (!task) return;
+    try {
+      await fetch(`/api/events/${id}/services/${selectedService.id}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: task.status === 'DONE' ? 'PENDING' : 'DONE' }),
+      });
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
   };
 
-  const handleAddTask = () => {
-    if (!newTaskTitle.trim()) return;
-    const newTask: WorkOrderTask = {
-      id: String(Date.now()),
-      title: newTaskTitle.trim(),
-      completed: false,
-    };
-    setTasks((prev) => [...prev, newTask]);
-    setNewTaskTitle('');
+  const handleAddTask = async () => {
+    if (!selectedService || !newTaskTitle.trim()) return;
+    try {
+      await fetch(`/api/events/${id}/services/${selectedService.id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTaskTitle.trim() }),
+      });
+      setNewTaskTitle('');
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to add task:', err);
+    }
+  };
+
+  const handleRemoveTask = async (taskId: string) => {
+    if (!selectedService) return;
+    try {
+      await fetch(`/api/events/${id}/services/${selectedService.id}/tasks/${taskId}`, { method: 'DELETE' });
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to remove task:', err);
+    }
+  };
+
+  const handleAssignStaff = async () => {
+    if (!selectedService || !selectedStaffId) return;
+    setWorkOrderError('');
+    try {
+      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffId: selectedStaffId }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setWorkOrderError(json.error || 'Failed to assign staff.');
+        return;
+      }
+      setSelectedStaffId('');
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to assign staff:', err);
+    }
+  };
+
+  const handleUnassignStaff = async (assignmentId: string) => {
+    if (!selectedService) return;
+    try {
+      await fetch(`/api/events/${id}/services/${selectedService.id}/staff/${assignmentId}`, { method: 'DELETE' });
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to unassign staff:', err);
+    }
+  };
+
+  const handleReserveInventoryItem = async () => {
+    if (!selectedService || !selectedInventoryId) return;
+    const qty = parseInt(reserveQuantity || '0', 10);
+    if (!qty || qty <= 0) return;
+    setWorkOrderError('');
+    try {
+      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryItemId: selectedInventoryId, quantity: qty }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setWorkOrderError(json.error || 'Failed to reserve inventory.');
+        return;
+      }
+      setSelectedInventoryId('');
+      setReserveQuantity('1');
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to reserve inventory:', err);
+    }
+  };
+
+  const handleRemoveReservedInventory = async (reservationId: string) => {
+    if (!selectedService) return;
+    try {
+      await fetch(`/api/events/${id}/services/${selectedService.id}/inventory/${reservationId}`, { method: 'DELETE' });
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to release inventory reservation:', err);
+    }
   };
 
   const handleAddGuest = async (e: React.FormEvent) => {
@@ -179,18 +278,13 @@ export function useEventDetail(id: string) {
   const allEventTasks: (WorkOrderTask & { serviceName?: string; providerType?: string })[] = [];
   if (data?.event) {
     data.event.eventServices.forEach((es) => {
-      try {
-        const parsed: WorkOrderTask[] = es.tasks ? JSON.parse(es.tasks) : [];
-        parsed.forEach((t) => {
-          allEventTasks.push({
-            ...t,
-            serviceName: es.service?.name,
-            providerType: es.providerType,
-          });
+      es.serviceTasks.forEach((t) => {
+        allEventTasks.push({
+          ...t,
+          serviceName: es.service?.name,
+          providerType: es.providerType,
         });
-      } catch {
-        // ignore malformed task JSON for this service
-      }
+      });
     });
   }
 
@@ -205,7 +299,6 @@ export function useEventDetail(id: string) {
     setWorkOrderStatus,
     customFields,
     setCustomFields,
-    tasks,
     newTaskTitle,
     setNewTaskTitle,
     supplierId,
@@ -217,11 +310,25 @@ export function useEventDetail(id: string) {
     paymentStatus,
     setPaymentStatus,
     savingWorkOrder,
+    workOrderError,
     openServiceWorkOrder,
     closeServiceWorkOrder,
     handleSaveWorkOrder,
     toggleTaskCompleted,
     handleAddTask,
+    handleRemoveTask,
+
+    selectedStaffId,
+    setSelectedStaffId,
+    handleAssignStaff,
+    handleUnassignStaff,
+
+    selectedInventoryId,
+    setSelectedInventoryId,
+    reserveQuantity,
+    setReserveQuantity,
+    handleReserveInventoryItem,
+    handleRemoveReservedInventory,
 
     isAddServiceOpen,
     setIsAddServiceOpen,

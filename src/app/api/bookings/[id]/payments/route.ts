@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus, PaymentMethod } from '@prisma/client';
+import { addMoney, isMoneyGreaterThanOrEqual, isMoneyPositive, serializeDecimals } from '@/lib/money';
 
 export async function GET(
   request: Request,
@@ -20,7 +21,7 @@ export async function GET(
       include: { scheduledPayment: true }
     });
 
-    return NextResponse.json({ scheduledPayments, paymentTransactions });
+    return NextResponse.json(serializeDecimals({ scheduledPayments, paymentTransactions }));
   } catch (error: unknown) {
     console.error('Failed to fetch payments:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
@@ -67,12 +68,12 @@ export async function POST(
         });
 
         if (schedule) {
-          const newPaidAmount = schedule.paidAmount + parseFloat(amount);
+          const newPaidAmount = addMoney(schedule.paidAmount, parseFloat(amount));
           let newStatus = schedule.status;
 
-          if (newPaidAmount >= schedule.amount) {
+          if (isMoneyGreaterThanOrEqual(newPaidAmount, schedule.amount)) {
             newStatus = PaymentStatus.PAID;
-          } else if (newPaidAmount > 0) {
+          } else if (isMoneyPositive(newPaidAmount)) {
             newStatus = PaymentStatus.PARTIALLY_PAID;
           }
 
@@ -89,7 +90,7 @@ export async function POST(
       return newTransaction;
     }, { timeout: 15000, maxWait: 10000 });
 
-    return NextResponse.json({ success: true, transaction }, { status: 201 });
+    return NextResponse.json(serializeDecimals({ success: true, transaction }), { status: 201 });
   } catch (error: unknown) {
     console.error('Failed to register payment:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });

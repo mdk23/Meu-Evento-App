@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { serializeDecimals } from '@/lib/money';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,6 +20,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           include: {
             service: true,
             supplier: true,
+            serviceTasks: true,
+            staffAssignments: { include: { staff: true } },
+            inventoryReservations: { include: { inventoryItem: true } },
           },
         },
         guests: true,
@@ -34,17 +38,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    // Only active catalog entries should be selectable when assigning staff/inventory/suppliers/services
+    // to a work order — an already-assigned (now-inactive) one still displays fine via the eventServices
+    // include above, since that's a live join on whatever is actually assigned, not this picker list.
     const tenant = await prisma.tenant.findFirst({
       include: {
         space: true,
-        suppliers: true,
-        staff: true,
-        inventoryItems: true,
-        services: true,
+        suppliers: { where: { active: true } },
+        staff: { where: { active: true } },
+        inventoryItems: { where: { active: true } },
+        services: { where: { active: true } },
       },
     });
 
-    return NextResponse.json({ event, space: tenant?.space, suppliers: tenant?.suppliers, staff: tenant?.staff, catalogServices: tenant?.services });
+    return NextResponse.json(serializeDecimals({
+      event,
+      space: tenant?.space,
+      suppliers: tenant?.suppliers,
+      staff: tenant?.staff,
+      catalogServices: tenant?.services,
+      inventoryItems: tenant?.inventoryItems,
+    }));
   } catch (error: unknown) {
     console.error('Failed to fetch event detail:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

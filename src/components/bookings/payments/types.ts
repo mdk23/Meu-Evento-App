@@ -1,10 +1,11 @@
 import { Prisma } from '@prisma/client';
+import { DecimalToNumber } from '@/lib/money';
 
 type SerializedDates<T, K extends keyof T> = Omit<T, K> & { [P in K]: string };
 
 export type SerializedBooking = SerializedDates<
   Omit<
-    Prisma.BookingGetPayload<{ include: { client: true; event: { include: { eventServices: true } } } }>,
+    DecimalToNumber<Prisma.BookingGetPayload<{ include: { client: true; event: { include: { eventServices: true } } } }>>,
     'depositDueDate'
   >,
   'createdAt' | 'updatedAt' | 'eventDate'
@@ -16,12 +17,12 @@ export type SerializedBooking = SerializedDates<
 /** `transactions` is intentionally not included: the two pages that supply this prop query scheduledPayments
  * with different levels of relation depth, and the payments table never reads `sp.transactions` directly. */
 export type SerializedSchedule = SerializedDates<
-  Prisma.ScheduledPaymentGetPayload<object>,
+  DecimalToNumber<Prisma.ScheduledPaymentGetPayload<object>>,
   'dueDate' | 'createdAt' | 'updatedAt'
 >;
 
 export type SerializedTransaction = SerializedDates<
-  Prisma.PaymentTransactionGetPayload<{ include: { scheduledPayment: true } }>,
+  DecimalToNumber<Prisma.PaymentTransactionGetPayload<{ include: { scheduledPayment: true } }>>,
   'date' | 'createdAt'
 >;
 

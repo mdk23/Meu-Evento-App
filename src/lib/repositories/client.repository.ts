@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { ClientCardDTO } from '@/types/dtos';
+import { sumMoney, toDisplayNumber } from '@/lib/money';
 
 export class ClientRepository {
   static async getClientList(): Promise<ClientCardDTO[]> {
@@ -27,9 +28,7 @@ export class ClientRepository {
     });
 
     return clients.map((c) => {
-      const totalSpent = c.bookings.reduce((sum, b) => {
-        return sum + b.scheduledPayments.reduce((spSum, sp) => spSum + sp.amount, 0);
-      }, 0);
+      const totalSpent = sumMoney(c.bookings.flatMap((b) => b.scheduledPayments.map((sp) => sp.amount)));
 
       return {
         id: c.id,
@@ -38,7 +37,7 @@ export class ClientRepository {
         phone: c.phone,
         companyName: c.companyName,
         bookingCount: c._count.bookings,
-        totalSpent,
+        totalSpent: toDisplayNumber(totalSpent),
         notes: c.notes,
       };
     });

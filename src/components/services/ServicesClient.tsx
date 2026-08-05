@@ -133,12 +133,12 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     }
   };
 
-  // Sonner Delete Prompt
+  // Sonner Deactivate Prompt
   const handleDeletePrompt = (serviceId: string, serviceName: string) => {
-    toast(`Delete service "${serviceName}"?`, {
-      description: 'This will remove the service from catalog listings. Active bookings using it will not be modified.',
+    toast(`Deactivate service "${serviceName}"?`, {
+      description: 'This hides it from new booking/event selection. Existing bookings and events using it keep their own recorded price and name, unaffected.',
       action: {
-        label: 'Confirm Delete',
+        label: 'Confirm Deactivate',
         onClick: () => executeDeleteService(serviceId),
       },
       cancel: {
@@ -156,11 +156,11 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         method: 'DELETE',
       });
       if (res.ok) {
-        toast.success('Service removed from catalog!');
+        toast.success('Service deactivated!');
         router.refresh();
       } else {
         const errData = await res.json();
-        toast.error(errData.error || 'Failed to delete service.');
+        toast.error(errData.error || 'Failed to deactivate service.');
       }
     } catch (err) {
       console.error(err);
@@ -296,7 +296,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                               disabled={isDeleting}
                               onClick={() => handleDeletePrompt(s.id, s.name)}
                               className="text-zinc-500 hover:text-red-400 p-1.5 rounded hover:bg-zinc-800 transition-colors"
-                              title="Delete Service"
+                              title="Deactivate Service"
                             >
                               {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                             </button>

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { DashboardDTO } from '@/types/dtos';
+import { subtractMoneyFloor0, toDisplayNumber } from '@/lib/money';
 
 export class DashboardRepository {
   static async getDashboardData(): Promise<DashboardDTO> {
@@ -18,6 +19,7 @@ export class DashboardRepository {
       todaysEventsRaw,
       upcomingEventsRaw,
       serviceStatusGrouped,
+      supplierStatusGrouped,
     ] = await Promise.all([
       // 1. PostgreSQL DB aggregate for Paid Revenue (Total from transactions)
       prisma.paymentTransaction.aggregate({
@@ -80,16 +82,29 @@ export class DashboardRepository {
         by: ['status'],
         _count: { status: true },
       }),
+      // 8. PostgreSQL DB groupBy for External Supplier Status Breakdown (null = INTERNAL services, excluded)
+      prisma.eventService.groupBy({
+        by: ['supplierStatus'],
+        _count: { supplierStatus: true },
+        where: { supplierStatus: { not: null } },
+      }),
     ]);
 
-    const revenue = revenueResult._sum.amount || 0;
-    const pendingAmount = Math.max(0, (pendingResult._sum.amount || 0) - (pendingResult._sum.paidAmount || 0));
-    const totalCosts = expenseResult._sum.amount || 0;
+    const revenue = toDisplayNumber(revenueResult._sum.amount);
+    const pendingAmount = toDisplayNumber(subtractMoneyFloor0(pendingResult._sum.amount, pendingResult._sum.paidAmount));
+    const totalCosts = toDisplayNumber(expenseResult._sum.amount);
     const netProfit = revenue - totalCosts;
 
     const serviceStatusSummary: Record<string, number> = {};
     for (const item of serviceStatusGrouped) {
       serviceStatusSummary[item.status] = item._count.status;
+    }
+
+    const supplierStatusSummary: Record<string, number> = {};
+    for (const item of supplierStatusGrouped) {
+      if (item.supplierStatus) {
+        supplierStatusSummary[item.supplierStatus] = item._count.supplierStatus;
+      }
     }
 
     return {
@@ -122,6 +137,7 @@ export class DashboardRepository {
         })),
       })),
       serviceStatusSummary,
+      supplierStatusSummary,
     };
   }
 }

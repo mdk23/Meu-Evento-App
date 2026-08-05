@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ExecutionType } from '@prisma/client';
+import { serializeDecimals } from '@/lib/money';
 
 export async function PATCH(
   request: Request,
@@ -35,7 +36,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ success: true, service: updatedService });
+    return NextResponse.json(serializeDecimals({ success: true, service: updatedService }));
   } catch (error: unknown) {
     console.error('Failed to update service:', error);
     return NextResponse.json(
@@ -52,25 +53,17 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Check if service is referenced in any bookings/eventServices
-    const eventServicesCount = await prisma.eventService.count({
-      where: { serviceId: id },
-    });
-
-    if (eventServicesCount > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete service that is linked to active events.' },
-        { status: 400 }
-      );
-    }
-
-    await prisma.service.delete({
+    // Soft delete: work-order history must never be destroyed, so deactivating (rather than
+    // removing the row) is always safe regardless of how many event services reference this
+    // catalog entry — each one already carries its own `serviceNameSnapshot`.
+    await prisma.service.update({
       where: { id },
+      data: { active: false },
     });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error('Failed to delete service:', error);
+    console.error('Failed to deactivate service:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

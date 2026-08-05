@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ExecutionType } from '@prisma/client';
+import { serializeDecimals } from '@/lib/money';
 
 export async function GET() {
   try {
     const services = await prisma.service.findMany({
       orderBy: { category: 'asc' },
     });
-    return NextResponse.json({ services });
+    return NextResponse.json(serializeDecimals({ services }));
   } catch (error: unknown) {
     console.error('Failed to fetch catalog services:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, service }, { status: 201 });
+    return NextResponse.json(serializeDecimals({ success: true, service }), { status: 201 });
   } catch (error: unknown) {
     console.error('Failed to create catalog service:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ExpenseStatus, PaymentStatus } from '@prisma/client';
+import { serializeDecimals, subtractMoneyFloor0, sumMoney, toDisplayNumber } from '@/lib/money';
 
 export async function GET() {
   try {
@@ -24,16 +25,16 @@ export async function GET() {
       },
     });
 
-    const totalRevenue = scheduledPayments.filter(i => i.status === 'PAID').reduce((a, b) => a + b.amount, 0);
-    const pendingRevenue = scheduledPayments.filter(i => i.status === 'PENDING').reduce((a, b) => a + (b.amount - (b.paidAmount || 0)), 0);
-    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((a, b) => a + b.amount, 0);
-    const pendingExpenses = expenses.filter(e => e.status === 'PENDING').reduce((a, b) => a + b.amount, 0);
+    const totalRevenue = toDisplayNumber(sumMoney(scheduledPayments.filter(i => i.status === 'PAID').map(b => b.amount)));
+    const pendingRevenue = toDisplayNumber(sumMoney(scheduledPayments.filter(i => i.status === 'PENDING').map(b => subtractMoneyFloor0(b.amount, b.paidAmount))));
+    const totalExpenses = toDisplayNumber(sumMoney(expenses.filter(e => e.status === 'PAID').map(b => b.amount)));
+    const pendingExpenses = toDisplayNumber(sumMoney(expenses.filter(e => e.status === 'PENDING').map(b => b.amount)));
     const netProfit = totalRevenue - totalExpenses;
 
     const suppliers = await prisma.supplier.findMany();
     const bookings = await prisma.booking.findMany({ include: { client: true, event: true } });
 
-    return NextResponse.json({
+    return NextResponse.json(serializeDecimals({
       invoices: scheduledPayments, // Aliased to invoices for backwards compatibility with UI
       expenses,
       suppliers,
@@ -45,7 +46,7 @@ export async function GET() {
         pendingExpenses,
         netProfit,
       },
-    });
+    }));
   } catch (error: unknown) {
     console.error('Failed to fetch financial audit:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
           dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
-      return NextResponse.json({ success: true, invoice: scheduledPayment }, { status: 201 });
+      return NextResponse.json(serializeDecimals({ success: true, invoice: scheduledPayment }), { status: 201 });
     }
 
     if (type === 'EXPENSE') {
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
           status: ExpenseStatus.PENDING,
         },
       });
-      return NextResponse.json({ success: true, expense }, { status: 201 });
+      return NextResponse.json(serializeDecimals({ success: true, expense }), { status: 201 });
     }
 
     return NextResponse.json({ error: 'Invalid financial record type' }, { status: 400 });
@@ -117,7 +118,7 @@ export async function PUT(request: Request) {
           paidAmount: status === 'PAID' ? undefined : 0, // Incomplete but prevents crash
         },
       });
-      return NextResponse.json({ success: true, invoice: updatedScheduledPayment });
+      return NextResponse.json(serializeDecimals({ success: true, invoice: updatedScheduledPayment }));
     }
 
     if (expenseId) {
@@ -127,7 +128,7 @@ export async function PUT(request: Request) {
           status: status as ExpenseStatus,
         },
       });
-      return NextResponse.json({ success: true, expense: updatedExpense });
+      return NextResponse.json(serializeDecimals({ success: true, expense: updatedExpense }));
     }
 
     return NextResponse.json({ error: 'invoiceId or expenseId required' }, { status: 400 });

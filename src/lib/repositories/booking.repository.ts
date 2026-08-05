@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { BookingListDTO } from '@/types/dtos';
+import { maxMoney, subtractMoneyFloor0, sumMoney, toDisplayNumber, toMoney } from '@/lib/money';
 
 export class BookingRepository {
   static async getBookingList(): Promise<BookingListDTO[]> {
@@ -41,16 +42,16 @@ export class BookingRepository {
     });
 
     return bookings.map((b) => {
-      const scheduledPaymentsSum = b.scheduledPayments?.reduce((sum, sp) => sum + sp.amount, 0) || 0;
-      const paidAmountSum = b.scheduledPayments?.reduce((sum, sp) => sum + sp.paidAmount, 0) || 0;
+      const scheduledPaymentsSum = sumMoney(b.scheduledPayments?.map((sp) => sp.amount) || []);
+      const paidAmountSum = sumMoney(b.scheduledPayments?.map((sp) => sp.paidAmount) || []);
 
-      const eventServicesSum = b.event?.eventServices?.reduce((sum, es) => sum + es.sellingPrice, 0) || 0;
-      const servicesMinusDiscount = Math.max(0, eventServicesSum - (b.discount || 0));
+      const eventServicesSum = sumMoney(b.event?.eventServices?.map((es) => es.sellingPrice) || []);
+      const servicesMinusDiscount = subtractMoneyFloor0(eventServicesSum, b.discount || 0);
       const depositImpliedTotal = (b.downPaymentPercent && b.downPaymentPercent > 0 && b.downPaymentAmount)
         ? (b.downPaymentAmount * 100) / b.downPaymentPercent
         : 0;
 
-      const totalContractAmount = Math.max(scheduledPaymentsSum, servicesMinusDiscount, depositImpliedTotal);
+      const totalContractAmount = maxMoney(maxMoney(scheduledPaymentsSum, servicesMinusDiscount), depositImpliedTotal);
 
       const depositSchedule = b.scheduledPayments?.find((sp) => sp.name?.toLowerCase().includes('entrada') || sp.name?.toLowerCase().includes('deposit'));
       const depositStatus = (depositSchedule?.status === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED')
@@ -70,12 +71,12 @@ export class BookingRepository {
         bookingType: b.bookingType,
         notes: b.notes,
         hasEvent: !!b.event,
-        totalScheduledAmount: scheduledPaymentsSum,
-        paidAmount: paidAmountSum,
-        totalContractAmount,
+        totalScheduledAmount: toDisplayNumber(scheduledPaymentsSum),
+        paidAmount: toDisplayNumber(paidAmountSum),
+        totalContractAmount: toDisplayNumber(totalContractAmount),
         downPaymentAmount: b.downPaymentAmount || 0,
         downPaymentPercent: b.downPaymentPercent || 0,
-        discount: b.discount || 0,
+        discount: toDisplayNumber(b.discount ?? toMoney(0)),
         depositStatus,
         depositDueDate: b.depositDueDate ? b.depositDueDate.toISOString() : null,
       };

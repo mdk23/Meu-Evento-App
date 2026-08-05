@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import BookingPOSTerminal from '@/components/bookings/BookingPOSTerminal';
 import BookingPaymentsClient from '@/components/bookings/payments/BookingPaymentsClient';
 import { notFound } from 'next/navigation';
+import { serializeDecimals, sumMoney, toDisplayNumber } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,11 +35,13 @@ export default async function EditBookingPage({
 
   // Fetch catalog data
   const clients = await prisma.client.findMany({
+    where: { active: true },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, phone: true, email: true },
   });
-  
+
   const services = await prisma.service.findMany({
+    where: { active: true },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, category: true, executionType: true, defaultPrice: true, priceType: true },
   });
@@ -63,39 +66,39 @@ export default async function EditBookingPage({
     include: { scheduledPayment: true }
   });
 
-  const totalContractAmount = initialBookingData.event?.eventServices.reduce((sum, service) => sum + (service.sellingPrice || 0), 0) || 0;
+  const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.event?.eventServices.map((service) => service.sellingPrice) || []));
 
-  const serializedBooking = {
+  const serializedBooking = serializeDecimals({
     ...initialBookingData,
     totalContractAmount: Math.max(totalContractAmount, initialBookingData.downPaymentAmount || 0),
     createdAt: initialBookingData.createdAt.toISOString(),
     updatedAt: initialBookingData.updatedAt.toISOString(),
     eventDate: initialBookingData.eventDate.toISOString(),
     depositDueDate: initialBookingData.depositDueDate?.toISOString() || null,
-  };
+  });
 
-  const serializedSchedules = initialBookingData.scheduledPayments.map(sp => ({
+  const serializedSchedules = serializeDecimals(initialBookingData.scheduledPayments.map(sp => ({
     ...sp,
     dueDate: sp.dueDate.toISOString(),
     createdAt: sp.createdAt.toISOString(),
     updatedAt: sp.updatedAt.toISOString(),
-  }));
+  })));
 
-  const serializedTransactions = paymentTransactions.map(pt => ({
+  const serializedTransactions = serializeDecimals(paymentTransactions.map(pt => ({
     ...pt,
     date: pt.date.toISOString(),
     createdAt: pt.createdAt.toISOString(),
-  }));
+  })));
 
   return (
     <BookingPOSTerminal
       initialClients={clients}
-      initialServices={services}
+      initialServices={serializeDecimals(services)}
       initialSpaces={spaces}
       initialBookings={bookings}
-      initialBookingData={initialBookingData}
+      initialBookingData={serializeDecimals(initialBookingData)}
       paymentsTabComponent={
-        <BookingPaymentsClient 
+        <BookingPaymentsClient
           booking={serializedBooking}
           initialScheduledPayments={serializedSchedules}
           initialTransactions={serializedTransactions}

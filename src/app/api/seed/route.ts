@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { BookingStatus, BookingType, EventStatus, ExecutionType, ServiceWorkOrderStatus } from '@prisma/client';
+import { BookingStatus, BookingType, EventStatus, ExecutionType, WorkOrderStatus, SupplierStatus, TaskStatus } from '@prisma/client';
+import { fullDaySpan } from '@/lib/resource-conflict';
 
 export async function POST() {
   try {
@@ -106,13 +107,17 @@ export async function POST() {
     });
 
     // 6. Create Inventory Items
-    await prisma.inventoryItem.createMany({
-      data: [
-        { tenantId: tenant.id, name: 'Banquet Chairs', quantity: 500, category: 'Furniture' },
-        { tenantId: tenant.id, name: 'Round Tables (8-Seater)', quantity: 60, category: 'Furniture' },
-        { tenantId: tenant.id, name: 'Stage Intelligent Lights', quantity: 12, category: 'Audio Visual' },
-        { tenantId: tenant.id, name: 'Stainless Chafing Dishes', quantity: 24, category: 'Kitchen' },
-      ],
+    const itemChairs = await prisma.inventoryItem.create({
+      data: { tenantId: tenant.id, name: 'Banquet Chairs', quantity: 500, category: 'Furniture' },
+    });
+    const itemTables = await prisma.inventoryItem.create({
+      data: { tenantId: tenant.id, name: 'Round Tables (8-Seater)', quantity: 60, category: 'Furniture' },
+    });
+    await prisma.inventoryItem.create({
+      data: { tenantId: tenant.id, name: 'Stage Intelligent Lights', quantity: 12, category: 'Audio Visual' },
+    });
+    const itemChafingDishes = await prisma.inventoryItem.create({
+      data: { tenantId: tenant.id, name: 'Stainless Chafing Dishes', quantity: 24, category: 'Kitchen' },
     });
 
     // 7. Create Services Catalog
@@ -214,55 +219,112 @@ export async function POST() {
         providerType: ExecutionType.INTERNAL,
         sellingPrice: 60000,
         cost: 5000,
-        status: ServiceWorkOrderStatus.READY,
+        status: WorkOrderStatus.READY,
         notes: 'Main Hall Reserved 14:00 to 02:00',
       },
     });
 
-    await prisma.eventService.create({
+    const eventServiceCatering = await prisma.eventService.create({
       data: {
         eventId: event1.id,
         serviceId: serviceCatering.id,
         providerType: ExecutionType.INTERNAL,
         sellingPrice: 112500, // 250 * 450
         cost: 45000,
-        status: ServiceWorkOrderStatus.PREPARING,
+        status: WorkOrderStatus.IN_PROGRESS,
         customFields: JSON.stringify({
           guestCount: 250,
           menu: { main: 'Grilled Salmon & Beef Tenderloin', sides: 'Truffle Mashed Potatoes', drinks: 'Open Bar Premium' },
           dietary: '12 Vegetarians, 4 Gluten-Free',
         }),
-        tasks: JSON.stringify([
-          { id: '1', title: 'Procure ingredients from market', completed: true },
-          { id: '2', title: 'Prepare appetizer trays', completed: true },
-          { id: '3', title: 'Cook main course meat & fish', completed: false },
-          { id: '4', title: 'Set up chafing dishes on main buffet', completed: false },
-        ]),
-        assignedStaff: JSON.stringify([staff1.name]),
-        reservedInventory: JSON.stringify(['24 Stainless Chafing Dishes']),
       },
     });
 
-    await prisma.eventService.create({
+    const cateringSpan = fullDaySpan(eventDate1);
+    await prisma.eventServiceTask.createMany({
+      data: [
+        { eventServiceId: eventServiceCatering.id, title: 'Procure ingredients from market', status: TaskStatus.DONE },
+        { eventServiceId: eventServiceCatering.id, title: 'Prepare appetizer trays', status: TaskStatus.DONE },
+        { eventServiceId: eventServiceCatering.id, title: 'Cook main course meat & fish', status: TaskStatus.PENDING },
+        { eventServiceId: eventServiceCatering.id, title: 'Set up chafing dishes on main buffet', status: TaskStatus.PENDING },
+      ],
+    });
+    await prisma.eventServiceStaff.create({
+      data: {
+        eventServiceId: eventServiceCatering.id,
+        staffId: staff1.id,
+        staffNameSnapshot: staff1.name,
+        role: staff1.role,
+        startAt: cateringSpan.startAt,
+        endAt: cateringSpan.endAt,
+      },
+    });
+    await prisma.inventoryReservation.create({
+      data: {
+        eventId: event1.id,
+        eventServiceId: eventServiceCatering.id,
+        inventoryItemId: itemChafingDishes.id,
+        itemNameSnapshot: itemChafingDishes.name,
+        quantity: 24,
+        startAt: cateringSpan.startAt,
+        endAt: cateringSpan.endAt,
+      },
+    });
+
+    const eventServiceDecoration = await prisma.eventService.create({
       data: {
         eventId: event1.id,
         serviceId: serviceDecoration.id,
         providerType: ExecutionType.INTERNAL,
         sellingPrice: 35000,
         cost: 12000,
-        status: ServiceWorkOrderStatus.PLANNING,
+        status: WorkOrderStatus.PLANNING,
         customFields: JSON.stringify({
           theme: 'Royalty & Gold Elegant',
           colors: 'White, Gold & Emerald Green',
         }),
-        tasks: JSON.stringify([
-          { id: '1', title: 'Source fresh white roses', completed: true },
-          { id: '2', title: 'Assemble entrance floral arch', completed: false },
-          { id: '3', title: 'Position gold charger plates', completed: false },
-        ]),
-        assignedStaff: JSON.stringify([staff2.name]),
-        reservedInventory: JSON.stringify(['30 Round Tables', '250 Banquet Chairs']),
       },
+    });
+
+    const decorationSpan = fullDaySpan(eventDate1);
+    await prisma.eventServiceTask.createMany({
+      data: [
+        { eventServiceId: eventServiceDecoration.id, title: 'Source fresh white roses', status: TaskStatus.DONE },
+        { eventServiceId: eventServiceDecoration.id, title: 'Assemble entrance floral arch', status: TaskStatus.PENDING },
+        { eventServiceId: eventServiceDecoration.id, title: 'Position gold charger plates', status: TaskStatus.PENDING },
+      ],
+    });
+    await prisma.eventServiceStaff.create({
+      data: {
+        eventServiceId: eventServiceDecoration.id,
+        staffId: staff2.id,
+        staffNameSnapshot: staff2.name,
+        role: staff2.role,
+        startAt: decorationSpan.startAt,
+        endAt: decorationSpan.endAt,
+      },
+    });
+    await prisma.inventoryReservation.createMany({
+      data: [
+        {
+          eventId: event1.id,
+          eventServiceId: eventServiceDecoration.id,
+          inventoryItemId: itemTables.id,
+          itemNameSnapshot: itemTables.name,
+          quantity: 30,
+          startAt: decorationSpan.startAt,
+          endAt: decorationSpan.endAt,
+        },
+        {
+          eventId: event1.id,
+          eventServiceId: eventServiceDecoration.id,
+          inventoryItemId: itemChairs.id,
+          itemNameSnapshot: itemChairs.name,
+          quantity: 250,
+          startAt: decorationSpan.startAt,
+          endAt: decorationSpan.endAt,
+        },
+      ],
     });
 
     await prisma.eventService.create({
@@ -272,10 +334,10 @@ export async function POST() {
         providerType: ExecutionType.EXTERNAL,
         sellingPrice: 25000,
         cost: 18000,
-        status: ServiceWorkOrderStatus.CONFIRMED,
+        status: WorkOrderStatus.READY,
         supplierId: supplierMedia.id,
         supplierCost: 18000,
-        supplierStatus: ServiceWorkOrderStatus.CONFIRMED,
+        supplierStatus: SupplierStatus.CONFIRMED,
         paymentStatus: 'PAID',
       },
     });
@@ -339,7 +401,7 @@ export async function POST() {
         providerType: ExecutionType.INTERNAL,
         sellingPrice: 60000,
         cost: 5000,
-        status: ServiceWorkOrderStatus.READY,
+        status: WorkOrderStatus.READY,
       },
     });
 
@@ -350,10 +412,10 @@ export async function POST() {
         providerType: ExecutionType.EXTERNAL,
         sellingPrice: 15000,
         cost: 10000,
-        status: ServiceWorkOrderStatus.CONFIRMED,
+        status: WorkOrderStatus.READY,
         supplierId: supplierDJ.id,
         supplierCost: 10000,
-        supplierStatus: ServiceWorkOrderStatus.CONFIRMED,
+        supplierStatus: SupplierStatus.CONFIRMED,
         paymentStatus: 'UNPAID',
       },
     });

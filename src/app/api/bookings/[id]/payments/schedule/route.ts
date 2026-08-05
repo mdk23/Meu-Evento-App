@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
+import { isMoneyGreaterThan, isMoneyGreaterThanOrEqual, isMoneyPositive } from '@/lib/money';
 
 interface ScheduleInput {
   id?: string;
@@ -40,7 +41,7 @@ export async function PUT(
       // Prevent deleting schedules that have payments
       const schedulesToDelete = existingSchedules.filter(es => !incomingIds.includes(es.id));
       for (const s of schedulesToDelete) {
-        if (s.paidAmount > 0) {
+        if (isMoneyPositive(s.paidAmount)) {
           throw new Error(`Cannot delete schedule "${s.name}" because it has been partially or fully paid.`);
         }
         await tx.scheduledPayment.delete({ where: { id: s.id } });
@@ -50,15 +51,15 @@ export async function PUT(
       for (const s of schedules) {
         if (s.id) {
           const existing = existingSchedules.find(es => es.id === s.id);
-          if (existing && existing.paidAmount > parseFloat(String(s.amount))) {
+          if (existing && isMoneyGreaterThan(existing.paidAmount, parseFloat(String(s.amount)))) {
              throw new Error(`Cannot set amount of "${s.name}" lower than already paid amount (${existing.paidAmount}).`);
           }
 
           let newStatus = existing?.status || PaymentStatus.PENDING;
           if (existing) {
-             if (existing.paidAmount >= parseFloat(String(s.amount))) {
+             if (isMoneyGreaterThanOrEqual(existing.paidAmount, parseFloat(String(s.amount)))) {
                  newStatus = PaymentStatus.PAID;
-             } else if (existing.paidAmount > 0) {
+             } else if (isMoneyPositive(existing.paidAmount)) {
                  newStatus = PaymentStatus.PARTIALLY_PAID;
              } else {
                  newStatus = PaymentStatus.PENDING;

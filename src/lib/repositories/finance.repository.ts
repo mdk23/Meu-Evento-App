@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { FinanceSummaryDTO } from '@/types/dtos';
+import { subtractMoneyFloor0, toDisplayNumber } from '@/lib/money';
 
 export class FinanceRepository {
   static async getFinanceSummary(): Promise<FinanceSummaryDTO> {
@@ -54,9 +55,9 @@ export class FinanceRepository {
       }),
     ]);
 
-    const totalRevenue = revenueAggregate._sum.amount || 0;
-    const pendingInvoicesAmount = Math.max(0, (pendingAggregate._sum.amount || 0) - (pendingAggregate._sum.paidAmount || 0));
-    const totalExpensesAmount = expenseAggregate._sum.amount || 0;
+    const totalRevenue = toDisplayNumber(revenueAggregate._sum.amount);
+    const pendingInvoicesAmount = toDisplayNumber(subtractMoneyFloor0(pendingAggregate._sum.amount, pendingAggregate._sum.paidAmount));
+    const totalExpensesAmount = toDisplayNumber(expenseAggregate._sum.amount);
     const netProfit = totalRevenue - totalExpensesAmount;
 
     return {
@@ -66,7 +67,7 @@ export class FinanceRepository {
       netProfit,
       recentPayments: recentPaymentsRaw.map((pt) => ({
         id: pt.id,
-        amount: pt.amount,
+        amount: toDisplayNumber(pt.amount),
         status: pt.scheduledPayment?.status || 'PAID',
         date: pt.date.toISOString(),
         clientName: pt.booking?.client?.name || 'N/A',
@@ -75,7 +76,7 @@ export class FinanceRepository {
       recentExpenses: recentExpensesRaw.map((exp) => ({
         id: exp.id,
         description: exp.description,
-        amount: exp.amount,
+        amount: toDisplayNumber(exp.amount),
         category: exp.category,
         status: exp.status,
       })),

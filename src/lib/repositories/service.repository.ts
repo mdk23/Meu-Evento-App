@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { ServiceCardDTO } from '@/types/dtos';
+import { toDisplayNumber } from '@/lib/money';
 
 export class ServiceRepository {
   static async getServiceCatalog(): Promise<ServiceCardDTO[]> {
@@ -21,7 +22,7 @@ export class ServiceRepository {
       category: s.category,
       executionType: s.executionType,
       priceType: s.priceType,
-      defaultPrice: s.defaultPrice,
+      defaultPrice: toDisplayNumber(s.defaultPrice),
     }));
   }
 }

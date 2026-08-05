@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { BookingStatus, EventStatus, BookingType, PaymentStatus, Prisma } from '@prisma/client';
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
+import { isMoneyPositive, serializeDecimals } from '@/lib/money';
 
 export async function GET(
   request: Request,
@@ -26,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ booking });
+    return NextResponse.json(serializeDecimals({ booking }));
   } catch (error: unknown) {
     console.error('Failed to fetch booking details:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -247,6 +248,7 @@ export async function PATCH(
                 data: {
                   eventId: existingBooking.event.id,
                   serviceId: catalogServiceId,
+                  serviceNameSnapshot: item.name || null,
                   providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
                   sellingPrice: item.totalPrice || item.price || 0,
                   cost: item.cost || ((item.totalPrice || item.price || 0) * 0.4),
@@ -260,7 +262,7 @@ export async function PATCH(
 
       // 4. Sync Scheduled Payments if it's a full POS Edit
       if (isEdit && (downPaymentAmount !== undefined || installmentCount !== undefined)) {
-        const hasPayments = existingBooking.scheduledPayments.some(s => s.paidAmount > 0);
+        const hasPayments = existingBooking.scheduledPayments.some(s => isMoneyPositive(s.paidAmount));
 
         if (!hasPayments) {
           // Safe to recreate schedules since no actual payments have been processed yet
@@ -353,7 +355,7 @@ export async function PATCH(
       return updatedBooking;
     }, { timeout: 15000, maxWait: 10000 });
 
-    return NextResponse.json({ success: true, booking: updatedBooking });
+    return NextResponse.json(serializeDecimals({ success: true, booking: updatedBooking }));
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });

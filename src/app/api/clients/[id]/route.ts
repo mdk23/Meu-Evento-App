@@ -46,25 +46,16 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Check if client has active bookings
-    const bookingsCount = await prisma.booking.count({
-      where: { clientId: id },
-    });
-
-    if (bookingsCount > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete client with existing active bookings.' },
-        { status: 400 }
-      );
-    }
-
-    await prisma.client.delete({
+    // Soft delete: booking history must never be destroyed, so deactivating (rather than
+    // removing the row) is always safe regardless of how many bookings reference this client.
+    await prisma.client.update({
       where: { id },
+      data: { active: false },
     });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error('Failed to delete client:', error);
+    console.error('Failed to deactivate client:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

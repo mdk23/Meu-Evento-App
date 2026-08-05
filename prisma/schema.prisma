@@ -37,16 +37,31 @@ enum ExecutionType {
   EXTERNAL
 }
 
-enum ServiceWorkOrderStatus {
-  DRAFT
+/// Internal execution ladder for a work order — how far along the venue's own team is.
+enum WorkOrderStatus {
   PLANNING
-  PREPARING
   READY
-  EXECUTING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// External supplier fulfillment ladder — independent of WorkOrderStatus and of payment.
+/// Only meaningful when providerType = EXTERNAL; null for INTERNAL services.
+enum SupplierStatus {
   REQUESTED
   CONFIRMED
   DELIVERED
   COMPLETED
+  CANCELLED
+}
+
+/// Whether the supplier has been paid for this work order — independent of delivery status
+/// (a supplier can have delivered and not been paid, or been paid in advance of delivery).
+enum ServicePaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
 }
 
 enum PaymentStatus {
@@ -72,6 +87,12 @@ enum ExpenseStatus {
   PAID
 }
 
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -81,16 +102,16 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  space          Space?
-  clients        Client[]
-  bookings       Booking[]
-  services       Service[]
-  suppliers      Supplier[]
-  inventoryItems InventoryItem[]
-  staff                Staff[]
-  scheduledPayments    ScheduledPayment[]
-  paymentTransactions  PaymentTransaction[]
-  expenses             Expense[]
+  space               Space?
+  clients             Client[]
+  bookings            Booking[]
+  services            Service[]
+  suppliers           Supplier[]
+  inventoryItems      InventoryItem[]
+  staff               Staff[]
+  scheduledPayments   ScheduledPayment[]
+  paymentTransactions PaymentTransaction[]
+  expenses            Expense[]
 
   @@map("tenants")
 }
@@ -119,6 +140,7 @@ model Client {
   email       String?
   companyName String?
   notes       String?
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -126,20 +148,21 @@ model Client {
   bookings Booking[]
 
   @@index([tenantId])
+  @@index([active])
   @@map("clients")
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  tenantId    String
-  clientId    String
-  bookingType BookingType   @default(SPACE_AND_SERVICES)
-  eventDate   DateTime
-  guestCount  Int           @default(0)
+  id                 String        @id @default(cuid())
+  tenantId           String
+  clientId           String
+  bookingType        BookingType   @default(SPACE_AND_SERVICES)
+  eventDate          DateTime
+  guestCount         Int           @default(0)
   status             BookingStatus @default(RESERVED)
   notes              String?
   depositDueDate     DateTime?
-  discount           Float?        @default(0)
+  discount           Decimal?      @default(0) @db.Decimal(12, 2)
   downPaymentAmount  Float?        @default(0)
   downPaymentPercent Int?          @default(0)
   installmentCount   Int?          @default(1)
@@ -147,11 +170,11 @@ model Booking {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  event                Event?
-  scheduledPayments    ScheduledPayment[]
-  paymentTransactions  PaymentTransaction[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  event               Event?
+  scheduledPayments   ScheduledPayment[]
+  paymentTransactions PaymentTransaction[]
 
   @@index([tenantId])
   @@index([clientId])
@@ -171,10 +194,11 @@ model Event {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  eventServices EventService[]
-  guests        Guest[]
-  expenses      Expense[]
+  booking               Booking                @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  eventServices         EventService[]
+  guests                Guest[]
+  expenses              Expense[]
+  inventoryReservations InventoryReservation[]
 
   @@index([bookingId])
   @@index([status])
@@ -189,8 +213,9 @@ model Service {
   category       String
   executionType  ExecutionType @default(INTERNAL)
   priceType      String        @default("FIXED")
-  defaultPrice   Float         @default(0)
+  defaultPrice   Decimal       @default(0) @db.Decimal(12, 2)
   templateSchema String?
+  active         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -199,35 +224,42 @@ model Service {
 
   @@index([tenantId])
   @@index([category])
+  @@index([active])
   @@map("services")
 }
 
 model EventService {
-  id                String                 @id @default(cuid())
-  eventId           String
-  serviceId         String
-  providerType      ExecutionType          @default(INTERNAL)
-  sellingPrice      Float                  @default(0)
-  cost              Float                  @default(0)
-  status            ServiceWorkOrderStatus @default(PLANNING)
-  notes             String?
+  id           String          @id @default(cuid())
+  eventId      String
+  serviceId    String
+  providerType ExecutionType   @default(INTERNAL)
+  sellingPrice Decimal         @default(0) @db.Decimal(12, 2)
+  cost         Decimal         @default(0) @db.Decimal(12, 2)
+  status       WorkOrderStatus @default(PLANNING)
+  notes        String?
 
-  customFields      String?
-  tasks             String?
-  assignedStaff     String?
-  reservedInventory String?
+  /// Snapshot of `Service.name` at the time this work order was created — protects historical
+  /// records from showing the wrong name if the catalog service is later renamed or deactivated.
+  serviceNameSnapshot String?
 
-  supplierId        String?
-  supplierCost      Float                  @default(0)
-  supplierStatus    ServiceWorkOrderStatus @default(REQUESTED)
-  paymentStatus     String                 @default("UNPAID")
+  customFields String?
 
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
+  supplierId     String?
+  supplierCost   Decimal              @default(0) @db.Decimal(12, 2)
+  /// Null for INTERNAL services — the supplier workflow only applies when providerType = EXTERNAL.
+  supplierStatus SupplierStatus?
+  paymentStatus  ServicePaymentStatus @default(UNPAID)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  service  Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service  Service   @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  serviceTasks          EventServiceTask[]
+  staffAssignments      EventServiceStaff[]
+  inventoryReservations InventoryReservation[]
 
   @@index([eventId])
   @@index([serviceId])
@@ -237,6 +269,68 @@ model EventService {
   @@map("event_services")
 }
 
+model EventServiceTask {
+  id             String     @id @default(cuid())
+  eventServiceId String
+  title          String
+  status         TaskStatus @default(PENDING)
+  assignedTo     String?
+  dueDate        DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  eventService EventService @relation(fields: [eventServiceId], references: [id], onDelete: Cascade)
+
+  @@index([eventServiceId])
+  @@map("event_service_tasks")
+}
+
+model EventServiceStaff {
+  id             String   @id @default(cuid())
+  eventServiceId String
+  staffId        String
+  role           String?
+  startAt        DateTime
+  endAt          DateTime
+  createdAt      DateTime @default(now())
+
+  /// Snapshot of `Staff.name` at assignment time — protects historical records if the staff
+  /// member is later renamed or deactivated.
+  staffNameSnapshot String
+
+  eventService EventService @relation(fields: [eventServiceId], references: [id], onDelete: Cascade)
+  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([eventServiceId])
+  @@index([staffId])
+  @@index([startAt, endAt])
+  @@map("event_service_staff")
+}
+
+model InventoryReservation {
+  id              String   @id @default(cuid())
+  eventId         String
+  eventServiceId  String
+  inventoryItemId String
+  quantity        Int
+  startAt         DateTime
+  endAt           DateTime
+  createdAt       DateTime @default(now())
+
+  /// Snapshot of `InventoryItem.name` at reservation time — protects historical records if the
+  /// item is later renamed or deactivated.
+  itemNameSnapshot String
+
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventService  EventService  @relation(fields: [eventServiceId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+
+  @@index([eventServiceId])
+  @@index([inventoryItemId])
+  @@index([startAt, endAt])
+  @@map("inventory_reservations")
+}
+
 model Supplier {
   id        String   @id @default(cuid())
   tenantId  String
@@ -244,6 +338,7 @@ model Supplier {
   phone     String?
   email     String?
   category  String
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -252,6 +347,7 @@ model Supplier {
   expenses      Expense[]
 
   @@index([tenantId])
+  @@index([active])
   @@map("suppliers")
 }
 
@@ -261,12 +357,15 @@ model InventoryItem {
   name      String
   quantity  Int      @default(0)
   category  String
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservations InventoryReservation[]
 
   @@index([tenantId])
+  @@index([active])
   @@map("inventory_items")
 }
 
@@ -277,12 +376,15 @@ model Staff {
   role      String
   email     String?
   phone     String?
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments EventServiceStaff[]
 
   @@index([tenantId])
+  @@index([active])
   @@map("staff")
 }
 
@@ -309,8 +411,8 @@ model ScheduledPayment {
   tenantId    String
   bookingId   String
   name        String
-  amount      Float
-  paidAmount  Float         @default(0)
+  amount      Decimal       @db.Decimal(12, 2)
+  paidAmount  Decimal       @default(0) @db.Decimal(12, 2)
   status      PaymentStatus @default(PENDING)
   dueDate     DateTime
   description String?
@@ -330,7 +432,7 @@ model PaymentTransaction {
   tenantId           String
   bookingId          String
   scheduledPaymentId String?
-  amount             Float
+  amount             Decimal       @db.Decimal(12, 2)
   method             PaymentMethod
   reference          String?
   recordedBy         String
@@ -352,7 +454,7 @@ model Expense {
   eventId     String?
   supplierId  String?
   description String
-  amount      Float
+  amount      Decimal       @db.Decimal(12, 2)
   category    String
   status      ExpenseStatus @default(PENDING)
   createdAt   DateTime      @default(now())

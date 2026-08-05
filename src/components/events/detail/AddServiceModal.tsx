@@ -1,8 +1,8 @@
 import { Loader2, X } from 'lucide-react';
-import { Service } from '@prisma/client';
+import { SerializedService } from './types';
 
 interface AddServiceModalProps {
-  catalogServices: Service[];
+  catalogServices: SerializedService[];
   catalogServiceId: string;
   setCatalogServiceId: (id: string) => void;
   customSellingPrice: string;

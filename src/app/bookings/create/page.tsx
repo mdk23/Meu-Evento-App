@@ -1,14 +1,17 @@
 import { prisma } from '@/lib/prisma';
 import BookingPOSTerminal from '@/components/bookings/BookingPOSTerminal';
+import { serializeDecimals } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CreateBookingPage() {
   const clients = await prisma.client.findMany({
+    where: { active: true },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, phone: true, email: true },
   });
   const services = await prisma.service.findMany({
+    where: { active: true },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, category: true, executionType: true, defaultPrice: true, priceType: true },
   });
@@ -28,7 +31,7 @@ export default async function CreateBookingPage() {
   return (
     <BookingPOSTerminal
       initialClients={clients}
-      initialServices={services}
+      initialServices={serializeDecimals(services)}
       initialSpaces={spaces}
       initialBookings={bookings}
     />

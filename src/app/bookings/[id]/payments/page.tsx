@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import BookingPaymentsClient from '@/components/bookings/payments/BookingPaymentsClient';
+import { serializeDecimals, sumMoney, toDisplayNumber } from '@/lib/money';
 
 export default async function BookingPaymentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,32 +35,32 @@ export default async function BookingPaymentsPage({ params }: { params: Promise<
   });
 
   // Calculate total contract amount just in case it's not stored
-  const totalContractAmount = booking.event?.eventServices.reduce((sum, service) => sum + (service.sellingPrice || 0), 0) || 0;
+  const totalContractAmount = toDisplayNumber(sumMoney(booking.event?.eventServices.map((service) => service.sellingPrice) || []));
 
-  const serializedBooking = {
+  const serializedBooking = serializeDecimals({
     ...booking,
     totalContractAmount: Math.max(totalContractAmount, booking.downPaymentAmount || 0), // Fallback
     createdAt: booking.createdAt.toISOString(),
     updatedAt: booking.updatedAt.toISOString(),
     eventDate: booking.eventDate.toISOString(),
     depositDueDate: booking.depositDueDate?.toISOString() || null,
-  };
+  });
 
-  const serializedSchedules = scheduledPayments.map(sp => ({
+  const serializedSchedules = serializeDecimals(scheduledPayments.map(sp => ({
     ...sp,
     dueDate: sp.dueDate.toISOString(),
     createdAt: sp.createdAt.toISOString(),
     updatedAt: sp.updatedAt.toISOString(),
-  }));
+  })));
 
-  const serializedTransactions = paymentTransactions.map(pt => ({
+  const serializedTransactions = serializeDecimals(paymentTransactions.map(pt => ({
     ...pt,
     date: pt.date.toISOString(),
     createdAt: pt.createdAt.toISOString(),
-  }));
+  })));
 
   return (
-    <BookingPaymentsClient 
+    <BookingPaymentsClient
       booking={serializedBooking}
       initialScheduledPayments={serializedSchedules}
       initialTransactions={serializedTransactions}

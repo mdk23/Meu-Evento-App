@@ -18,8 +18,8 @@ export default function TasksTab({ allEventTasks }: TasksTabProps) {
           {allEventTasks.map((t, index) => (
             <div key={index} className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
               <div className="flex items-center gap-3">
-                <input type="checkbox" checked={t.completed} readOnly className="accent-violet-600 w-4 h-4" />
-                <span className={t.completed ? 'line-through text-zinc-500' : 'text-zinc-200 font-medium'}>
+                <input type="checkbox" checked={t.status === 'DONE'} readOnly className="accent-violet-600 w-4 h-4" />
+                <span className={t.status === 'DONE' ? 'line-through text-zinc-500' : 'text-zinc-200 font-medium'}>
                   {t.title}
                 </span>
               </div>
