@@ -48,7 +48,7 @@ export default function AddServiceModal({
               <option value="">-- Choose Catalog Service --</option>
               {catalogServices.map((cs) => (
                 <option key={cs.id} value={cs.id}>
-                  {cs.executionType === 'INTERNAL' ? '🟢' : '🔵'} {cs.name} ({cs.defaultPrice} MT)
+                  {cs.defaultExecutionType === 'INTERNAL' ? '🟢' : '🔵'} {cs.name} ({cs.defaultPrice} MT)
                 </option>
               ))}
             </select>

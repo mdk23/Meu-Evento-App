@@ -73,7 +73,7 @@ export default function EditScheduleModal({ isOpen, onClose, bookingId, totalCon
       const res = await fetch(`/api/bookings/${bookingId}/payments/schedule`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedules })
+        body: JSON.stringify({ schedules, totalContractAmount })
       });
 
       if (!res.ok) {

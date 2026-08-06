@@ -127,7 +127,8 @@ model Space {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings Booking[]
 
   @@map("spaces")
 }
@@ -156,30 +157,37 @@ model Booking {
   id                 String        @id @default(cuid())
   tenantId           String
   clientId           String
+  spaceId            String
   bookingType        BookingType   @default(SPACE_AND_SERVICES)
   eventDate          DateTime
+  /// Real reservation window for the space, used for overlap-conflict checking.
+  /// `eventDate` stays in sync (same calendar day as `startAt`) for existing day-level UI/queries.
+  startAt            DateTime
+  endAt              DateTime
   guestCount         Int           @default(0)
   status             BookingStatus @default(RESERVED)
   notes              String?
   depositDueDate     DateTime?
   discount           Decimal?      @default(0) @db.Decimal(12, 2)
-  downPaymentAmount  Float?        @default(0)
-  downPaymentPercent Int?          @default(0)
-  installmentCount   Int?          @default(1)
-  installmentAmount  Float?        @default(0)
+  /// Required to confirm a booking whose guestCount exceeds the space's capacity — otherwise
+  /// confirmation is blocked. Null when capacity was never exceeded or never overridden.
+  capacityOverrideReason String?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  space               Space                @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   event               Event?
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
 
   @@index([tenantId])
   @@index([clientId])
+  @@index([spaceId])
   @@index([status])
   @@index([eventDate])
+  @@index([startAt, endAt])
   @@map("bookings")
 }
 
@@ -211,10 +219,16 @@ model Service {
   tenantId       String
   name           String
   category       String
-  executionType  ExecutionType @default(INTERNAL)
+  /// The execution type this service defaults to when added to an event. Purely a suggested
+  /// starting point — `EventService.providerType` is the real per-event decision and can differ.
+  defaultExecutionType ExecutionType @default(INTERNAL)
   priceType      String        @default("FIXED")
   defaultPrice   Decimal       @default(0) @db.Decimal(12, 2)
-  templateSchema String?
+  /// Defines the dynamic operational fields this service's work orders should collect —
+  /// an array of `{ key, type, label?, options? }`. `EventService.customFields` then stores
+  /// only the values, keyed by `key`. Supported `type`s: text, textarea, number, select,
+  /// multiselect, date, datetime, boolean.
+  fieldSchema    Json?
   active         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

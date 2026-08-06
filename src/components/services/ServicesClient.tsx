@@ -3,23 +3,57 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { 
-  Briefcase, 
-  Plus, 
-  Loader2, 
-  X, 
-  Edit3, 
-  Trash2, 
-  Save, 
-  Tag, 
-  Check, 
-  Filter, 
-  Layers 
+import {
+  Briefcase,
+  Plus,
+  Loader2,
+  X,
+  Edit3,
+  Trash2,
+  Save,
+  Settings2,
 } from 'lucide-react';
 import { ServiceCardDTO } from '@/types/dtos';
+import { FieldSchemaField, FieldType, parseFieldSchema } from '@/components/events/detail/types';
 
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
+}
+
+const FIELD_TYPES: FieldType[] = ['text', 'textarea', 'number', 'select', 'multiselect', 'date', 'datetime', 'boolean'];
+
+/** Editable row shape for the field-schema builder — `optionsText` is a comma-separated
+ * working copy of `FieldSchemaField.options`, converted to/from an array on load/save. */
+interface FieldSchemaRow {
+  key: string;
+  type: FieldType;
+  label: string;
+  optionsText: string;
+  required: boolean;
+}
+
+function toRows(fieldSchema: unknown): FieldSchemaRow[] {
+  return parseFieldSchema(fieldSchema).map((f) => ({
+    key: f.key,
+    type: f.type,
+    label: f.label || '',
+    optionsText: (f.options || []).join(', '),
+    required: f.required || false,
+  }));
+}
+
+function toFieldSchema(rows: FieldSchemaRow[]): FieldSchemaField[] {
+  return rows
+    .filter((r) => r.key.trim())
+    .map((r) => ({
+      key: r.key.trim(),
+      type: r.type,
+      label: r.label.trim() || undefined,
+      options: (r.type === 'select' || r.type === 'multiselect')
+        ? r.optionsText.split(',').map((o) => o.trim()).filter(Boolean)
+        : undefined,
+      required: r.required || undefined,
+    }));
 }
 
 export default function ServicesClient({ initialServices }: ServicesClientProps) {
@@ -38,6 +72,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   const [executionType, setExecutionType] = useState('INTERNAL');
   const [priceType, setPriceType] = useState('FIXED');
   const [defaultPrice, setDefaultPrice] = useState('');
+  const [fieldSchemaRows, setFieldSchemaRows] = useState<FieldSchemaRow[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -48,6 +83,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     setExecutionType('INTERNAL');
     setPriceType('FIXED');
     setDefaultPrice('');
+    setFieldSchemaRows([]);
     setIsAddModalOpen(true);
   };
 
@@ -55,9 +91,22 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     setEditingService(service);
     setName(service.name || '');
     setCategory(service.category || '');
-    setExecutionType(service.executionType || 'INTERNAL');
+    setExecutionType(service.defaultExecutionType || 'INTERNAL');
     setPriceType(service.priceType || 'FIXED');
     setDefaultPrice(service.defaultPrice ? service.defaultPrice.toString() : '');
+    setFieldSchemaRows(toRows(service.fieldSchema));
+  };
+
+  const addFieldSchemaRow = () => {
+    setFieldSchemaRows((prev) => [...prev, { key: '', type: 'text', label: '', optionsText: '', required: false }]);
+  };
+
+  const updateFieldSchemaRow = (index: number, patch: Partial<FieldSchemaRow>) => {
+    setFieldSchemaRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+
+  const removeFieldSchemaRow = (index: number) => {
+    setFieldSchemaRows((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Create Service Handler
@@ -75,9 +124,10 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         body: JSON.stringify({
           name,
           category,
-          executionType,
+          defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
+          fieldSchema: toFieldSchema(fieldSchemaRows),
         }),
       });
       if (res.ok) {
@@ -112,9 +162,10 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         body: JSON.stringify({
           name,
           category,
-          executionType,
+          defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
+          fieldSchema: toFieldSchema(fieldSchemaRows),
         }),
       });
       if (res.ok) {
@@ -173,7 +224,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   // Apply filter
   const filteredServices = executionFilter === 'ALL'
     ? initialServices
-    : initialServices.filter(s => s.executionType === executionFilter);
+    : initialServices.filter(s => s.defaultExecutionType === executionFilter);
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-950 text-white font-sans">
@@ -200,7 +251,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         {(['ALL', 'INTERNAL', 'EXTERNAL'] as const).map((filterOpt) => {
           const count = filterOpt === 'ALL' 
             ? initialServices.length 
-            : initialServices.filter(s => s.executionType === filterOpt).length;
+            : initialServices.filter(s => s.defaultExecutionType === filterOpt).length;
 
           return (
             <button
@@ -251,7 +302,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60 text-xs text-zinc-200">
                   {filteredServices.map((s) => {
-                    const isInternal = s.executionType === 'INTERNAL';
+                    const isInternal = s.defaultExecutionType === 'INTERNAL';
                     const isDeleting = deletingId === s.id;
 
                     return (
@@ -315,7 +366,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
       {/* CREATE & EDIT SERVICE DIALOG */}
       {(isAddModalOpen || editingService) && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
               <h3 className="text-white font-bold text-base flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-violet-400" />
@@ -391,6 +442,71 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                   placeholder="e.g. 15000"
                   className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500 font-mono font-bold"
                 />
+              </div>
+
+              <div className="border-t border-zinc-800 pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-zinc-400 font-bold flex items-center gap-1.5">
+                    <Settings2 className="w-3.5 h-3.5 text-violet-400" /> Work Order Fields
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addFieldSchemaRow}
+                    className="text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Field
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500 -mt-2">
+                  Operational fields collected on this service&apos;s work orders (e.g. menu, theme). Services with no fields defined show none.
+                </p>
+
+                {fieldSchemaRows.length > 0 && (
+                  <div className="space-y-2">
+                    {fieldSchemaRows.map((row, index) => (
+                      <div key={index} className="bg-zinc-950 border border-zinc-850 rounded-xl p-3 space-y-2">
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
+                          <input
+                            value={row.key}
+                            onChange={(e) => updateFieldSchemaRow(index, { key: e.target.value })}
+                            placeholder="key (e.g. menu)"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none font-mono"
+                          />
+                          <select
+                            value={row.type}
+                            onChange={(e) => updateFieldSchemaRow(index, { type: e.target.value as FieldType })}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none"
+                          >
+                            {FIELD_TYPES.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => removeFieldSchemaRow(index)}
+                            className="text-zinc-500 hover:text-red-400 p-1.5"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <input
+                          value={row.label}
+                          onChange={(e) => updateFieldSchemaRow(index, { label: e.target.value })}
+                          placeholder="Display label (optional)"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none"
+                        />
+                        {(row.type === 'select' || row.type === 'multiselect') && (
+                          <input
+                            value={row.optionsText}
+                            onChange={(e) => updateFieldSchemaRow(index, { optionsText: e.target.value })}
+                            placeholder="Options, comma-separated (e.g. Standard, Premium, Custom)"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button

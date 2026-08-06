@@ -126,9 +126,12 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Venue Space Rental',
         category: 'Space Rental',
-        executionType: ExecutionType.INTERNAL,
+        defaultExecutionType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 60000,
+        fieldSchema: [
+          { key: 'layout', type: 'select', label: 'Layout', options: ['Theatre', 'Banquet', 'Cocktail', 'Classroom'] },
+        ],
       },
     });
 
@@ -137,13 +140,13 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Gourmet Banquet Catering',
         category: 'Food & Beverage',
-        executionType: ExecutionType.INTERNAL,
+        defaultExecutionType: ExecutionType.INTERNAL,
         priceType: 'PER_GUEST',
         defaultPrice: 450,
-        templateSchema: JSON.stringify({
-          fields: ['Guest Count', 'Menu Selection', 'Dietary Requirements'],
-          tasks: ['Procure Fresh Ingredients', 'Prep Meat & Vegetables', 'Cook Main Courses', 'Set Up Serving Buffet'],
-        }),
+        fieldSchema: [
+          { key: 'menu', type: 'select', label: 'Menu Selection', options: ['Standard', 'Premium', 'Vegetarian', 'Custom'] },
+          { key: 'dietary', type: 'multiselect', label: 'Dietary Requirements', options: ['Vegetarian', 'Vegan', 'Gluten-Free', 'Halal', 'Nut-Free'] },
+        ],
       },
     });
 
@@ -152,13 +155,13 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Luxury Floral & Theme Decor',
         category: 'Decoration',
-        executionType: ExecutionType.INTERNAL,
+        defaultExecutionType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 35000,
-        templateSchema: JSON.stringify({
-          fields: ['Theme Name', 'Color Palette', 'Special Floral Arches'],
-          tasks: ['Assemble Floral Centerpieces', 'Drape Backdrop Linens', 'Set Table Settings', 'Tear-Down & Pack'],
-        }),
+        fieldSchema: [
+          { key: 'theme', type: 'text', label: 'Theme Name' },
+          { key: 'colorPalette', type: 'text', label: 'Color Palette' },
+        ],
       },
     });
 
@@ -167,9 +170,13 @@ export async function POST() {
         tenantId: tenant.id,
         name: '4K Cinema & Photo Package',
         category: 'Media',
-        executionType: ExecutionType.EXTERNAL,
+        defaultExecutionType: ExecutionType.EXTERNAL,
         priceType: 'FIXED',
         defaultPrice: 25000,
+        fieldSchema: [
+          { key: 'coverageHours', type: 'number', label: 'Coverage Hours' },
+          { key: 'deliverables', type: 'multiselect', label: 'Deliverables', options: ['Edited Photos', 'Raw Footage', 'Same-Day Highlight Reel', 'Drone Footage'] },
+        ],
       },
     });
 
@@ -178,8 +185,12 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Live DJ & Concert Lighting',
         category: 'Entertainment',
-        executionType: ExecutionType.EXTERNAL,
+        defaultExecutionType: ExecutionType.EXTERNAL,
         priceType: 'FIXED',
+        fieldSchema: [
+          { key: 'setDuration', type: 'number', label: 'Set Duration (hours)' },
+          { key: 'genrePreferences', type: 'text', label: 'Genre Preferences' },
+        ],
         defaultPrice: 15000,
       },
     });
@@ -188,12 +199,16 @@ export async function POST() {
     const eventDate1 = new Date();
     eventDate1.setDate(eventDate1.getDate() + 4); // 4 days from now
 
+    const booking1Span = fullDaySpan(eventDate1);
     const booking1 = await prisma.booking.create({
       data: {
         tenantId: tenant.id,
         clientId: client1.id,
+        spaceId: space.id,
         bookingType: BookingType.SPACE_AND_SERVICES,
         eventDate: eventDate1,
+        startAt: booking1Span.startAt,
+        endAt: booking1Span.endAt,
         guestCount: 250,
         status: BookingStatus.CONFIRMED,
         notes: 'Smith Grand Wedding & Dinner',
@@ -372,12 +387,16 @@ export async function POST() {
     const eventDate2 = new Date();
     eventDate2.setDate(eventDate2.getDate() + 12); // 12 days from now
 
+    const booking2Span = fullDaySpan(eventDate2);
     const booking2 = await prisma.booking.create({
       data: {
         tenantId: tenant.id,
         clientId: client2.id,
+        spaceId: space.id,
         bookingType: BookingType.SPACE_AND_SERVICES,
         eventDate: eventDate2,
+        startAt: booking2Span.startAt,
+        endAt: booking2Span.endAt,
         guestCount: 150,
         status: BookingStatus.CONFIRMED,
         notes: 'ACME Annual Tech & Product Summit',

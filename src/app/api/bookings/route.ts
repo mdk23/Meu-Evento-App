@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { BookingStatus, BookingType, EventStatus, ExecutionType } from '@prisma/client';
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
+import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
+import { validatePaymentPlan, MilestoneDraft } from '@/lib/payment-plan';
 
 export async function GET() {
   try {
@@ -38,6 +40,8 @@ export async function POST(request: Request) {
       newClient,
       bookingType,
       eventDate,
+      startAt,
+      endAt,
       guestCount,
       notes,
       title,
@@ -45,11 +49,9 @@ export async function POST(request: Request) {
       status: requestedStatus,
       totalAmount,
       discount,
-      downPaymentAmount,
-      downPaymentPercent,
       depositDueDate,
-      installmentCount,
-      installmentAmount,
+      milestones,
+      capacityOverrideReason,
     } = body;
 
     let tenant = await prisma.tenant.findFirst();
@@ -87,6 +89,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cliente selecionado não foi encontrado' }, { status: 404 });
     }
 
+    const space = await prisma.space.findUnique({ where: { tenantId: tenant.id } });
+    if (!space) {
+      return NextResponse.json({ error: 'No space configured for this venue' }, { status: 400 });
+    }
+
     const parsedDate = new Date(eventDate);
     const parsedGuestCount = parseInt(guestCount || '0', 10);
     const finalStatus =
@@ -94,31 +101,49 @@ export async function POST(request: Request) {
       : requestedStatus === 'WAITING_LIST' ? BookingStatus.WAITING_LIST
       : BookingStatus.RESERVED;
 
+    // Fall back to the whole calendar day if the client didn't submit an explicit time range.
+    const dayStart = new Date(parsedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(parsedDate);
+    dayEnd.setHours(23, 59, 59, 999);
+    const parsedStartAt = startAt ? new Date(startAt) : dayStart;
+    const parsedEndAt = endAt ? new Date(endAt) : dayEnd;
+
+    // Capacity is a soft warning below CONFIRMED — only confirming actually blocks without an override reason.
+    if (finalStatus === BookingStatus.CONFIRMED) {
+      assertCapacityForConfirmation(parsedGuestCount, space.capacity, capacityOverrideReason);
+    }
+
     const discountVal = parseFloat(discount || '0');
-    const downPaymentAmtVal = parseFloat(downPaymentAmount || '0');
-    const downPaymentPctVal = parseInt(downPaymentPercent || '0', 10);
-    const installmentCountVal = parseInt(installmentCount || '1', 10);
-    const installmentAmtVal = parseFloat(installmentAmount || '0');
+    const totalAmountVal = parseFloat(totalAmount || '0');
+    const milestoneList: MilestoneDraft[] = Array.isArray(milestones) ? milestones : [];
 
     // Default deposit due date to 14 days/2 weeks from now if not specified
     const parsedDepositDueDate = depositDueDate
       ? new Date(depositDueDate)
       : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
+    if (finalStatus !== BookingStatus.WAITING_LIST) {
+      const validation = validatePaymentPlan({ milestones: milestoneList, totalAmount: totalAmountVal, eventDate: parsedDate });
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.errors[0] || 'Invalid payment plan.' }, { status: 400 });
+      }
+    }
+
+    const depositAmount = milestoneList[0]?.amount || 0;
     const formattedNotes = [
       `Desconto POS: R$ ${discountVal}`,
-      `Entrada: ${downPaymentAmtVal.toLocaleString('pt-MZ')} MT (${downPaymentPctVal}%)`,
-      `Parcelamento: ${installmentCountVal}x sem juros (Restante: ${Math.round(installmentAmtVal).toLocaleString('pt-MZ')} MT/mês)`,
+      `Payment Plan: ${milestoneList.length} milestone(s), first payment ${depositAmount.toLocaleString('pt-MZ')} MT`,
       notes ? `Observações: ${notes}` : '',
     ].filter(Boolean).join('\n');
 
     // Create the Booking, its linked Event, attached services, and payment schedule atomically —
     // a partial failure here must not leave a Booking/Event without its services or payments.
     const { booking, event } = await prismaTransaction.$transaction(async (tx) => {
-      // Only WAITING_LIST bookings are allowed to stack on an already-booked date —
-      // the venue has a single Space, so any other status must have the date free.
+      // Only WAITING_LIST bookings are allowed to overlap an already-booked window —
+      // any other status must have the space free for its whole [startAt, endAt) window.
       if (finalStatus !== BookingStatus.WAITING_LIST) {
-        await assertNoBookingConflict(tx, parsedDate);
+        await assertNoBookingConflict(tx, space.id, parsedStartAt, parsedEndAt);
       }
 
       // 1. Create Booking
@@ -126,17 +151,17 @@ export async function POST(request: Request) {
         data: {
           tenantId: tenant.id,
           clientId: targetClientId,
+          spaceId: space.id,
           bookingType: bookingType || BookingType.SPACE_AND_SERVICES,
           eventDate: parsedDate,
+          startAt: parsedStartAt,
+          endAt: parsedEndAt,
           guestCount: parsedGuestCount,
           status: finalStatus,
           notes: formattedNotes,
           discount: discountVal,
-          downPaymentAmount: downPaymentAmtVal,
-          downPaymentPercent: downPaymentPctVal,
           depositDueDate: parsedDepositDueDate,
-          installmentCount: installmentCountVal,
-          installmentAmount: installmentAmtVal,
+          capacityOverrideReason: capacityOverrideReason || null,
         },
       });
 
@@ -170,7 +195,7 @@ export async function POST(request: Request) {
                   tenantId: tenant.id,
                   name: item.name,
                   category: item.category || 'GERAL',
-                  executionType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
+                  defaultExecutionType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
                   priceType: item.priceType || 'FIXED',
                   defaultPrice: item.price || 0,
                 },
@@ -196,71 +221,37 @@ export async function POST(request: Request) {
         }
       }
 
-      // 4. Create Scheduled Payments: Deposit (Entrada) + Monthly Installments
-      // Initial Deposit
-      if (downPaymentAmtVal > 0) {
-        const depositStatus = finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING';
+      // 4. Create Scheduled Payments from the submitted milestone plan. The first milestone is
+      // the deposit — mark it PAID (with a matching transaction) when the booking is being
+      // confirmed with a paid deposit, matching the previous behavior.
+      for (let i = 0; i < milestoneList.length; i++) {
+        const m = milestoneList[i];
+        const isDeposit = i === 0;
+        const milestoneStatus = isDeposit && finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING';
+
         const scheduledPayment = await tx.scheduledPayment.create({
           data: {
             tenantId: tenant.id,
             bookingId: booking.id,
-            name: 'Initial Deposit (Sinal)',
-            amount: downPaymentAmtVal,
-            paidAmount: depositStatus === 'PAID' ? downPaymentAmtVal : 0,
-            status: depositStatus,
-            dueDate: parsedDepositDueDate,
+            name: m.name,
+            amount: m.amount,
+            paidAmount: milestoneStatus === 'PAID' ? m.amount : 0,
+            status: milestoneStatus,
+            dueDate: new Date(m.dueDate),
           },
         });
 
-        if (depositStatus === 'PAID') {
+        if (milestoneStatus === 'PAID') {
           await tx.paymentTransaction.create({
             data: {
               tenantId: tenant.id,
               bookingId: booking.id,
               scheduledPaymentId: scheduledPayment.id,
-              amount: downPaymentAmtVal,
+              amount: m.amount,
               method: 'CASH', // Defaulting for POS, can be configured later
               recordedBy: 'POS Terminal',
-              notes: 'Initial Deposit paid at booking',
+              notes: 'Deposit paid at booking',
             }
-          });
-        }
-      }
-
-      // Single Payment Remaining Balance
-      if (installmentCountVal === 1 && (totalAmount - downPaymentAmtVal) > 0) {
-        await tx.scheduledPayment.create({
-          data: {
-            tenantId: tenant.id,
-            bookingId: booking.id,
-            name: 'Remaining Balance (Saldo Final)',
-            amount: Math.max(0, totalAmount - downPaymentAmtVal),
-            status: 'PENDING',
-            dueDate: parsedDate,
-          },
-        });
-      }
-
-      // Installments
-      if (installmentCountVal > 1 && installmentAmtVal > 0) {
-        const remainingInstallments = installmentCountVal - 1;
-        for (let i = 1; i <= remainingInstallments; i++) {
-          // Calculate due date monthly from today, capped at eventDate
-          const installmentDueDate = new Date();
-          installmentDueDate.setMonth(installmentDueDate.getMonth() + i);
-          if (installmentDueDate > parsedDate) {
-            installmentDueDate.setTime(parsedDate.getTime());
-          }
-
-          await tx.scheduledPayment.create({
-            data: {
-              tenantId: tenant.id,
-              bookingId: booking.id,
-              name: `Installment ${i} of ${remainingInstallments}`,
-              amount: installmentAmtVal,
-              status: 'PENDING',
-              dueDate: installmentDueDate,
-            },
           });
         }
       }
@@ -272,6 +263,9 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof CapacityExceededError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create booking in POS:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });

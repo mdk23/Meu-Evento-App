@@ -58,6 +58,16 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             selectedDateBookings={pos.selectedDateBookings}
             isWaitingList={pos.isWaitingList}
             setIsWaitingList={pos.setIsWaitingList}
+            shift={pos.shift}
+            handleShiftChange={pos.handleShiftChange}
+            startTime={pos.startTime}
+            setStartTime={pos.setStartTime}
+            endTime={pos.endTime}
+            setEndTime={pos.setEndTime}
+            spaceCapacity={pos.spaceCapacity}
+            overCapacity={pos.overCapacity}
+            capacityOverrideReason={pos.capacityOverrideReason}
+            setCapacityOverrideReason={pos.setCapacityOverrideReason}
           />
 
           {/* COLUMN 2: CATALOG SERVICES */}
@@ -85,14 +95,18 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             discount={pos.discount}
             setDiscount={pos.setDiscount}
             grandTotal={pos.grandTotal}
-            downPaymentPercent={pos.downPaymentPercent}
-            setDownPaymentPercent={pos.setDownPaymentPercent}
-            installmentCount={pos.installmentCount}
-            setInstallmentCount={pos.setInstallmentCount}
-            downPaymentAmount={pos.downPaymentAmount}
-            monthlyInstallment={pos.monthlyInstallment}
+            depositPercent={pos.depositPercent}
+            setDepositPercent={pos.setDepositPercent}
+            paymentPlanId={pos.paymentPlanId}
+            handlePlanChange={pos.handlePlanChange}
+            milestones={pos.milestones}
+            planValidation={pos.planValidation}
+            handleAddMilestone={pos.handleAddMilestone}
+            handleUpdateMilestone={pos.handleUpdateMilestone}
+            handleRemoveMilestone={pos.handleRemoveMilestone}
             submitting={pos.submitting}
             handleSubmitPOS={pos.handleSubmitPOS}
+            isEdit={pos.isEdit}
           />
         </main>
 

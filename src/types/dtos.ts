@@ -79,9 +79,10 @@ export interface ServiceCardDTO {
   id: string;
   name: string;
   category: string;
-  executionType: 'INTERNAL' | 'EXTERNAL';
+  defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
   priceType: string;
   defaultPrice: number;
+  fieldSchema: unknown;
 }
 
 export interface FinanceSummaryDTO {

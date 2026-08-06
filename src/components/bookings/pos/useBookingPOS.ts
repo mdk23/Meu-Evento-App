@@ -3,6 +3,22 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Client, ServiceItem, SpaceItem, CartItem, BookingPOSTerminalProps } from './types';
 import { defaultSpaces, defaultCatalogServices } from './constants';
+import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
+import { isOverCapacity } from '@/lib/capacity';
+
+const SHIFT_PRESETS: Record<'Lunch' | 'Dinner' | 'Full Day', { start: string; end: string }> = {
+  Lunch: { start: '12:00', end: '17:00' },
+  Dinner: { start: '18:00', end: '02:00' },
+  'Full Day': { start: '08:00', end: '23:59' },
+};
+
+/** Combines a `yyyy-mm-dd` date string with an `HH:mm` time string into a local `Date`. */
+function combineDateAndTime(dateStr: string, timeStr: string): Date {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setHours(hours || 0, minutes || 0, 0, 0);
+  return d;
+}
 
 export function useBookingPOS({
   initialClients = [],
@@ -33,6 +49,27 @@ export function useBookingPOS({
   const [shift, setShift] = useState<'Lunch' | 'Dinner' | 'Full Day'>('Dinner');
   const [startTime, setStartTime] = useState('18:00');
   const [endTime, setEndTime] = useState('02:00');
+  const [capacityOverrideReason, setCapacityOverrideReason] = useState('');
+
+  const handleShiftChange = (newShift: 'Lunch' | 'Dinner' | 'Full Day') => {
+    setShift(newShift);
+    const preset = SHIFT_PRESETS[newShift];
+    setStartTime(preset.start);
+    setEndTime(preset.end);
+  };
+
+  // Real reservation window for the space — combines the event date with the shift's start/end
+  // time, wrapping to the next calendar day when the end time is earlier than the start time
+  // (e.g. an 18:00–02:00 dinner shift spans midnight).
+  const { startAt, endAt } = useMemo(() => {
+    if (!eventDate) return { startAt: null as Date | null, endAt: null as Date | null };
+    const start = combineDateAndTime(eventDate, startTime);
+    let end = combineDateAndTime(eventDate, endTime);
+    if (end.getTime() <= start.getTime()) {
+      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    }
+    return { startAt: start, endAt: end };
+  }, [eventDate, startTime, endTime]);
 
   // Spaces List
   const spacesList = useMemo(() => {
@@ -50,6 +87,10 @@ export function useBookingPOS({
   // Selected space
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>('');
 
+  // There's one real Space per tenant — its capacity is what guestCount is checked against.
+  const spaceCapacity = spacesList[0]?.capacity || 0;
+  const overCapacity = isOverCapacity(guestCount, spaceCapacity);
+
   // 2. Catalog Services State
   const catalogServices = useMemo(() => {
     if (initialServices.length === 0) return defaultCatalogServices;
@@ -57,8 +98,8 @@ export function useBookingPOS({
       id: s.id,
       name: s.name,
       category: (s.category === 'SPACE' || idx % 2 === 0 ? 'SPACE' : 'EVENT') as 'SPACE' | 'EVENT',
-      providerType: (s.executionType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
-      providerName: s.executionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
+      providerType: (s.defaultExecutionType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
+      providerName: s.defaultExecutionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
       priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'HOURLY' ? 'HOURLY' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'HOURLY',
       price: s.defaultPrice || 15000,
       description: 'Specialized service for your event.',
@@ -86,8 +127,8 @@ export function useBookingPOS({
           serviceId: es.serviceId,
           name: es.service?.name || 'Service',
           category: (es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
-          providerType: es.providerType || es.service?.executionType || 'INTERNAL',
-          providerName: es.providerType === 'EXTERNAL' || es.service?.executionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
+          providerType: es.providerType || es.service?.defaultExecutionType || 'INTERNAL',
+          providerName: es.providerType === 'EXTERNAL' || es.service?.defaultExecutionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
           priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'HOURLY' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
           price: unitPrice,
           quantity: qty,
@@ -99,8 +140,9 @@ export function useBookingPOS({
   });
 
   const [discount, setDiscount] = useState<number>(initialBookingData?.discount || 0);
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(initialBookingData?.downPaymentPercent || 50);
-  const [installmentCount, setInstallmentCount] = useState<number>(initialBookingData?.installmentCount || 1);
+  const [depositPercent, setDepositPercent] = useState<number>(50);
+  const [paymentPlanId, setPaymentPlanId] = useState<PaymentPlanId>('3');
+  const [customMilestones, setCustomMilestones] = useState<MilestoneDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Sync Space Selection with Cart Item using real catalog service
@@ -175,9 +217,58 @@ export function useBookingPOS({
   const subtotalBeforeDiscount = spaceServicesTotal + eventServicesTotal;
   const grandTotal = Math.max(0, subtotalBeforeDiscount - discount);
 
-  const downPaymentAmount = (grandTotal * downPaymentPercent) / 100;
-  const remainingBalance = grandTotal - downPaymentAmount;
-  const monthlyInstallment = installmentCount > 1 ? remainingBalance / (installmentCount - 1) : remainingBalance;
+  // Payment plan: a preset plan (Full / 3 / 6 / 10 / 12) derives its milestone list live from
+  // the total, deposit %, deposit due date, and event date; Custom hands full control to the user.
+  // `now`/the default deposit-due fallback are captured once via lazy useState init rather than
+  // called inline during render, since `Date.now()`/`new Date()` are impure.
+  const [now] = useState(() => new Date());
+  const [defaultDepositDueDate] = useState(() => new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000));
+  const isEdit = !!initialBookingData;
+  const milestones = useMemo(() => {
+    if (paymentPlanId === 'CUSTOM') return customMilestones;
+    const resolvedDepositDueDate = depositDueDate ? new Date(depositDueDate) : defaultDepositDueDate;
+    const resolvedEventDate = eventDate ? new Date(eventDate) : resolvedDepositDueDate;
+    return generateMilestones({
+      totalAmount: grandTotal,
+      depositPercent,
+      planId: paymentPlanId,
+      eventDate: resolvedEventDate,
+      depositDueDate: resolvedDepositDueDate,
+    });
+  }, [paymentPlanId, customMilestones, grandTotal, depositPercent, eventDate, depositDueDate, defaultDepositDueDate]);
+
+  const planValidation = useMemo(() => {
+    const resolvedEventDate = eventDate ? new Date(eventDate) : now;
+    return validatePaymentPlan({ milestones, totalAmount: grandTotal, eventDate: resolvedEventDate });
+  }, [milestones, grandTotal, eventDate, now]);
+
+  const depositAmount = milestones[0]?.amount || 0;
+
+  const handlePlanChange = (newPlanId: PaymentPlanId) => {
+    if (newPlanId === 'CUSTOM' && customMilestones.length === 0) {
+      setCustomMilestones(milestones);
+    }
+    setPaymentPlanId(newPlanId);
+  };
+
+  const handleAddMilestone = () => {
+    const allocated = customMilestones.reduce((acc, m) => acc + (m.amount || 0), 0);
+    const remainder = Math.max(0, Math.round((grandTotal - allocated) * 100) / 100);
+    setCustomMilestones((prev) => [
+      ...prev,
+      { name: `Payment ${prev.length + 1}`, amount: remainder, dueDate: eventDate || new Date().toISOString().split('T')[0] },
+    ]);
+  };
+
+  const handleUpdateMilestone = (index: number, field: keyof MilestoneDraft, value: string) => {
+    setCustomMilestones((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, [field]: field === 'amount' ? parseFloat(value || '0') : value } : m))
+    );
+  };
+
+  const handleRemoveMilestone = (index: number) => {
+    setCustomMilestones((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Filter catalog
   const filteredCatalog = useMemo(() => {
@@ -214,12 +305,15 @@ export function useBookingPOS({
     });
   };
 
-  // Check conflicts for currently selected eventDate
+  // Check conflicts for the currently selected time range — same overlap rule the server uses:
+  // existing.startAt < endAt AND existing.endAt > startAt. WAITING_LIST bookings never block.
   const selectedDateBookings = initialBookings.filter((b) => {
-    if (b.status === 'CANCELLED') return false;
+    if (b.status === 'CANCELLED' || b.status === 'WAITING_LIST') return false;
     if (initialBookingData && b.id === initialBookingData.id) return false;
-    const bDate = new Date(b.eventDate).toISOString().split('T')[0];
-    return bDate === eventDate;
+    if (!startAt || !endAt) return false;
+    const bStart = new Date(b.startAt).getTime();
+    const bEnd = new Date(b.endAt).getTime();
+    return bStart < endAt.getTime() && bEnd > startAt.getTime();
   });
   const hasConflict = selectedDateBookings.length > 0;
 
@@ -233,8 +327,17 @@ export function useBookingPOS({
       toast.error('Please select the event date.');
       return;
     }
+    if (!isEdit && !planValidation.valid) {
+      toast.error(planValidation.errors[0] || 'Payment plan is invalid.');
+      return;
+    }
 
     const finalStatus = (hasConflict && isWaitingList) ? 'WAITING_LIST' : targetStatus;
+
+    if (finalStatus === 'CONFIRMED' && overCapacity && !capacityOverrideReason.trim()) {
+      toast.error(`Guest count (${guestCount}) exceeds the space's capacity (${spaceCapacity}). Provide an override reason to confirm.`);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -249,6 +352,9 @@ export function useBookingPOS({
         eventType,
         guestCount,
         eventDate,
+        startAt: startAt?.toISOString(),
+        endAt: endAt?.toISOString(),
+        capacityOverrideReason: overCapacity ? capacityOverrideReason : undefined,
         selectedServices: selectedItems.map(item => ({
           serviceId: item.serviceId,
           name: item.name,
@@ -261,13 +367,10 @@ export function useBookingPOS({
         })),
         totalAmount: grandTotal,
         discount,
-        downPaymentAmount,
-        downPaymentPercent,
         depositDueDate,
-        installmentCount,
-        installmentAmount: monthlyInstallment,
+        milestones: isEdit ? undefined : milestones,
         status: finalStatus,
-        isEdit: !!initialBookingData,
+        isEdit,
       };
 
       const url = initialBookingData ? `/api/bookings/${initialBookingData.id}` : '/api/bookings';
@@ -335,6 +438,18 @@ export function useBookingPOS({
     setCalendarMonth,
     isWaitingList,
     setIsWaitingList,
+    shift,
+    handleShiftChange,
+    startTime,
+    setStartTime,
+    endTime,
+    setEndTime,
+    startAt,
+    endAt,
+    spaceCapacity,
+    overCapacity,
+    capacityOverrideReason,
+    setCapacityOverrideReason,
     selectedSpaceId,
     spacesList,
     catalogServices,
@@ -348,11 +463,19 @@ export function useBookingPOS({
     selectedItems,
     discount,
     setDiscount,
-    downPaymentPercent,
-    setDownPaymentPercent,
-    installmentCount,
-    setInstallmentCount,
+    depositPercent,
+    setDepositPercent,
+    paymentPlanId,
+    handlePlanChange,
     submitting,
+
+    // Payment plan
+    milestones,
+    planValidation,
+    depositAmount,
+    handleAddMilestone,
+    handleUpdateMilestone,
+    handleRemoveMilestone,
 
     // Derived
     filteredCatalog,
@@ -361,8 +484,6 @@ export function useBookingPOS({
     internalRevenue,
     externalRepass,
     grandTotal,
-    downPaymentAmount,
-    monthlyInstallment,
     calendarYear,
     calendarMonthIndex,
     calendarDaysArr,
@@ -375,6 +496,6 @@ export function useBookingPOS({
     removeItemFromCart,
     handleSubmitPOS,
     resetForm,
-    isEdit: !!initialBookingData,
+    isEdit,
   };
 }

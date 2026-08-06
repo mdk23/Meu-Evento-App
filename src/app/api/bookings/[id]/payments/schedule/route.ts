@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { PaymentStatus } from '@prisma/client';
 import { isMoneyGreaterThan, isMoneyGreaterThanOrEqual, isMoneyPositive } from '@/lib/money';
+import { validatePaymentPlan } from '@/lib/payment-plan';
 
 interface ScheduleInput {
   id?: string;
@@ -18,6 +19,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const schedules: ScheduleInput[] = body.schedules;
+    const totalContractAmount = parseFloat(body.totalContractAmount || '0');
 
     const booking = await prisma.booking.findUnique({
       where: { id }
@@ -27,9 +29,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Basic validation: sum of scheduled amounts should equal booking total
-    // (Assuming totalContractAmount is known, but we'll let client handle strict validation for now or we can query it)
-    
+    // Authoritative validation: due dates must be on/before the event and chronological, and
+    // the amounts must sum to the contract total. The client (EditScheduleModal) already checks
+    // the sum, but every rule needs to be enforced here too since this is the real boundary.
+    const validation = validatePaymentPlan({
+      milestones: schedules.map((s) => ({ name: s.name, amount: parseFloat(String(s.amount)), dueDate: s.dueDate })),
+      totalAmount: totalContractAmount,
+      eventDate: booking.eventDate,
+    });
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.errors[0] || 'Invalid payment schedule.' }, { status: 400 });
+    }
+
     await prismaTransaction.$transaction(async (tx) => {
       // Get existing schedules
       const existingSchedules = await tx.scheduledPayment.findMany({

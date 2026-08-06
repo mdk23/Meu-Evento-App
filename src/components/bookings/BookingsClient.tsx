@@ -27,7 +27,6 @@ export default function BookingsClient({ initialBookings }: BookingsClientProps)
     editDate: list.editDate,
     editGuests: list.editGuests,
     editDiscount: list.editDiscount,
-    editDownPaymentPercent: list.editDownPaymentPercent,
     editDepositDueDate: list.editDepositDueDate,
     editNotes: list.editNotes,
   };
@@ -41,7 +40,6 @@ export default function BookingsClient({ initialBookings }: BookingsClientProps)
     editDate: list.setEditDate,
     editGuests: list.setEditGuests,
     editDiscount: list.setEditDiscount,
-    editDownPaymentPercent: list.setEditDownPaymentPercent,
     editDepositDueDate: list.setEditDepositDueDate,
     editNotes: list.setEditNotes,
   };

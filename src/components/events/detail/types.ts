@@ -36,12 +36,30 @@ export interface EventDetailApiResponse {
   inventoryItems?: InventoryItem[];
 }
 
-/** Shape of the JSON stored in `EventService.customFields`; kept loose since it's a free-form operational spec. */
-export interface WorkOrderCustomFields {
-  theme?: string;
-  dietary?: string;
-  menu?: { main?: string };
-  colors?: string;
+export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'date' | 'datetime' | 'boolean';
+
+/** One entry of `Service.fieldSchema` — defines a single dynamic operational field for that service's work orders. */
+export interface FieldSchemaField {
+  key: string;
+  type: FieldType;
+  label?: string;
+  options?: string[];
+  required?: boolean;
+}
+
+/** Shape of the JSON stored in `EventService.customFields` — values only, keyed by `FieldSchemaField.key`. */
+export type WorkOrderCustomFields = Record<string, string | string[] | number | boolean | null | undefined>;
+
+/** Runtime-validates `Service.fieldSchema` (an untyped `Prisma.Json` value) into `FieldSchemaField[]`. */
+export function parseFieldSchema(raw: unknown): FieldSchemaField[] {
+  if (!Array.isArray(raw)) return [];
+  const validTypes: FieldType[] = ['text', 'textarea', 'number', 'select', 'multiselect', 'date', 'datetime', 'boolean'];
+  return raw.filter((f): f is FieldSchemaField =>
+    !!f &&
+    typeof f === 'object' &&
+    typeof (f as FieldSchemaField).key === 'string' &&
+    validTypes.includes((f as FieldSchemaField).type)
+  );
 }
 
 export type TabId = 'overview' | 'services' | 'guests' | 'tasks' | 'finance' | 'documents';

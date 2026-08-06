@@ -15,8 +15,6 @@ export class BookingRepository {
         status: true,
         notes: true,
         discount: true,
-        downPaymentAmount: true,
-        downPaymentPercent: true,
         depositDueDate: true,
         client: {
           select: { name: true, email: true, phone: true },
@@ -47,16 +45,19 @@ export class BookingRepository {
 
       const eventServicesSum = sumMoney(b.event?.eventServices?.map((es) => es.sellingPrice) || []);
       const servicesMinusDiscount = subtractMoneyFloor0(eventServicesSum, b.discount || 0);
-      const depositImpliedTotal = (b.downPaymentPercent && b.downPaymentPercent > 0 && b.downPaymentAmount)
-        ? (b.downPaymentAmount * 100) / b.downPaymentPercent
-        : 0;
 
-      const totalContractAmount = maxMoney(maxMoney(scheduledPaymentsSum, servicesMinusDiscount), depositImpliedTotal);
+      const totalContractAmount = maxMoney(scheduledPaymentsSum, servicesMinusDiscount);
 
-      const depositSchedule = b.scheduledPayments?.find((sp) => sp.name?.toLowerCase().includes('entrada') || sp.name?.toLowerCase().includes('deposit'));
+      // The deposit is the earliest-due milestone — that's how the payment plan generator
+      // (src/lib/payment-plan.ts) always orders a booking's schedule.
+      const sortedSchedules = [...(b.scheduledPayments || [])].sort((a, c) => a.dueDate.getTime() - c.dueDate.getTime());
+      const depositSchedule = sortedSchedules[0];
       const depositStatus = (depositSchedule?.status === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED')
         ? 'PAID'
         : 'PENDING';
+      const depositAmountVal = toDisplayNumber(depositSchedule?.amount ?? 0);
+      const totalContractAmountVal = toDisplayNumber(totalContractAmount);
+      const depositPercentVal = totalContractAmountVal > 0 ? Math.round((depositAmountVal / totalContractAmountVal) * 100) : 0;
 
       return {
         id: b.id,
@@ -73,9 +74,9 @@ export class BookingRepository {
         hasEvent: !!b.event,
         totalScheduledAmount: toDisplayNumber(scheduledPaymentsSum),
         paidAmount: toDisplayNumber(paidAmountSum),
-        totalContractAmount: toDisplayNumber(totalContractAmount),
-        downPaymentAmount: b.downPaymentAmount || 0,
-        downPaymentPercent: b.downPaymentPercent || 0,
+        totalContractAmount: totalContractAmountVal,
+        downPaymentAmount: depositAmountVal,
+        downPaymentPercent: depositPercentVal,
         discount: toDisplayNumber(b.discount ?? toMoney(0)),
         depositStatus,
         depositDueDate: b.depositDueDate ? b.depositDueDate.toISOString() : null,

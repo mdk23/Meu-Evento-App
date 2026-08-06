@@ -1,59 +1,27 @@
 import { SpaceItem, ServiceItem } from './types';
 
+// There's one Space per tenant (see the `Space` model) — this fallback only renders if that
+// real record somehow fails to load, so it deliberately doesn't invent named sub-venues.
 export const defaultSpaces: SpaceItem[] = [
   {
     id: 'sp-1',
-    name: 'Imperial Hall (Indoor)',
-    capacity: 350,
-    price: 50000,
-    description: 'Exclusive use of the main hall with central air conditioning, acoustic treatment...',
-  },
-  {
-    id: 'sp-2',
-    name: 'Palms Garden (Outdoor)',
+    name: 'Main Event Space',
     capacity: 200,
-    price: 35000,
-    description: 'Wooded outdoor area with hardwood pergola, altar, and walkway.',
-  },
-  {
-    id: 'sp-3',
-    name: 'Sunset Terrace & Lounge Bar',
-    capacity: 120,
-    price: 25000,
-    description: 'Area with panoramic sunset view, modern cocktail bar, and lounge sofas.',
+    price: 50000,
+    description: 'Exclusive use of the venue for your event.',
   },
 ];
 
 export const defaultCatalogServices: ServiceItem[] = [
   {
     id: 'srv-1',
-    name: 'Imperial Hall Rental (Air Conditioned)',
+    name: 'Venue Space Rental',
     category: 'SPACE',
     providerType: 'INTERNAL',
     providerName: 'Internal Venue',
     priceType: 'FIXED',
     price: 50000,
-    description: 'Exclusive use of the main hall with central air conditioning, acoustic treatment...',
-  },
-  {
-    id: 'srv-2',
-    name: 'Palms Garden Rental (Outdoor Ceremony)',
-    category: 'SPACE',
-    providerType: 'INTERNAL',
-    providerName: 'Internal Venue',
-    priceType: 'FIXED',
-    price: 35000,
-    description: 'Wooded outdoor area with hardwood pergola, altar, and walkway.',
-  },
-  {
-    id: 'srv-3',
-    name: 'Sunset Terrace & Lounge Bar Rental',
-    category: 'SPACE',
-    providerType: 'INTERNAL',
-    providerName: 'Internal Venue',
-    priceType: 'FIXED',
-    price: 25000,
-    description: 'Area with panoramic sunset view, modern cocktail bar, and lounge sofas.',
+    description: 'Exclusive use of the venue, including climate control and acoustic treatment.',
   },
   {
     id: 'srv-4',

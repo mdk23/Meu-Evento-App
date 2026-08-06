@@ -1,6 +1,7 @@
 import React from 'react';
-import { ShoppingBag, Trash2, Tag, Loader2, CheckCircle2, FileText } from 'lucide-react';
+import { ShoppingBag, Trash2, Tag, Loader2, CheckCircle2, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 import { CartItem } from './types';
+import { DEPOSIT_PERCENT_OPTIONS, PAYMENT_PLAN_OPTIONS, MilestoneDraft, PaymentPlanId, PaymentPlanValidationResult } from '@/lib/payment-plan';
 
 interface POSExtractSummarySectionProps {
   selectedItems: CartItem[];
@@ -12,12 +13,15 @@ interface POSExtractSummarySectionProps {
   discount: number;
   setDiscount: (val: number) => void;
   grandTotal: number;
-  downPaymentPercent: number;
-  setDownPaymentPercent: (val: number) => void;
-  installmentCount: number;
-  setInstallmentCount: (val: number) => void;
-  downPaymentAmount: number;
-  monthlyInstallment: number;
+  depositPercent: number;
+  setDepositPercent: (val: number) => void;
+  paymentPlanId: PaymentPlanId;
+  handlePlanChange: (planId: PaymentPlanId) => void;
+  milestones: MilestoneDraft[];
+  planValidation: PaymentPlanValidationResult;
+  handleAddMilestone: () => void;
+  handleUpdateMilestone: (index: number, field: keyof MilestoneDraft, value: string) => void;
+  handleRemoveMilestone: (index: number) => void;
   submitting: boolean;
   handleSubmitPOS: (targetStatus?: 'CONFIRMED' | 'RESERVED') => void;
   isEdit?: boolean;
@@ -33,12 +37,15 @@ export default function POSExtractSummarySection({
   discount,
   setDiscount,
   grandTotal,
-  downPaymentPercent,
-  setDownPaymentPercent,
-  installmentCount,
-  setInstallmentCount,
-  downPaymentAmount,
-  monthlyInstallment,
+  depositPercent,
+  setDepositPercent,
+  paymentPlanId,
+  handlePlanChange,
+  milestones,
+  planValidation,
+  handleAddMilestone,
+  handleUpdateMilestone,
+  handleRemoveMilestone,
   submitting,
   handleSubmitPOS,
   isEdit,
@@ -166,57 +173,123 @@ export default function POSExtractSummarySection({
         </div>
 
         {/* PAYMENT CONDITIONS */}
-        <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-3">
-          <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-            Payment Terms
-          </h3>
+        {isEdit ? (
+          <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-1 text-xs text-zinc-400">
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1">Payment Schedule</h3>
+            <p>Payment milestones are managed on the <strong className="text-white">Payments</strong> tab, not here.</p>
+          </div>
+        ) : (
+          <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-3">
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+              Payment Terms
+            </h3>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                Initial Down Payment (%)
-              </label>
-              <select
-                value={downPaymentPercent}
-                onChange={(e) => setDownPaymentPercent(parseInt(e.target.value, 10))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white font-bold"
-              >
-                <option value={10}>10% ({(grandTotal * 0.1).toLocaleString()} MT)</option>
-                <option value={20}>20% ({(grandTotal * 0.2).toLocaleString()} MT)</option>
-                <option value={30}>30% ({(grandTotal * 0.3).toLocaleString()} MT)</option>
-                <option value={50}>50% ({(grandTotal * 0.5).toLocaleString()} MT)</option>
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Deposit (%)
+                </label>
+                <select
+                  value={depositPercent}
+                  onChange={(e) => setDepositPercent(parseInt(e.target.value, 10))}
+                  disabled={paymentPlanId === 'FULL'}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white font-bold disabled:opacity-40"
+                >
+                  {DEPOSIT_PERCENT_OPTIONS.map((pct) => (
+                    <option key={pct} value={pct}>{pct}% ({(grandTotal * pct / 100).toLocaleString()} MT)</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Payment Plan
+                </label>
+                <select
+                  value={paymentPlanId}
+                  onChange={(e) => handlePlanChange(e.target.value as PaymentPlanId)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white font-bold"
+                >
+                  {PAYMENT_PLAN_OPTIONS.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                Installment Plan
-              </label>
-              <select
-                value={installmentCount}
-                onChange={(e) => setInstallmentCount(parseInt(e.target.value, 10))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white font-bold"
-              >
-                <option value={1}>Single Payment (1x)</option>
-                <option value={3}>3x interest-free</option>
-                <option value={6}>6x interest-free</option>
-                <option value={10}>10x interest-free</option>
-                <option value={12}>12x interest-free</option>
-              </select>
+            {/* MILESTONE LIST */}
+            <div className="space-y-2">
+              {milestones.map((m, idx) => (
+                <div key={idx} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex items-center gap-2 text-[11px]">
+                  {paymentPlanId === 'CUSTOM' ? (
+                    <>
+                      <input
+                        value={m.name}
+                        onChange={(e) => handleUpdateMilestone(idx, 'name', e.target.value)}
+                        className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-white"
+                      />
+                      <input
+                        type="date"
+                        value={m.dueDate}
+                        onChange={(e) => handleUpdateMilestone(idx, 'dueDate', e.target.value)}
+                        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-white"
+                      />
+                      <input
+                        type="number"
+                        value={m.amount}
+                        onChange={(e) => handleUpdateMilestone(idx, 'amount', e.target.value)}
+                        className="w-24 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-right text-violet-300 font-bold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMilestone(idx)}
+                        className="text-zinc-500 hover:text-red-400 p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 min-w-0 truncate text-zinc-300 font-medium">{m.name}</span>
+                      <span className="text-zinc-500">{new Date(m.dueDate).toLocaleDateString()}</span>
+                      <span className="font-bold text-violet-400 w-24 text-right">{m.amount.toLocaleString()} MT</span>
+                    </>
+                  )}
+                </div>
+              ))}
+              {paymentPlanId === 'CUSTOM' && (
+                <button
+                  type="button"
+                  onClick={handleAddMilestone}
+                  className="w-full p-2 border border-dashed border-zinc-700 hover:border-emerald-500 hover:bg-emerald-500/5 text-zinc-400 hover:text-emerald-400 rounded-lg flex items-center justify-center gap-1.5 transition-all text-[11px] font-bold"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Milestone
+                </button>
+              )}
+            </div>
+
+            {/* VALIDATION BANNER */}
+            <div className={`flex items-start gap-2 p-2.5 rounded-lg text-[11px] font-bold border ${
+              planValidation.valid
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+            }`}>
+              {planValidation.valid ? (
+                <>
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>Payment plan is balanced and valid.</span>
+                </>
+              ) : (
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              )}
+              {!planValidation.valid && (
+                <ul className="space-y-0.5">
+                  {planValidation.errors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              )}
             </div>
           </div>
-
-          <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 space-y-1 text-[11px]">
-            <div className="flex justify-between text-zinc-300 font-medium">
-              <span>Initial Down Payment:</span>
-              <span className="font-bold text-violet-400">{downPaymentAmount.toLocaleString()} MT</span>
-            </div>
-            <div className="flex justify-between text-zinc-400">
-              <span>Remaining Balance ({installmentCount > 1 ? installmentCount - 1 : 1}x of):</span>
-              <span className="font-bold text-white">{monthlyInstallment.toLocaleString(undefined, { maximumFractionDigits: 0 })} MT / month</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
       </div>
 
@@ -224,7 +297,7 @@ export default function POSExtractSummarySection({
       <div className="space-y-2.5 pt-2">
         <button
           type="button"
-          disabled={submitting}
+          disabled={submitting || (!isEdit && !planValidation.valid)}
           onClick={() => handleSubmitPOS()}
           className="w-full bg-violet-600 hover:bg-violet-500 text-white py-3.5 px-4 rounded-xl text-xs font-bold transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 border border-violet-500/30 disabled:opacity-50"
         >

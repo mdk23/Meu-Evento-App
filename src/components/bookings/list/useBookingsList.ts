@@ -32,7 +32,6 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
   const [editDate, setEditDate] = useState('');
   const [editGuests, setEditGuests] = useState(0);
   const [editDiscount, setEditDiscount] = useState(0);
-  const [editDownPaymentPercent, setEditDownPaymentPercent] = useState(50);
   const [editDepositDueDate, setEditDepositDueDate] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
@@ -46,7 +45,6 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
     setEditDate(booking.eventDate ? new Date(booking.eventDate).toISOString().split('T')[0] : '');
     setEditGuests(booking.guestCount || 0);
     setEditDiscount(booking.discount || 0);
-    setEditDownPaymentPercent(booking.downPaymentPercent || 50);
     setEditDepositDueDate(booking.depositDueDate ? new Date(booking.depositDueDate).toISOString().split('T')[0] : '');
     setEditNotes(booking.notes || '');
 
@@ -126,7 +124,6 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
           eventDate: editDate,
           guestCount: editGuests,
           discount: editDiscount,
-          downPaymentPercent: editDownPaymentPercent,
           depositDueDate: editDepositDueDate,
           notes: editNotes,
         }),
@@ -255,8 +252,6 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
     setEditGuests,
     editDiscount,
     setEditDiscount,
-    editDownPaymentPercent,
-    setEditDownPaymentPercent,
     editDepositDueDate,
     setEditDepositDueDate,
     editNotes,

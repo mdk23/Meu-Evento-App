@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Calendar, CreditCard, Plus, Edit, DollarSign, Trash2 } from 'lucide-react';
+import { Calendar, CreditCard, Plus, Edit, DollarSign, Trash2, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import RegisterPaymentModal from './RegisterPaymentModal';
 import EditScheduleModal from './EditScheduleModal';
+import PaymentReceiptModal from './PaymentReceiptModal';
 import { SerializedBooking, SerializedSchedule, SerializedTransaction } from './types';
 
 interface BookingPaymentsClientProps {
@@ -18,6 +19,7 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
   const [transactions, setTransactions] = useState(initialTransactions);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isEditScheduleModalOpen, setIsEditScheduleModalOpen] = useState(false);
+  const [receiptTransaction, setReceiptTransaction] = useState<SerializedTransaction | null>(null);
 
   // Computed values
   const totalBookingValue = useMemo(() => scheduledPayments.reduce((acc, curr) => acc + curr.amount, 0), [scheduledPayments]);
@@ -199,13 +201,22 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
                   <td className="px-6 py-4">{tx.recordedBy}</td>
                   <td className="px-6 py-4 text-zinc-500">{tx.notes || '-'}</td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleDeleteTransaction(tx.id)}
-                      className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
-                      title="Delete Payment"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setReceiptTransaction(tx)}
+                        className="p-2 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 rounded-lg transition-colors"
+                        title="View Receipt"
+                      >
+                        <Receipt className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTransaction(tx.id)}
+                        className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
+                        title="Delete Payment"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -234,6 +245,13 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
         totalContractAmount={booking.totalContractAmount || totalBookingValue}
         initialSchedules={scheduledPayments}
         onSuccess={refreshData}
+      />
+
+      <PaymentReceiptModal
+        isOpen={!!receiptTransaction}
+        onClose={() => setReceiptTransaction(null)}
+        booking={booking}
+        transaction={receiptTransaction}
       />
     </div>
   );

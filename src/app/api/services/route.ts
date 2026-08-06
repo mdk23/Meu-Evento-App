@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, category, executionType, priceType, defaultPrice, templateSchema } = body;
+    const { name, category, defaultExecutionType, priceType, defaultPrice, fieldSchema } = body;
 
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
@@ -34,10 +34,10 @@ export async function POST(request: Request) {
         tenantId: tenant.id,
         name,
         category,
-        executionType: executionType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
+        defaultExecutionType: defaultExecutionType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
         priceType: priceType || 'FIXED',
         defaultPrice: parseFloat(defaultPrice || 0),
-        templateSchema: typeof templateSchema === 'object' ? JSON.stringify(templateSchema) : templateSchema,
+        fieldSchema: Array.isArray(fieldSchema) ? fieldSchema : undefined,
       },
     });
 

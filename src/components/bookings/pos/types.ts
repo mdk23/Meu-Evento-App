@@ -44,13 +44,13 @@ import { DecimalToNumber } from '@/lib/money';
 // `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
 // `serializeDecimals` converts every one to a plain number before this data reaches the client.
 export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
-  select: { id: true; name: true; category: true; executionType: true; defaultPrice: true; priceType: true };
+  select: { id: true; name: true; category: true; defaultExecutionType: true; defaultPrice: true; priceType: true };
 }>>;
 
 export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
 
 export type BookingSummary = Prisma.BookingGetPayload<{
-  select: { id: true; eventDate: true; status: true; client: { select: { name: true } } };
+  select: { id: true; eventDate: true; startAt: true; endAt: true; spaceId: true; status: true; client: { select: { name: true } } };
 }>;
 
 /** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. */

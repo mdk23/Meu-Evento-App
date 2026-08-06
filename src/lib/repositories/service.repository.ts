@@ -10,9 +10,10 @@ export class ServiceRepository {
         id: true,
         name: true,
         category: true,
-        executionType: true,
+        defaultExecutionType: true,
         priceType: true,
         defaultPrice: true,
+        fieldSchema: true,
       },
     });
 
@@ -20,9 +21,10 @@ export class ServiceRepository {
       id: s.id,
       name: s.name,
       category: s.category,
-      executionType: s.executionType,
+      defaultExecutionType: s.defaultExecutionType,
       priceType: s.priceType,
       defaultPrice: toDisplayNumber(s.defaultPrice),
+      fieldSchema: s.fieldSchema,
     }));
   }
 }

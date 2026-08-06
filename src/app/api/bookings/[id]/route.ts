@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { BookingStatus, EventStatus, BookingType, PaymentStatus, Prisma } from '@prisma/client';
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
-import { isMoneyPositive, serializeDecimals } from '@/lib/money';
+import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
+import { serializeDecimals } from '@/lib/money';
 
 export async function GET(
   request: Request,
@@ -44,6 +45,8 @@ export async function PATCH(
     const {
       status,
       eventDate,
+      startAt,
+      endAt,
       guestCount,
       notes,
       title,
@@ -53,8 +56,6 @@ export async function PATCH(
       clientEmail,
       bookingType,
       discount,
-      downPaymentAmount,
-      downPaymentPercent,
       depositDueDate,
       eventStatus,
       paymentAction,
@@ -62,14 +63,12 @@ export async function PATCH(
       invoiceStatus,
       isEdit,
       selectedServices,
-      totalAmount,
-      installmentCount,
-      installmentAmount,
+      capacityOverrideReason,
     } = body;
 
     const existingBooking = await prisma.booking.findUnique({
       where: { id },
-      include: { event: true, scheduledPayments: true, client: true },
+      include: { event: true, client: true, space: true },
     });
 
     if (!existingBooking) {
@@ -86,8 +85,17 @@ export async function PATCH(
     if (eventDate) {
       updateData.eventDate = new Date(eventDate);
     }
+    if (startAt) {
+      updateData.startAt = new Date(startAt);
+    }
+    if (endAt) {
+      updateData.endAt = new Date(endAt);
+    }
     if (guestCount !== undefined) {
       updateData.guestCount = parseInt(guestCount, 10);
+    }
+    if (capacityOverrideReason !== undefined) {
+      updateData.capacityOverrideReason = capacityOverrideReason || null;
     }
     if (notes !== undefined) {
       updateData.notes = notes;
@@ -101,20 +109,8 @@ export async function PATCH(
     if (discount !== undefined) {
       updateData.discount = parseFloat(discount);
     }
-    if (downPaymentAmount !== undefined) {
-      updateData.downPaymentAmount = parseFloat(downPaymentAmount);
-    }
-    if (downPaymentPercent !== undefined) {
-      updateData.downPaymentPercent = parseInt(downPaymentPercent, 10);
-    }
     if (depositDueDate) {
       updateData.depositDueDate = new Date(depositDueDate);
-    }
-    if (installmentCount !== undefined) {
-      updateData.installmentCount = parseInt(installmentCount, 10);
-    }
-    if (installmentAmount !== undefined) {
-      updateData.installmentAmount = parseFloat(installmentAmount);
     }
 
     // Handle Payment Actions
@@ -129,18 +125,26 @@ export async function PATCH(
       resolvedStatus = BookingStatus.COMPLETED;
     }
 
+    // Capacity is a soft warning below CONFIRMED — only (re)confirming blocks without an override reason.
+    if (resolvedStatus === BookingStatus.CONFIRMED) {
+      const resolvedGuestCount = guestCount !== undefined ? parseInt(guestCount, 10) : existingBooking.guestCount;
+      const resolvedOverrideReason = capacityOverrideReason !== undefined ? capacityOverrideReason : existingBooking.capacityOverrideReason;
+      assertCapacityForConfirmation(resolvedGuestCount, existingBooking.space.capacity, resolvedOverrideReason);
+    }
+
     // Update booking + client + event + services + payment schedule atomically —
     // the service/payment sync below deletes-then-recreates rows, so a partial failure
     // must not leave the booking with a wiped-but-not-rebuilt services or payment schedule.
     const updatedBooking = await prismaTransaction.$transaction(async (tx) => {
-      // Only WAITING_LIST/CANCELLED bookings are allowed to share an already-booked date —
-      // the venue has a single Space. Re-check whenever the resulting status is a blocking
-      // one, whether it's because the date is changing or because a WAITING_LIST/CANCELLED
-      // booking is being promoted back to active on its existing date. Excluding this
-      // booking's own id makes the check a safe no-op when nothing relevant changed.
+      // Only WAITING_LIST/CANCELLED bookings are allowed to overlap an already-booked window.
+      // Re-check whenever the resulting status is a blocking one, whether it's because the
+      // time range is changing or because a WAITING_LIST/CANCELLED booking is being promoted
+      // back to active on its existing window. Excluding this booking's own id makes the
+      // check a safe no-op when nothing relevant changed.
       if (resolvedStatus !== BookingStatus.CANCELLED && resolvedStatus !== BookingStatus.WAITING_LIST) {
-        const dateToCheck = eventDate ? new Date(eventDate) : existingBooking.eventDate;
-        await assertNoBookingConflict(tx, dateToCheck, id);
+        const startAtToCheck = startAt ? new Date(startAt) : existingBooking.startAt;
+        const endAtToCheck = endAt ? new Date(endAt) : existingBooking.endAt;
+        await assertNoBookingConflict(tx, existingBooking.spaceId, startAtToCheck, endAtToCheck, id);
       }
 
       // Update Client info if provided
@@ -234,7 +238,7 @@ export async function PATCH(
                     tenantId,
                     name: item.name,
                     category: item.category || 'GERAL',
-                    executionType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+                    defaultExecutionType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
                     priceType: item.priceType || 'FIXED',
                     defaultPrice: item.price || 0,
                   },
@@ -260,97 +264,9 @@ export async function PATCH(
         }
       }
 
-      // 4. Sync Scheduled Payments if it's a full POS Edit
-      if (isEdit && (downPaymentAmount !== undefined || installmentCount !== undefined)) {
-        const hasPayments = existingBooking.scheduledPayments.some(s => isMoneyPositive(s.paidAmount));
-
-        if (!hasPayments) {
-          // Safe to recreate schedules since no actual payments have been processed yet
-          await tx.scheduledPayment.deleteMany({
-            where: { bookingId: id }
-          });
-
-          const tenantId = existingBooking.tenantId || (await tx.tenant.findFirst())?.id || 'default';
-          const parsedDepositDueDate = depositDueDate
-            ? new Date(depositDueDate)
-            : existingBooking.depositDueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-          const parsedDate = eventDate ? new Date(eventDate) : existingBooking.eventDate;
-
-          const finalStatus = status || existingBooking.status;
-          const depositStatus = finalStatus === 'CONFIRMED' ? 'PAID' : 'PENDING';
-
-          const downPaymentAmtVal = parseFloat(downPaymentAmount || '0');
-          const installmentCountVal = parseInt(installmentCount || '1', 10);
-          const installmentAmtVal = parseFloat(installmentAmount || '0');
-          const totalAmountVal = parseFloat(totalAmount || '0');
-
-          // Initial Deposit
-          if (downPaymentAmtVal > 0) {
-            const scheduledPayment = await tx.scheduledPayment.create({
-              data: {
-                tenantId,
-                bookingId: id,
-                name: 'Initial Deposit (Sinal)',
-                amount: downPaymentAmtVal,
-                paidAmount: depositStatus === 'PAID' ? downPaymentAmtVal : 0,
-                status: depositStatus,
-                dueDate: parsedDepositDueDate,
-              },
-            });
-
-            if (depositStatus === 'PAID') {
-              await tx.paymentTransaction.create({
-                data: {
-                  tenantId,
-                  bookingId: id,
-                  scheduledPaymentId: scheduledPayment.id,
-                  amount: downPaymentAmtVal,
-                  method: 'CASH',
-                  recordedBy: 'POS Terminal',
-                  notes: 'Initial Deposit paid at booking (Edit)',
-                }
-              });
-            }
-          }
-
-          // Single Payment Remaining Balance
-          if (installmentCountVal === 1 && (totalAmountVal - downPaymentAmtVal) > 0) {
-            await tx.scheduledPayment.create({
-              data: {
-                tenantId,
-                bookingId: id,
-                name: 'Remaining Balance (Saldo Final)',
-                amount: Math.max(0, totalAmountVal - downPaymentAmtVal),
-                status: 'PENDING',
-                dueDate: parsedDate,
-              },
-            });
-          }
-
-          // Installments
-          if (installmentCountVal > 1 && installmentAmtVal > 0) {
-            const remainingInstallments = installmentCountVal - 1;
-            for (let i = 1; i <= remainingInstallments; i++) {
-              const installmentDueDate = new Date();
-              installmentDueDate.setMonth(installmentDueDate.getMonth() + i);
-              if (installmentDueDate > parsedDate) {
-                installmentDueDate.setTime(parsedDate.getTime());
-              }
-
-              await tx.scheduledPayment.create({
-                data: {
-                  tenantId,
-                  bookingId: id,
-                  name: `Installment ${i} of ${remainingInstallments}`,
-                  amount: installmentAmtVal,
-                  status: 'PENDING',
-                  dueDate: installmentDueDate,
-                },
-              });
-            }
-          }
-        }
-      }
+      // Payment schedule edits go exclusively through PUT /api/bookings/[id]/payments/schedule
+      // (the dedicated milestone editor) — this route no longer touches ScheduledPayment rows
+      // beyond the invoice-status/payment-action handling above.
 
       return updatedBooking;
     }, { timeout: 15000, maxWait: 10000 });
@@ -359,6 +275,9 @@ export async function PATCH(
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof CapacityExceededError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to update booking:', error);
     return NextResponse.json(

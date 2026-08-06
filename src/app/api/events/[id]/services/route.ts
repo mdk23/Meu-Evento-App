@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Service catalog item not found' }, { status: 404 });
     }
 
-    const resolvedProviderType = providerType || catalogService.executionType;
+    const resolvedProviderType = providerType || catalogService.defaultExecutionType;
 
     const newEventService = await prisma.eventService.create({
       data: {

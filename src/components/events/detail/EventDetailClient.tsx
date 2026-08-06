@@ -71,6 +71,8 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           setWorkOrderStatus={detail.setWorkOrderStatus}
           customFields={detail.customFields}
           setCustomFields={detail.setCustomFields}
+          sellingPrice={detail.sellingPrice}
+          setSellingPrice={detail.setSellingPrice}
           newTaskTitle={detail.newTaskTitle}
           setNewTaskTitle={detail.setNewTaskTitle}
           supplierId={detail.supplierId}

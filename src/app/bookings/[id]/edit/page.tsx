@@ -43,7 +43,7 @@ export default async function EditBookingPage({
   const services = await prisma.service.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, executionType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, defaultExecutionType: true, defaultPrice: true, priceType: true },
   });
   
   const spaces = await prisma.space.findMany({
@@ -55,6 +55,9 @@ export default async function EditBookingPage({
     select: {
       id: true,
       eventDate: true,
+      startAt: true,
+      endAt: true,
+      spaceId: true,
       status: true,
       client: { select: { name: true } },
     },
@@ -67,10 +70,11 @@ export default async function EditBookingPage({
   });
 
   const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.event?.eventServices.map((service) => service.sellingPrice) || []));
+  const totalScheduledAmount = toDisplayNumber(sumMoney(initialBookingData.scheduledPayments.map((sp) => sp.amount)));
 
   const serializedBooking = serializeDecimals({
     ...initialBookingData,
-    totalContractAmount: Math.max(totalContractAmount, initialBookingData.downPaymentAmount || 0),
+    totalContractAmount: Math.max(totalContractAmount, totalScheduledAmount),
     createdAt: initialBookingData.createdAt.toISOString(),
     updatedAt: initialBookingData.updatedAt.toISOString(),
     eventDate: initialBookingData.eventDate.toISOString(),

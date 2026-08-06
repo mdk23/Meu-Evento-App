@@ -15,6 +15,7 @@ export function useEventDetail(id: string) {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [workOrderStatus, setWorkOrderStatus] = useState('');
   const [customFields, setCustomFields] = useState<WorkOrderCustomFields>({});
+  const [sellingPrice, setSellingPrice] = useState('0');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [supplierCost, setSupplierCost] = useState('0');
@@ -81,6 +82,7 @@ export function useEventDetail(id: string) {
     } catch {
       setCustomFields({});
     }
+    setSellingPrice(String(es.sellingPrice || 0));
     setSupplierId(es.supplierId || '');
     setSupplierCost(String(es.supplierCost || es.cost || 0));
     setSupplierStatus(es.supplierStatus || 'REQUESTED');
@@ -107,6 +109,7 @@ export function useEventDetail(id: string) {
           eventServiceId: selectedService.id,
           status: workOrderStatus,
           customFields,
+          sellingPrice,
           supplierId: supplierId || null,
           supplierCost,
           cost: supplierCost,
@@ -299,6 +302,8 @@ export function useEventDetail(id: string) {
     setWorkOrderStatus,
     customFields,
     setCustomFields,
+    sellingPrice,
+    setSellingPrice,
     newTaskTitle,
     setNewTaskTitle,
     supplierId,

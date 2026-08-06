@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, category, executionType, priceType, defaultPrice } = body;
+    const { name, category, defaultExecutionType, priceType, defaultPrice, fieldSchema } = body;
 
     const existingService = await prisma.service.findUnique({
       where: { id },
@@ -25,14 +25,15 @@ export async function PATCH(
       data: {
         name: name !== undefined ? name : existingService.name,
         category: category !== undefined ? category : existingService.category,
-        executionType:
-          executionType === 'EXTERNAL'
+        defaultExecutionType:
+          defaultExecutionType === 'EXTERNAL'
             ? ExecutionType.EXTERNAL
-            : executionType === 'INTERNAL'
+            : defaultExecutionType === 'INTERNAL'
             ? ExecutionType.INTERNAL
-            : existingService.executionType,
+            : existingService.defaultExecutionType,
         priceType: priceType !== undefined ? priceType : existingService.priceType,
         defaultPrice: defaultPrice !== undefined ? parseFloat(defaultPrice) : existingService.defaultPrice,
+        fieldSchema: Array.isArray(fieldSchema) ? fieldSchema : undefined,
       },
     });
 

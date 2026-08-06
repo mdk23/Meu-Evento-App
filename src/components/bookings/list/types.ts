@@ -32,7 +32,6 @@ export interface EditableBookingFields {
   editDate: string;
   editGuests: number;
   editDiscount: number;
-  editDownPaymentPercent: number;
   editDepositDueDate: string;
   editNotes: string;
 }

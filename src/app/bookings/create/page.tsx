@@ -13,7 +13,7 @@ export default async function CreateBookingPage() {
   const services = await prisma.service.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, executionType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, defaultExecutionType: true, defaultPrice: true, priceType: true },
   });
   const spaces = await prisma.space.findMany({
     orderBy: { name: 'asc' },
@@ -23,6 +23,9 @@ export default async function CreateBookingPage() {
     select: {
       id: true,
       eventDate: true,
+      startAt: true,
+      endAt: true,
+      spaceId: true,
       status: true,
       client: { select: { name: true } },
     },

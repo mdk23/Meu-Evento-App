@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Calendar as CalendarIcon } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, Clock, AlertTriangle } from 'lucide-react';
 import { Client, BookingSummary } from './types';
 
 interface ClientCalendarSectionProps {
@@ -32,6 +32,16 @@ interface ClientCalendarSectionProps {
   selectedDateBookings: BookingSummary[];
   isWaitingList: boolean;
   setIsWaitingList: (val: boolean) => void;
+  shift: 'Lunch' | 'Dinner' | 'Full Day';
+  handleShiftChange: (shift: 'Lunch' | 'Dinner' | 'Full Day') => void;
+  startTime: string;
+  setStartTime: (time: string) => void;
+  endTime: string;
+  setEndTime: (time: string) => void;
+  spaceCapacity: number;
+  overCapacity: boolean;
+  capacityOverrideReason: string;
+  setCapacityOverrideReason: (reason: string) => void;
 }
 
 export default function ClientCalendarSection({
@@ -64,6 +74,16 @@ export default function ClientCalendarSection({
   selectedDateBookings,
   isWaitingList,
   setIsWaitingList,
+  shift,
+  handleShiftChange,
+  startTime,
+  setStartTime,
+  endTime,
+  setEndTime,
+  spaceCapacity,
+  overCapacity,
+  capacityOverrideReason,
+  setCapacityOverrideReason,
 }: ClientCalendarSectionProps) {
   return (
     <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col gap-5 h-full min-h-0">
@@ -203,6 +223,25 @@ export default function ClientCalendarSection({
             </div>
           </div>
         </div>
+
+        {/* CAPACITY WARNING */}
+        {overCapacity && (
+          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-3 rounded-xl space-y-2 animate-in fade-in zoom-in duration-200">
+            <p className="font-bold flex items-center gap-1.5 text-[11px]">
+              <AlertTriangle className="w-3.5 h-3.5" /> Guest count exceeds space capacity ({spaceCapacity})!
+            </p>
+            <p className="text-[10px] text-zinc-400 leading-normal">
+              Confirming this booking requires an override reason.
+            </p>
+            <input
+              type="text"
+              value={capacityOverrideReason}
+              onChange={(e) => setCapacityOverrideReason(e.target.value)}
+              placeholder="Reason for exceeding capacity (e.g. standing room, outdoor overflow)"
+              className="w-full bg-zinc-950 border border-amber-500/30 rounded-lg px-3 py-1.5 text-[11px] text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+        )}
       </div>
 
       {/* DATE & CALENDAR SCHEDULE */}
@@ -289,6 +328,36 @@ export default function ClientCalendarSection({
             <span>Event Date:</span>
             <strong className="text-white">{eventDate ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-US') : 'None'}</strong>
           </div>
+
+          <div className="space-y-1.5 pt-1.5 border-t border-zinc-900/60">
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Shift & Time Range
+            </label>
+            <select
+              value={shift}
+              onChange={(e) => handleShiftChange(e.target.value as 'Lunch' | 'Dinner' | 'Full Day')}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+            >
+              <option value="Lunch">Lunch (12:00–17:00)</option>
+              <option value="Dinner">Dinner (18:00–02:00)</option>
+              <option value="Full Day">Full Day (08:00–23:59)</option>
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
+              />
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1 pt-1.5 border-t border-zinc-900/60">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
               Deposit Due Date

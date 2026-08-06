@@ -16,7 +16,6 @@ export default function BookingEditForm({
   editDate,
   editGuests,
   editDiscount,
-  editDownPaymentPercent,
   editDepositDueDate,
   editNotes,
   updating,
@@ -111,22 +110,13 @@ export default function BookingEditForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[10px] text-zinc-400 font-bold block mb-1">Discount (MT)</label>
             <input
               type="number"
               value={editDiscount}
               onChange={(e) => onChange('editDiscount', parseFloat(e.target.value || '0'))}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-zinc-400 font-bold block mb-1">Deposit %</label>
-            <input
-              type="number"
-              value={editDownPaymentPercent}
-              onChange={(e) => onChange('editDownPaymentPercent', parseInt(e.target.value || '50', 10))}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
             />
           </div>
@@ -140,6 +130,7 @@ export default function BookingEditForm({
             />
           </div>
         </div>
+        <p className="text-[10px] text-zinc-500">Payment milestones (deposit amount, plan) are managed on the booking&apos;s Payments tab.</p>
 
         <div>
           <label className="text-[11px] text-zinc-400 font-bold block mb-1">Agreement Notes</label>
