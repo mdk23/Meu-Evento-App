@@ -4,7 +4,6 @@ import {
   EventServiceWithRelations,
   TabId,
   WorkOrderCustomFields,
-  WorkOrderTask,
 } from './types';
 
 export function useEventDetail(id: string) {
@@ -36,6 +35,7 @@ export function useEventDetail(id: string) {
 
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
+  const [guestPlusOnes, setGuestPlusOnes] = useState(0);
   const [addingGuest, setAddingGuest] = useState(false);
 
   const selectedService: EventServiceWithRelations | null =
@@ -168,6 +168,22 @@ export function useEventDetail(id: string) {
     }
   };
 
+  // Same PATCH as toggleTaskCompleted, but for the aggregated Tasks tab — that view spans every
+  // service on the event, not just whichever one's work order modal happens to be open, so it
+  // addresses the target service directly instead of relying on `selectedService`.
+  const toggleTaskCompletedGlobal = async (eventServiceId: string, taskId: string, currentStatus: string) => {
+    try {
+      await fetch(`/api/events/${id}/services/${eventServiceId}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: currentStatus === 'DONE' ? 'PENDING' : 'DONE' }),
+      });
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
+  };
+
   const handleAddTask = async () => {
     if (!selectedService || !newTaskTitle.trim()) return;
     try {
@@ -266,10 +282,11 @@ export function useEventDetail(id: string) {
       await fetch(`/api/events/${id}/guests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: guestName, email: guestEmail }),
+        body: JSON.stringify({ name: guestName, email: guestEmail, plusOnes: guestPlusOnes }),
       });
       setGuestName('');
       setGuestEmail('');
+      setGuestPlusOnes(0);
       await reloadEvent();
     } catch (err) {
       console.error(err);
@@ -277,19 +294,6 @@ export function useEventDetail(id: string) {
       setAddingGuest(false);
     }
   };
-
-  const allEventTasks: (WorkOrderTask & { serviceName?: string; providerType?: string })[] = [];
-  if (data?.event) {
-    data.event.eventServices.forEach((es) => {
-      es.serviceTasks.forEach((t) => {
-        allEventTasks.push({
-          ...t,
-          serviceName: es.service?.name,
-          providerType: es.providerType,
-        });
-      });
-    });
-  }
 
   return {
     loading,
@@ -320,6 +324,7 @@ export function useEventDetail(id: string) {
     closeServiceWorkOrder,
     handleSaveWorkOrder,
     toggleTaskCompleted,
+    toggleTaskCompletedGlobal,
     handleAddTask,
     handleRemoveTask,
 
@@ -350,9 +355,9 @@ export function useEventDetail(id: string) {
     setGuestName,
     guestEmail,
     setGuestEmail,
+    guestPlusOnes,
+    setGuestPlusOnes,
     addingGuest,
     handleAddGuest,
-
-    allEventTasks,
   };
 }

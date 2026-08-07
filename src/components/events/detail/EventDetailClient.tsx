@@ -52,11 +52,19 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
               setGuestName={detail.setGuestName}
               guestEmail={detail.guestEmail}
               setGuestEmail={detail.setGuestEmail}
+              guestPlusOnes={detail.guestPlusOnes}
+              setGuestPlusOnes={detail.setGuestPlusOnes}
               addingGuest={detail.addingGuest}
               onAddGuest={detail.handleAddGuest}
             />
           )}
-          {detail.activeTab === 'tasks' && <TasksTab allEventTasks={detail.allEventTasks} />}
+          {detail.activeTab === 'tasks' && (
+            <TasksTab
+              eventServices={event.eventServices}
+              onToggleTask={detail.toggleTaskCompletedGlobal}
+              onOpenWorkOrder={detail.openServiceWorkOrder}
+            />
+          )}
           {detail.activeTab === 'finance' && (
             <FinanceTab
               scheduledPayments={event.booking.scheduledPayments}
