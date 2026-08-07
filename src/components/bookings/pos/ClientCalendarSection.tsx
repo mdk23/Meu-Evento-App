@@ -32,8 +32,6 @@ interface ClientCalendarSectionProps {
   selectedDateBookings: BookingSummary[];
   isWaitingList: boolean;
   setIsWaitingList: (val: boolean) => void;
-  shift: 'Lunch' | 'Dinner' | 'Full Day';
-  handleShiftChange: (shift: 'Lunch' | 'Dinner' | 'Full Day') => void;
   startTime: string;
   setStartTime: (time: string) => void;
   endTime: string;
@@ -74,8 +72,6 @@ export default function ClientCalendarSection({
   selectedDateBookings,
   isWaitingList,
   setIsWaitingList,
-  shift,
-  handleShiftChange,
   startTime,
   setStartTime,
   endTime,
@@ -331,17 +327,8 @@ export default function ClientCalendarSection({
 
           <div className="space-y-1.5 pt-1.5 border-t border-zinc-900/60">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Shift & Time Range
+              <Clock className="w-3 h-3" /> Event Time Range
             </label>
-            <select
-              value={shift}
-              onChange={(e) => handleShiftChange(e.target.value as 'Lunch' | 'Dinner' | 'Full Day')}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
-            >
-              <option value="Lunch">Lunch (12:00–17:00)</option>
-              <option value="Dinner">Dinner (18:00–02:00)</option>
-              <option value="Full Day">Full Day (08:00–23:59)</option>
-            </select>
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="time"

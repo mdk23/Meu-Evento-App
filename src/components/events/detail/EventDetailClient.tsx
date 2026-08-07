@@ -37,7 +37,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
         <EventDetailTabs activeTab={detail.activeTab} onTabChange={detail.setActiveTab} />
 
         <div className="flex-1 overflow-auto p-8">
-          {detail.activeTab === 'overview' && <OverviewTab event={event} space={space} />}
+          {detail.activeTab === 'overview' && <OverviewTab event={event} space={space} onNavigateTab={detail.setActiveTab} />}
           {detail.activeTab === 'services' && (
             <ServicesTab
               eventServices={event.eventServices}

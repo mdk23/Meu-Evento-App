@@ -58,8 +58,6 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             selectedDateBookings={pos.selectedDateBookings}
             isWaitingList={pos.isWaitingList}
             setIsWaitingList={pos.setIsWaitingList}
-            shift={pos.shift}
-            handleShiftChange={pos.handleShiftChange}
             startTime={pos.startTime}
             setStartTime={pos.setStartTime}
             endTime={pos.endTime}

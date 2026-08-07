@@ -6,12 +6,6 @@ import { defaultSpaces, defaultCatalogServices } from './constants';
 import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
 import { isOverCapacity } from '@/lib/capacity';
 
-const SHIFT_PRESETS: Record<'Lunch' | 'Dinner' | 'Full Day', { start: string; end: string }> = {
-  Lunch: { start: '12:00', end: '17:00' },
-  Dinner: { start: '18:00', end: '02:00' },
-  'Full Day': { start: '08:00', end: '23:59' },
-};
-
 /** Combines a `yyyy-mm-dd` date string with an `HH:mm` time string into a local `Date`. */
 function combineDateAndTime(dateStr: string, timeStr: string): Date {
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -46,21 +40,13 @@ export function useBookingPOS({
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => initialBookingData?.eventDate ? new Date(initialBookingData.eventDate) : new Date());
   const [isWaitingList, setIsWaitingList] = useState(initialBookingData?.status === 'WAITING_LIST');
 
-  const [shift, setShift] = useState<'Lunch' | 'Dinner' | 'Full Day'>('Dinner');
   const [startTime, setStartTime] = useState('18:00');
   const [endTime, setEndTime] = useState('02:00');
   const [capacityOverrideReason, setCapacityOverrideReason] = useState('');
 
-  const handleShiftChange = (newShift: 'Lunch' | 'Dinner' | 'Full Day') => {
-    setShift(newShift);
-    const preset = SHIFT_PRESETS[newShift];
-    setStartTime(preset.start);
-    setEndTime(preset.end);
-  };
-
-  // Real reservation window for the space — combines the event date with the shift's start/end
+  // Real reservation window for the space — combines the event date with the selected start/end
   // time, wrapping to the next calendar day when the end time is earlier than the start time
-  // (e.g. an 18:00–02:00 dinner shift spans midnight).
+  // (e.g. an 18:00–02:00 range spans midnight).
   const { startAt, endAt } = useMemo(() => {
     if (!eventDate) return { startAt: null as Date | null, endAt: null as Date | null };
     const start = combineDateAndTime(eventDate, startTime);
@@ -438,8 +424,6 @@ export function useBookingPOS({
     setCalendarMonth,
     isWaitingList,
     setIsWaitingList,
-    shift,
-    handleShiftChange,
     startTime,
     setStartTime,
     endTime,
