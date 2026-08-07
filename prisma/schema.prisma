@@ -207,11 +207,30 @@ model Event {
   guests                Guest[]
   expenses              Expense[]
   inventoryReservations InventoryReservation[]
+  statusOverrides       EventStatusOverride[]
 
   @@index([bookingId])
   @@index([status])
   @@index([date])
   @@map("events")
+}
+
+/// Audit trail for manual Event.status overrides (Phase 10). Status is normally derived from
+/// EventService progress — every entry here represents a deliberate manual correction, not the
+/// default path, and the next automatic recalculation (any service status change) can supersede it.
+model EventStatusOverride {
+  id             String      @id @default(cuid())
+  eventId        String
+  previousStatus EventStatus
+  newStatus      EventStatus
+  reason         String
+  overriddenBy   String
+  createdAt      DateTime    @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_status_overrides")
 }
 
 model Service {
@@ -274,6 +293,7 @@ model EventService {
   serviceTasks          EventServiceTask[]
   staffAssignments      EventServiceStaff[]
   inventoryReservations InventoryReservation[]
+  expenses              Expense[]
 
   @@index([eventId])
   @@index([serviceId])
@@ -463,24 +483,30 @@ model PaymentTransaction {
 }
 
 model Expense {
-  id          String        @id @default(cuid())
-  tenantId    String
-  eventId     String?
-  supplierId  String?
-  description String
-  amount      Decimal       @db.Decimal(12, 2)
-  category    String
-  status      ExpenseStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  tenantId       String
+  eventId        String?
+  supplierId     String?
+  /// Links this expense to the specific work order it came from. Set automatically when an
+  /// EXTERNAL EventService's supplierCost is created/updated (see events/[id]/services route) —
+  /// null for manually-entered general operational expenses.
+  eventServiceId String?
+  description    String
+  amount         Decimal       @db.Decimal(12, 2)
+  category       String
+  status         ExpenseStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  event    Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  supplier     Supplier?     @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  eventService EventService? @relation(fields: [eventServiceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([eventId])
   @@index([supplierId])
+  @@index([eventServiceId])
   @@index([status])
   @@map("expenses")
 }

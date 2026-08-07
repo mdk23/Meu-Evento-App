@@ -1,7 +1,12 @@
 export interface DashboardDTO {
   kpis: {
+    /** Contracted revenue: SUM(EventService.sellingPrice) - discount — the source of truth, not cash received. */
     revenue: number;
+    /** Cash actually received (SUM of PaymentTransaction.amount) — a distinct figure from `revenue`. */
+    totalCollected: number;
     pendingAmount: number;
+    internalCost: number;
+    supplierCost: number;
     totalCosts: number;
     netProfit: number;
     totalBookings: number;
@@ -25,6 +30,15 @@ export interface DashboardDTO {
   }>;
   serviceStatusSummary: Record<string, number>;
   supplierStatusSummary: Record<string, number>;
+}
+
+export interface BookingListPageDTO {
+  items: BookingListDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  statusCounts: Record<string, number>;
 }
 
 export interface BookingListDTO {
@@ -64,6 +78,14 @@ export interface EventOverviewDTO {
   guestCountRegistered: number;
 }
 
+export interface EventListPageDTO {
+  items: EventOverviewDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface ClientCardDTO {
   id: string;
   name: string;
@@ -73,6 +95,14 @@ export interface ClientCardDTO {
   bookingCount: number;
   totalSpent: number;
   notes?: string | null;
+}
+
+export interface ClientListPageDTO {
+  items: ClientCardDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface ServiceCardDTO {
@@ -86,8 +116,13 @@ export interface ServiceCardDTO {
 }
 
 export interface FinanceSummaryDTO {
+  /** Contracted revenue: SUM(EventService.sellingPrice) - discount — the source of truth, not cash received. */
   totalRevenue: number;
+  /** Cash actually received (SUM of PaymentTransaction.amount) — a distinct figure from `totalRevenue`. */
+  totalCollected: number;
   pendingInvoicesAmount: number;
+  internalCost: number;
+  supplierCost: number;
   totalExpensesAmount: number;
   netProfit: number;
   recentPayments: Array<{

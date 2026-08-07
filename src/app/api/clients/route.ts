@@ -1,19 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ClientService } from '@/lib/services/client.service';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const clients = await prisma.client.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        bookings: {
-          include: {
-            event: true,
-          },
-        },
-      },
-    });
-    return NextResponse.json({ clients });
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+
+    const data = await ClientService.getClients({ page });
+    return NextResponse.json(data);
   } catch (error: unknown) {
     console.error('Failed to fetch clients:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -1,24 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { BookingListDTO } from '@/types/dtos';
 import { BookingDrawerDetail } from './types';
 
-const STATUS_FILTERS = ['ALL', 'RESERVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'WAITING_LIST'];
-
-export function useBookingsList(initialBookings: BookingListDTO[]) {
+/** `bookings` is a single already-paginated/filtered page from the server (see bookings/page.tsx) — this hook only owns drawer/edit-form state, not filtering or sorting. */
+export function useBookingsList(bookings: BookingListDTO[]) {
   const router = useRouter();
-  const [statusFilter, setStatusFilter] = useState('ALL');
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const statusParam = params.get('status');
-      if (statusParam) {
-        setStatusFilter(statusParam.toUpperCase());
-      }
-    }
-  }, []);
 
   const [selectedBooking, setSelectedBooking] = useState<BookingDrawerDetail | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -80,6 +68,7 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
     updates: {
       status?: string;
       eventStatus?: string;
+      eventStatusReason?: string;
       paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE';
     }
   ) => {
@@ -99,7 +88,8 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
         }
         router.refresh();
       } else {
-        toast.error('Failed to update booking.');
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to update booking.');
       }
     } catch (err) {
       console.error(err);
@@ -216,23 +206,7 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
     });
   };
 
-  const filteredBookings = statusFilter === 'ALL'
-    ? initialBookings
-    : initialBookings.filter((b) => b.status === statusFilter);
-
-  const sortedBookings = [...filteredBookings].sort((a, b) =>
-    new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()
-  );
-
-  const statusCounts = STATUS_FILTERS.reduce<Record<string, number>>((acc, st) => {
-    acc[st] = st === 'ALL' ? initialBookings.length : initialBookings.filter((b) => b.status === st).length;
-    return acc;
-  }, {});
-
   return {
-    statusFilter,
-    setStatusFilter,
-    statusCounts,
     selectedBooking,
     updating,
     deletingId,
@@ -256,8 +230,7 @@ export function useBookingsList(initialBookings: BookingListDTO[]) {
     setEditDepositDueDate,
     editNotes,
     setEditNotes,
-    filteredBookings,
-    sortedBookings,
+    bookings,
     openDrawer,
     closeDrawer,
     handleUpdateStatus,

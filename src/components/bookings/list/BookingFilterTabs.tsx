@@ -1,19 +1,22 @@
+import Link from 'next/link';
+
 const STATUS_FILTERS = ['ALL', 'RESERVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'WAITING_LIST'];
 
 interface BookingFilterTabsProps {
   statusFilter: string;
-  onFilterChange: (status: string) => void;
   statusCounts: Record<string, number>;
 }
 
-export default function BookingFilterTabs({ statusFilter, onFilterChange, statusCounts }: BookingFilterTabsProps) {
+export default function BookingFilterTabs({ statusFilter, statusCounts }: BookingFilterTabsProps) {
   return (
     <div className="flex gap-2 border-b border-zinc-900 pb-4 overflow-x-auto">
       {STATUS_FILTERS.map((st) => (
-        <button
+        <Link
           key={st}
-          onClick={() => onFilterChange(st)}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          // Filter change always resets to page 1 — a stale page number from a different filter's
+          // result set could point past the end of this one.
+          href={st === 'ALL' ? '/bookings' : `/bookings?status=${st}`}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
             statusFilter === st
               ? 'bg-violet-600/20 text-violet-300 border border-violet-500/40 shadow-sm'
               : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
@@ -21,9 +24,9 @@ export default function BookingFilterTabs({ statusFilter, onFilterChange, status
         >
           <span>{st === 'ALL' ? 'All Bookings' : st}</span>
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-zinc-950 text-zinc-400 border border-zinc-800">
-            {statusCounts[st]}
+            {statusCounts[st] ?? 0}
           </span>
-        </button>
+        </Link>
       ))}
     </div>
   );

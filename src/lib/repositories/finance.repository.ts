@@ -1,26 +1,35 @@
 import { prisma } from '@/lib/prisma';
 import { FinanceSummaryDTO } from '@/types/dtos';
 import { subtractMoneyFloor0, toDisplayNumber } from '@/lib/money';
+import { calculateRevenue, calculateInternalCost, calculateSupplierCost } from '@/lib/finance';
 
 export class FinanceRepository {
   static async getFinanceSummary(): Promise<FinanceSummaryDTO> {
     const [
-      revenueAggregate,
+      collectedAggregate,
       pendingAggregate,
-      expenseAggregate,
+      eventServicesAll,
+      discountAgg,
+      otherExpensesAgg,
       recentPaymentsRaw,
       recentExpensesRaw,
     ] = await Promise.all([
-      // DB-native SQL SUM
+      // Cash actually received — a distinct figure from Revenue (see src/lib/finance.ts)
       prisma.paymentTransaction.aggregate({
         _sum: { amount: true },
       }),
       prisma.scheduledPayment.aggregate({
         _sum: { amount: true, paidAmount: true },
       }),
+      // Revenue/cost source of truth (Phase 9)
+      prisma.eventService.findMany({
+        select: { sellingPrice: true, cost: true, supplierCost: true, providerType: true },
+      }),
+      prisma.booking.aggregate({ _sum: { discount: true } }),
+      // General operational expenses not already counted via supplierCost (avoids double-counting)
       prisma.expense.aggregate({
         _sum: { amount: true },
-        where: { status: 'PAID' },
+        where: { eventServiceId: null },
       }),
       // Recent Payments projection
       prisma.paymentTransaction.findMany({
@@ -55,14 +64,21 @@ export class FinanceRepository {
       }),
     ]);
 
-    const totalRevenue = toDisplayNumber(revenueAggregate._sum.amount);
+    const totalRevenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
+    const totalCollected = toDisplayNumber(collectedAggregate._sum.amount);
     const pendingInvoicesAmount = toDisplayNumber(subtractMoneyFloor0(pendingAggregate._sum.amount, pendingAggregate._sum.paidAmount));
-    const totalExpensesAmount = toDisplayNumber(expenseAggregate._sum.amount);
+    const internalCost = toDisplayNumber(calculateInternalCost(eventServicesAll));
+    const supplierCost = toDisplayNumber(calculateSupplierCost(eventServicesAll));
+    const otherExpenses = toDisplayNumber(otherExpensesAgg._sum.amount);
+    const totalExpensesAmount = internalCost + supplierCost + otherExpenses;
     const netProfit = totalRevenue - totalExpensesAmount;
 
     return {
       totalRevenue,
+      totalCollected,
       pendingInvoicesAmount,
+      internalCost,
+      supplierCost,
       totalExpensesAmount,
       netProfit,
       recentPayments: recentPaymentsRaw.map((pt) => ({

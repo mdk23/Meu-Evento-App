@@ -4,6 +4,7 @@ import { BookingStatus, EventStatus, BookingType, PaymentStatus, Prisma } from '
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
 import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
+import { deriveEventStatus } from '@/lib/event-progress';
 
 export async function GET(
   request: Request,
@@ -58,6 +59,7 @@ export async function PATCH(
       discount,
       depositDueDate,
       eventStatus,
+      eventStatusReason,
       paymentAction,
       invoiceId,
       invoiceStatus,
@@ -65,6 +67,12 @@ export async function PATCH(
       selectedServices,
       capacityOverrideReason,
     } = body;
+
+    // Event status is normally derived from service progress (Phase 10) — a manual override is
+    // still allowed, but only with a reason on file, since it gets logged to the audit trail below.
+    if (eventStatus && Object.values(EventStatus).includes(eventStatus as EventStatus) && !String(eventStatusReason || '').trim()) {
+      return NextResponse.json({ error: 'A reason is required to manually override the event status.' }, { status: 400 });
+    }
 
     const existingBooking = await prisma.booking.findUnique({
       where: { id },
@@ -201,18 +209,30 @@ export async function PATCH(
           eventUpdateData.guestCount = parseInt(guestCount, 10);
         }
 
-        if (eventStatus && Object.values(EventStatus).includes(eventStatus as EventStatus)) {
+        // Manual status override (audited) — payment actions no longer force Event.status
+        // directly; execution status is derived from service progress (Phase 10), recalculated
+        // automatically whenever a service's status changes (see events/[id]/services route).
+        const isManualStatusOverride = eventStatus && Object.values(EventStatus).includes(eventStatus as EventStatus);
+        if (isManualStatusOverride) {
           eventUpdateData.status = eventStatus;
-        } else if (paymentAction === 'MARK_ALL_PAID') {
-          eventUpdateData.status = EventStatus.READY;
-        } else if (paymentAction === 'COMPLETE_FINANCIAL_CLOSURE' || status === 'COMPLETED') {
-          eventUpdateData.status = EventStatus.COMPLETED;
         }
 
         await tx.event.update({
           where: { id: existingBooking.event.id },
           data: eventUpdateData,
         });
+
+        if (isManualStatusOverride) {
+          await tx.eventStatusOverride.create({
+            data: {
+              eventId: existingBooking.event.id,
+              previousStatus: existingBooking.event.status,
+              newStatus: eventStatus as EventStatus,
+              reason: String(eventStatusReason).trim(),
+              overriddenBy: 'Staff',
+            },
+          });
+        }
 
         // Sync event services if provided (Full POS Edit)
         if (isEdit && selectedServices && Array.isArray(selectedServices)) {
@@ -261,12 +281,42 @@ export async function PATCH(
               });
             }
           }
+
+          // The services above were just wiped and recreated at fresh PLANNING status, so the
+          // event's derived status must be recalculated from that reality — this intentionally
+          // supersedes any eventStatus override passed in this same request.
+          const freshServices = await tx.eventService.findMany({
+            where: { eventId: existingBooking.event.id },
+            select: { sellingPrice: true, status: true },
+          });
+          await tx.event.update({
+            where: { id: existingBooking.event.id },
+            data: { status: deriveEventStatus(freshServices) },
+          });
         }
       }
 
       // Payment schedule edits go exclusively through PUT /api/bookings/[id]/payments/schedule
       // (the dedicated milestone editor) — this route no longer touches ScheduledPayment rows
       // beyond the invoice-status/payment-action handling above.
+
+      // `updatedBooking` above was read before the event status/service-sync logic ran, so its
+      // nested `event` (status, eventServices) can be stale — re-fetch once everything has settled
+      // so the response actually reflects what was just written.
+      if (existingBooking.event) {
+        return tx.booking.findUniqueOrThrow({
+          where: { id },
+          include: {
+            client: true,
+            event: {
+              include: {
+                eventServices: { include: { service: true, supplier: true } },
+              },
+            },
+            scheduledPayments: true,
+          },
+        });
+      }
 
       return updatedBooking;
     }, { timeout: 15000, maxWait: 10000 });

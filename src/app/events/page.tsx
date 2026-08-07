@@ -2,11 +2,19 @@ import React from 'react';
 import Link from 'next/link';
 import { Sparkles, Calendar, Users, ArrowRight } from 'lucide-react';
 import { EventService } from '@/lib/services/event.service';
+import PaginationControls from '@/components/shared/PaginationControls';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EventsPage() {
-  const events = await EventService.getEvents();
+interface EventsPageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+export default async function EventsPage({ searchParams }: EventsPageProps) {
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params.page || '1', 10) || 1);
+  const data = await EventService.getEvents({ page });
+  const events = data.items;
 
   return (
     <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -61,6 +69,13 @@ export default async function EventsPage() {
             </div>
           ))}
         </div>
+
+        <PaginationControls
+          page={data.page}
+          totalPages={data.totalPages}
+          total={data.total}
+          buildHref={(p) => (p > 1 ? `/events?page=${p}` : '/events')}
+        />
       </div>
     </main>
   );

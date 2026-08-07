@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { DashboardDTO } from '@/types/dtos';
 import { subtractMoneyFloor0, toDisplayNumber } from '@/lib/money';
+import { calculateRevenue, calculateInternalCost, calculateSupplierCost } from '@/lib/finance';
 
 export class DashboardRepository {
   static async getDashboardData(): Promise<DashboardDTO> {
@@ -11,9 +12,11 @@ export class DashboardRepository {
 
     // Parallel execution of DB-native aggregate & select queries
     const [
-      revenueResult,
+      collectedResult,
       pendingResult,
-      expenseResult,
+      eventServicesAll,
+      discountAgg,
+      otherExpensesAgg,
       totalBookings,
       totalClients,
       todaysEventsRaw,
@@ -21,7 +24,7 @@ export class DashboardRepository {
       serviceStatusGrouped,
       supplierStatusGrouped,
     ] = await Promise.all([
-      // 1. PostgreSQL DB aggregate for Paid Revenue (Total from transactions)
+      // 1. PostgreSQL DB aggregate for cash actually collected (a distinct figure from Revenue)
       prisma.paymentTransaction.aggregate({
         _sum: { amount: true },
       }),
@@ -29,10 +32,15 @@ export class DashboardRepository {
       prisma.scheduledPayment.aggregate({
         _sum: { amount: true, paidAmount: true },
       }),
-      // 3. PostgreSQL DB aggregate for Paid Expenses
+      // 3. Revenue/cost source of truth (Phase 9): every EventService's selling price and cost fields
+      prisma.eventService.findMany({
+        select: { sellingPrice: true, cost: true, supplierCost: true, providerType: true },
+      }),
+      prisma.booking.aggregate({ _sum: { discount: true } }),
+      // General operational expenses not already counted via supplierCost above (avoids double-counting)
       prisma.expense.aggregate({
         _sum: { amount: true },
-        where: { status: 'PAID' },
+        where: { eventServiceId: null },
       }),
       // 4. Counts
       prisma.booking.count(),
@@ -90,9 +98,13 @@ export class DashboardRepository {
       }),
     ]);
 
-    const revenue = toDisplayNumber(revenueResult._sum.amount);
+    const revenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
+    const totalCollected = toDisplayNumber(collectedResult._sum.amount);
     const pendingAmount = toDisplayNumber(subtractMoneyFloor0(pendingResult._sum.amount, pendingResult._sum.paidAmount));
-    const totalCosts = toDisplayNumber(expenseResult._sum.amount);
+    const internalCost = toDisplayNumber(calculateInternalCost(eventServicesAll));
+    const supplierCost = toDisplayNumber(calculateSupplierCost(eventServicesAll));
+    const otherExpenses = toDisplayNumber(otherExpensesAgg._sum.amount);
+    const totalCosts = internalCost + supplierCost + otherExpenses;
     const netProfit = revenue - totalCosts;
 
     const serviceStatusSummary: Record<string, number> = {};
@@ -110,7 +122,10 @@ export class DashboardRepository {
     return {
       kpis: {
         revenue,
+        totalCollected,
         pendingAmount,
+        internalCost,
+        supplierCost,
         totalCosts,
         netProfit,
         totalBookings,

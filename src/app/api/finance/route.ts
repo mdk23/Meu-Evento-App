@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ExpenseStatus, PaymentStatus } from '@prisma/client';
 import { serializeDecimals, subtractMoneyFloor0, sumMoney, toDisplayNumber } from '@/lib/money';
+import { calculateRevenue, calculateInternalCost, calculateSupplierCost } from '@/lib/finance';
 
 export async function GET() {
   try {
@@ -25,9 +26,18 @@ export async function GET() {
       },
     });
 
-    const totalRevenue = toDisplayNumber(sumMoney(scheduledPayments.filter(i => i.status === 'PAID').map(b => b.amount)));
+    // Revenue/cost source of truth (Phase 9) — see src/lib/finance.ts
+    const [eventServicesAll, discountAgg] = await Promise.all([
+      prisma.eventService.findMany({ select: { sellingPrice: true, cost: true, supplierCost: true, providerType: true } }),
+      prisma.booking.aggregate({ _sum: { discount: true } }),
+    ]);
+
+    const totalRevenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
     const pendingRevenue = toDisplayNumber(sumMoney(scheduledPayments.filter(i => i.status === 'PENDING').map(b => subtractMoneyFloor0(b.amount, b.paidAmount))));
-    const totalExpenses = toDisplayNumber(sumMoney(expenses.filter(e => e.status === 'PAID').map(b => b.amount)));
+    const internalCost = toDisplayNumber(calculateInternalCost(eventServicesAll));
+    const supplierCost = toDisplayNumber(calculateSupplierCost(eventServicesAll));
+    const otherExpenses = toDisplayNumber(sumMoney(expenses.filter(e => !e.eventServiceId).map(e => e.amount)));
+    const totalExpenses = internalCost + supplierCost + otherExpenses;
     const pendingExpenses = toDisplayNumber(sumMoney(expenses.filter(e => e.status === 'PENDING').map(b => b.amount)));
     const netProfit = totalRevenue - totalExpenses;
 

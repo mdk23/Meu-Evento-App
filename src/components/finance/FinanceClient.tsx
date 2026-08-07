@@ -113,29 +113,41 @@ export default function FinanceClient({
         <div className="flex-1 overflow-auto p-8 space-y-8">
           
           {/* PROFIT AUDIT SUMMARY METRICS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Cleared Revenue</span>
-              <span className="text-3xl font-black text-emerald-400">{initialSummary.totalRevenue.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Paid client invoices</span>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Total Revenue</span>
+              <span className="text-2xl font-black text-emerald-400">{initialSummary.totalRevenue.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">Contracted service value</span>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Total Collected</span>
+              <span className="text-2xl font-black text-white">{initialSummary.totalCollected.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">Cash actually received</span>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
               <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Pending Invoices</span>
-              <span className="text-3xl font-black text-amber-400">{initialSummary.pendingInvoicesAmount.toLocaleString()} MT</span>
+              <span className="text-2xl font-black text-amber-400">{initialSummary.pendingInvoicesAmount.toLocaleString()} MT</span>
               <span className="text-[11px] text-zinc-500 mt-1 block">Awaiting collection</span>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Supplier Expenses</span>
-              <span className="text-3xl font-black text-red-400">{initialSummary.totalExpensesAmount.toLocaleString()} MT</span>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Internal Cost</span>
+              <span className="text-2xl font-black text-blue-400">{initialSummary.internalCost.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">In-house service costs</span>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Supplier Cost</span>
+              <span className="text-2xl font-black text-red-400">{initialSummary.supplierCost.toLocaleString()} MT</span>
               <span className="text-[11px] text-zinc-500 mt-1 block">Outsourced supplier costs</span>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
               <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Net Business Profit</span>
-              <span className="text-3xl font-black text-violet-400">{initialSummary.netProfit.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Revenue minus Expenses</span>
+              <span className="text-2xl font-black text-violet-400">{initialSummary.netProfit.toLocaleString()} MT</span>
+              <span className="text-[11px] text-zinc-500 mt-1 block">Revenue minus total costs</span>
             </div>
           </div>
 

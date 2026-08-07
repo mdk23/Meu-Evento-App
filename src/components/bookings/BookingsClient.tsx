@@ -2,21 +2,23 @@
 
 import Link from 'next/link';
 import { BookmarkCheck, Plus } from 'lucide-react';
-import { BookingListDTO } from '@/types/dtos';
+import { BookingListPageDTO } from '@/types/dtos';
 import { useBookingsList } from './list/useBookingsList';
 import { EditableBookingFields } from './list/types';
 import BookingFilterTabs from './list/BookingFilterTabs';
 import BookingsGrid from './list/BookingsGrid';
 import BookingDrawer from './list/BookingDrawer';
+import PaginationControls from '../shared/PaginationControls';
 
 interface BookingsClientProps {
-  initialBookings: BookingListDTO[];
+  data: BookingListPageDTO;
+  statusFilter: string;
 }
 
 type EditFieldSetters = { [K in keyof EditableBookingFields]: (value: EditableBookingFields[K]) => void };
 
-export default function BookingsClient({ initialBookings }: BookingsClientProps) {
-  const list = useBookingsList(initialBookings);
+export default function BookingsClient({ data, statusFilter }: BookingsClientProps) {
+  const list = useBookingsList(data.items);
 
   const editFields: EditableBookingFields = {
     editClientName: list.editClientName,
@@ -48,6 +50,14 @@ export default function BookingsClient({ initialBookings }: BookingsClientProps)
     fieldSetters[field](value);
   };
 
+  const buildPageHref = (page: number) => {
+    const params = new URLSearchParams();
+    if (statusFilter !== 'ALL') params.set('status', statusFilter);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    return qs ? `/bookings?${qs}` : '/bookings';
+  };
+
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-950 text-white font-sans">
       <header className="h-16 border-b border-zinc-900 bg-zinc-950/80 px-8 flex items-center justify-between shrink-0 backdrop-blur-md">
@@ -68,17 +78,19 @@ export default function BookingsClient({ initialBookings }: BookingsClientProps)
       </header>
 
       <div className="flex-1 overflow-y-auto p-8 space-y-6">
-        <BookingFilterTabs statusFilter={list.statusFilter} onFilterChange={list.setStatusFilter} statusCounts={list.statusCounts} />
+        <BookingFilterTabs statusFilter={statusFilter} statusCounts={data.statusCounts} />
 
         <BookingsGrid
-          bookings={list.sortedBookings}
-          isEmpty={list.filteredBookings.length === 0}
+          bookings={list.bookings}
+          isEmpty={list.bookings.length === 0}
           deletingId={list.deletingId}
           updating={list.updating}
           onOpenDrawer={list.openDrawer}
           onUpdateStatus={list.handleUpdateStatus}
           onDeletePrompt={list.handleDeletePrompt}
         />
+
+        <PaginationControls page={data.page} totalPages={data.totalPages} total={data.total} buildHref={buildPageHref} />
       </div>
 
       {list.selectedBooking && (

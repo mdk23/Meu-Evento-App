@@ -4,7 +4,7 @@ import { BookingService } from '@/lib/services/booking.service';
 export const dynamic = 'force-dynamic';
 
 export default async function CalendarPage() {
-  const bookings = await BookingService.getBookings();
+  const bookings = await BookingService.getAllBookingsFlat();
 
   return <CalendarClient initialBookings={bookings} />;
 }

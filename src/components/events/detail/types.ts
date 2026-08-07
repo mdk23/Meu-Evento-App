@@ -19,6 +19,7 @@ export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
     };
     guests: true;
     expenses: { include: { supplier: true } };
+    statusOverrides: true;
   };
 }>>;
 

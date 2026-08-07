@@ -4,13 +4,15 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Users, Plus, Loader2, Mail, Phone, X, Edit3, Trash2, Save, Building2 } from 'lucide-react';
-import { ClientCardDTO } from '@/types/dtos';
+import { ClientCardDTO, ClientListPageDTO } from '@/types/dtos';
+import PaginationControls from '../shared/PaginationControls';
 
 interface ClientsClientProps {
-  initialClients: ClientCardDTO[];
+  data: ClientListPageDTO;
 }
 
-export default function ClientsClient({ initialClients }: ClientsClientProps) {
+export default function ClientsClient({ data }: ClientsClientProps) {
+  const initialClients = data.items;
   const router = useRouter();
 
   // Dialog / Modal states
@@ -238,6 +240,13 @@ export default function ClientsClient({ initialClients }: ClientsClientProps) {
             })}
           </div>
         )}
+
+        <PaginationControls
+          page={data.page}
+          totalPages={data.totalPages}
+          total={data.total}
+          buildHref={(page) => (page > 1 ? `/clients?page=${page}` : '/clients')}
+        />
       </div>
 
       {/* CREATE & EDIT CLIENT DIALOG */}

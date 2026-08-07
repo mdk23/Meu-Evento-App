@@ -1,33 +1,46 @@
 import { prisma } from '@/lib/prisma';
-import { ClientCardDTO } from '@/types/dtos';
+import { ClientCardDTO, ClientListPageDTO } from '@/types/dtos';
 import { sumMoney, toDisplayNumber } from '@/lib/money';
+import { resolvePagination, buildPaginatedResult } from '@/lib/pagination';
+
+export interface GetClientListParams {
+  page?: number;
+  pageSize?: number;
+}
 
 export class ClientRepository {
-  static async getClientList(): Promise<ClientCardDTO[]> {
-    const clients = await prisma.client.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        companyName: true,
-        notes: true,
-        _count: {
-          select: { bookings: true },
-        },
-        bookings: {
-          select: {
-            scheduledPayments: {
-              where: { status: 'PAID' },
-              select: { amount: true },
+  static async getClientList({ page, pageSize }: GetClientListParams = {}): Promise<ClientListPageDTO> {
+    const { page: resolvedPage, pageSize: resolvedPageSize, skip, take } = resolvePagination({ page, pageSize });
+
+    const [clients, total] = await Promise.all([
+      prisma.client.findMany({
+        orderBy: { name: 'asc' },
+        skip,
+        take,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          companyName: true,
+          notes: true,
+          _count: {
+            select: { bookings: true },
+          },
+          bookings: {
+            select: {
+              scheduledPayments: {
+                where: { status: 'PAID' },
+                select: { amount: true },
+              },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.client.count(),
+    ]);
 
-    return clients.map((c) => {
+    const items: ClientCardDTO[] = clients.map((c) => {
       const totalSpent = sumMoney(c.bookings.flatMap((b) => b.scheduledPayments.map((sp) => sp.amount)));
 
       return {
@@ -41,5 +54,7 @@ export class ClientRepository {
         notes: c.notes,
       };
     });
+
+    return buildPaginatedResult(items, total, resolvedPage, resolvedPageSize);
   }
 }

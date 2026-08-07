@@ -1,38 +1,51 @@
 import { prisma } from '@/lib/prisma';
-import { EventOverviewDTO } from '@/types/dtos';
+import { EventOverviewDTO, EventListPageDTO } from '@/types/dtos';
+import { resolvePagination, buildPaginatedResult } from '@/lib/pagination';
+
+export interface GetEventListParams {
+  page?: number;
+  pageSize?: number;
+}
 
 export class EventRepository {
-  static async getEventList(): Promise<EventOverviewDTO[]> {
-    const events = await prisma.event.findMany({
-      orderBy: { date: 'asc' },
-      select: {
-        id: true,
-        bookingId: true,
-        name: true,
-        date: true,
-        guestCount: true,
-        status: true,
-        booking: {
-          select: {
-            client: {
-              select: {
-                name: true,
-                email: true,
-                phone: true,
+  static async getEventList({ page, pageSize }: GetEventListParams = {}): Promise<EventListPageDTO> {
+    const { page: resolvedPage, pageSize: resolvedPageSize, skip, take } = resolvePagination({ page, pageSize });
+
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        orderBy: { date: 'asc' },
+        skip,
+        take,
+        select: {
+          id: true,
+          bookingId: true,
+          name: true,
+          date: true,
+          guestCount: true,
+          status: true,
+          booking: {
+            select: {
+              client: {
+                select: {
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            eventServices: true,
-            guests: true,
+          _count: {
+            select: {
+              eventServices: true,
+              guests: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.event.count(),
+    ]);
 
-    return events.map((evt) => ({
+    const items: EventOverviewDTO[] = events.map((evt) => ({
       id: evt.id,
       bookingId: evt.bookingId,
       name: evt.name,
@@ -45,6 +58,8 @@ export class EventRepository {
       serviceCount: evt._count.eventServices,
       guestCountRegistered: evt._count.guests,
     }));
+
+    return buildPaginatedResult(items, total, resolvedPage, resolvedPageSize);
   }
 
   static async getEventDetailOverview(eventId: string) {

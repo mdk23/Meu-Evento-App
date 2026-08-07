@@ -31,6 +31,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             supplier: true,
           },
         },
+        statusOverrides: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -71,10 +74,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = resolvedParams;
     const body = await request.json();
 
+    // Status is intentionally not accepted here — it's derived from service progress
+    // automatically, or changed via the audited override path (PATCH /api/bookings/[id]).
     const updatedEvent = await prisma.event.update({
       where: { id },
       data: {
-        status: body.status,
         name: body.name,
         notes: body.notes,
         guestCount: body.guestCount ? parseInt(body.guestCount, 10) : undefined,

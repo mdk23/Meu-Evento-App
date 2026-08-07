@@ -53,7 +53,7 @@ export default async function DashboardPage() {
               </span>
             </div>
             <span className="text-3xl font-black text-white block">{kpis.revenue.toLocaleString()} MT</span>
-            <span className="text-[11px] text-zinc-500 mt-1 block">Cleared client payments</span>
+            <span className="text-[11px] text-zinc-500 mt-1 block">Contracted service value</span>
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">

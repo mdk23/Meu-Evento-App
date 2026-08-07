@@ -1,8 +1,12 @@
-import { BookingRepository } from '@/lib/repositories/booking.repository';
-import { BookingListDTO } from '@/types/dtos';
+import { BookingRepository, GetBookingListParams } from '@/lib/repositories/booking.repository';
+import { BookingListDTO, BookingListPageDTO } from '@/types/dtos';
 
 export class BookingService {
-  static async getBookings(): Promise<BookingListDTO[]> {
-    return BookingRepository.getBookingList();
+  static async getBookings(params: GetBookingListParams = {}): Promise<BookingListPageDTO> {
+    return BookingRepository.getBookingList(params);
+  }
+
+  static async getAllBookingsFlat(): Promise<BookingListDTO[]> {
+    return BookingRepository.getAllBookingsFlat();
   }
 }

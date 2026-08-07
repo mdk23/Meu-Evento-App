@@ -13,7 +13,12 @@ interface BookingDrawerProps extends EditableBookingFields {
   onSaveDetails: (bookingId: string) => void;
   onUpdateStatus: (
     bookingId: string,
-    updates: { status?: string; eventStatus?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }
+    updates: {
+      status?: string;
+      eventStatus?: string;
+      eventStatusReason?: string;
+      paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE';
+    }
   ) => void;
   onUpdateInvoiceStatus: (bookingId: string, invoiceId: string, newStatus: string) => void;
   onDeletePrompt: (bookingId: string, clientName: string) => void;

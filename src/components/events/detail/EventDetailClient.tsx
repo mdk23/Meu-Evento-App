@@ -58,7 +58,12 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           )}
           {detail.activeTab === 'tasks' && <TasksTab allEventTasks={detail.allEventTasks} />}
           {detail.activeTab === 'finance' && (
-            <FinanceTab scheduledPayments={event.booking.scheduledPayments} expenses={event.expenses} />
+            <FinanceTab
+              scheduledPayments={event.booking.scheduledPayments}
+              expenses={event.expenses}
+              eventServices={event.eventServices}
+              discount={event.booking.discount || 0}
+            />
           )}
           {detail.activeTab === 'documents' && <DocumentsTab event={event} />}
         </div>

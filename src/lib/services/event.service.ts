@@ -1,9 +1,9 @@
-import { EventRepository } from '@/lib/repositories/event.repository';
-import { EventOverviewDTO } from '@/types/dtos';
+import { EventRepository, GetEventListParams } from '@/lib/repositories/event.repository';
+import { EventListPageDTO } from '@/types/dtos';
 
 export class EventService {
-  static async getEvents(): Promise<EventOverviewDTO[]> {
-    return EventRepository.getEventList();
+  static async getEvents(params: GetEventListParams = {}): Promise<EventListPageDTO> {
+    return EventRepository.getEventList(params);
   }
 
   static async getEventOverview(eventId: string) {
