@@ -6,7 +6,6 @@ interface BookingCardProps {
   booking: BookingListDTO;
   isDeleting: boolean;
   updating: boolean;
-  onOpenDrawer: (booking: BookingListDTO) => void;
   onUpdateStatus: (
     bookingId: string,
     updates: { status?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }
@@ -14,7 +13,7 @@ interface BookingCardProps {
   onDeletePrompt: (bookingId: string, clientName: string) => void;
 }
 
-export default function BookingCard({ booking: b, isDeleting, updating, onOpenDrawer, onUpdateStatus, onDeletePrompt }: BookingCardProps) {
+export default function BookingCard({ booking: b, isDeleting, updating, onUpdateStatus, onDeletePrompt }: BookingCardProps) {
   const contractAmt = b.totalContractAmount || 0;
   const paidAmt = b.paidAmount || 0;
   const isFullyPaid = contractAmt > 0 && paidAmt >= contractAmt;
@@ -23,10 +22,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onOpenDr
   const depositIsPaid = b.depositStatus === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED';
 
   return (
-    <div
-      onClick={() => onOpenDrawer(b)}
-      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-zinc-700 transition-all group cursor-pointer"
-    >
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-zinc-700 transition-all">
       <div className="space-y-3">
         <div className="flex justify-between items-start">
           <span className="text-[10px] uppercase font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full">
@@ -49,7 +45,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onOpenDr
         </div>
 
         <div>
-          <h3 className="text-white font-bold text-lg group-hover:text-violet-300 transition-colors">
+          <h3 className="text-white font-bold text-lg">
             {b.clientName || 'Client Name'}
           </h3>
           <p className="text-xs text-zinc-500">{b.eventTitle || b.clientEmail || b.clientPhone || 'Direct Client'}</p>
@@ -101,7 +97,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onOpenDr
         )}
       </div>
 
-      <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-2">
         <div className="flex gap-2">
           <Link
             href={`/bookings/${b.id}/edit`}

@@ -6,36 +6,6 @@ import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capa
 import { serializeDecimals } from '@/lib/money';
 import { deriveEventStatus } from '@/lib/event-progress';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        client: true,
-        event: {
-          include: {
-            eventServices: { include: { service: true, supplier: true } },
-          },
-        },
-        scheduledPayments: true,
-      },
-    });
-
-    if (!booking) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(serializeDecimals({ booking }));
-  } catch (error: unknown) {
-    console.error('Failed to fetch booking details:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

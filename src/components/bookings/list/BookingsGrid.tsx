@@ -8,7 +8,6 @@ interface BookingsGridProps {
   isEmpty: boolean;
   deletingId: string | null;
   updating: boolean;
-  onOpenDrawer: (booking: BookingListDTO) => void;
   onUpdateStatus: (
     bookingId: string,
     updates: { status?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }
@@ -16,7 +15,7 @@ interface BookingsGridProps {
   onDeletePrompt: (bookingId: string, clientName: string) => void;
 }
 
-export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, onOpenDrawer, onUpdateStatus, onDeletePrompt }: BookingsGridProps) {
+export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, onUpdateStatus, onDeletePrompt }: BookingsGridProps) {
   if (isEmpty) {
     return (
       <div className="text-center py-16 text-zinc-600 border border-dashed border-zinc-800 rounded-2xl p-8">
@@ -43,7 +42,6 @@ export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, 
           booking={b}
           isDeleting={deletingId === b.id}
           updating={updating}
-          onOpenDrawer={onOpenDrawer}
           onUpdateStatus={onUpdateStatus}
           onDeletePrompt={onDeletePrompt}
         />

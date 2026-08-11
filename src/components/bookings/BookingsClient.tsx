@@ -4,10 +4,8 @@ import Link from 'next/link';
 import { BookmarkCheck, Plus } from 'lucide-react';
 import { BookingListPageDTO } from '@/types/dtos';
 import { useBookingsList } from './list/useBookingsList';
-import { EditableBookingFields } from './list/types';
 import BookingFilterTabs from './list/BookingFilterTabs';
 import BookingsGrid from './list/BookingsGrid';
-import BookingDrawer from './list/BookingDrawer';
 import PaginationControls from '../shared/PaginationControls';
 
 interface BookingsClientProps {
@@ -15,40 +13,8 @@ interface BookingsClientProps {
   statusFilter: string;
 }
 
-type EditFieldSetters = { [K in keyof EditableBookingFields]: (value: EditableBookingFields[K]) => void };
-
 export default function BookingsClient({ data, statusFilter }: BookingsClientProps) {
   const list = useBookingsList(data.items);
-
-  const editFields: EditableBookingFields = {
-    editClientName: list.editClientName,
-    editClientPhone: list.editClientPhone,
-    editClientEmail: list.editClientEmail,
-    editEventTitle: list.editEventTitle,
-    editBookingType: list.editBookingType,
-    editDate: list.editDate,
-    editGuests: list.editGuests,
-    editDiscount: list.editDiscount,
-    editDepositDueDate: list.editDepositDueDate,
-    editNotes: list.editNotes,
-  };
-
-  const fieldSetters: EditFieldSetters = {
-    editClientName: list.setEditClientName,
-    editClientPhone: list.setEditClientPhone,
-    editClientEmail: list.setEditClientEmail,
-    editEventTitle: list.setEditEventTitle,
-    editBookingType: list.setEditBookingType,
-    editDate: list.setEditDate,
-    editGuests: list.setEditGuests,
-    editDiscount: list.setEditDiscount,
-    editDepositDueDate: list.setEditDepositDueDate,
-    editNotes: list.setEditNotes,
-  };
-
-  const handleChangeField = <K extends keyof EditableBookingFields>(field: K, value: EditableBookingFields[K]) => {
-    fieldSetters[field](value);
-  };
 
   const buildPageHref = (page: number) => {
     const params = new URLSearchParams();
@@ -85,27 +51,12 @@ export default function BookingsClient({ data, statusFilter }: BookingsClientPro
           isEmpty={list.bookings.length === 0}
           deletingId={list.deletingId}
           updating={list.updating}
-          onOpenDrawer={list.openDrawer}
           onUpdateStatus={list.handleUpdateStatus}
           onDeletePrompt={list.handleDeletePrompt}
         />
 
         <PaginationControls page={data.page} totalPages={data.totalPages} total={data.total} buildHref={buildPageHref} />
       </div>
-
-      {list.selectedBooking && (
-        <BookingDrawer
-          booking={list.selectedBooking}
-          updating={list.updating}
-          onClose={list.closeDrawer}
-          onChangeField={handleChangeField}
-          onSaveDetails={list.handleSaveDetails}
-          onUpdateStatus={list.handleUpdateStatus}
-          onUpdateInvoiceStatus={list.handleUpdateInvoiceStatus}
-          onDeletePrompt={list.handleDeletePrompt}
-          {...editFields}
-        />
-      )}
     </div>
   );
 }
