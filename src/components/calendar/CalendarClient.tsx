@@ -2,19 +2,20 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { BookingListDTO } from '@/types/dtos';
+import { CalendarBookingDTO } from '@/types/dtos';
+import { bookingsOverlap } from '@/lib/booking-conflict';
+import DayDetailModal from './DayDetailModal';
 
 interface CalendarClientProps {
-  initialBookings: BookingListDTO[];
+  initialBookings: CalendarBookingDTO[];
 }
 
 export default function CalendarClient({
   initialBookings,
 }: CalendarClientProps) {
-  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -26,18 +27,27 @@ export default function CalendarClient({
   const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   const handleDayClick = (dayNumber: number) => {
-    router.push(`/bookings/create`);
+    setSelectedDate(new Date(year, month, dayNumber));
   };
 
+  // Month-grid count/chip list — day-level bucketing on each booking's start date.
   const getBookingsForDay = (dayNumber: number) => {
     return initialBookings.filter(b => {
-      const bDate = new Date(b.eventDate);
+      const bDate = new Date(b.startAt);
       return (
         bDate.getFullYear() === year &&
         bDate.getMonth() === month &&
         bDate.getDate() === dayNumber
       );
     });
+  };
+
+  // Day-detail timeline — every booking whose [startAt, endAt) interval intersects this day's
+  // [00:00, 24:00) window, so overnight bookings that spill into/out of the day aren't missed.
+  const getBookingsForTimeline = (date: Date) => {
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    return initialBookings.filter((b) => bookingsOverlap(new Date(b.startAt), new Date(b.endAt), dayStart, dayEnd));
   };
 
   return (
@@ -134,6 +144,13 @@ export default function CalendarClient({
           </div>
         </div>
       </div>
+
+      <DayDetailModal
+        isOpen={!!selectedDate}
+        date={selectedDate}
+        bookings={selectedDate ? getBookingsForTimeline(selectedDate) : []}
+        onClose={() => setSelectedDate(null)}
+      />
     </main>
   );
 }

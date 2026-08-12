@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { BookingStatus, Prisma } from '@prisma/client';
-import { BookingListDTO, BookingListPageDTO } from '@/types/dtos';
+import { BookingListDTO, BookingListPageDTO, CalendarBookingDTO } from '@/types/dtos';
 import { sumMoney, toDisplayNumber, toMoney } from '@/lib/money';
 import { calculateRevenue } from '@/lib/finance';
 import { resolvePagination, buildPaginatedResult } from '@/lib/pagination';
@@ -40,6 +40,30 @@ const BOOKING_LIST_SELECT = {
 } satisfies Prisma.BookingSelect;
 
 type BookingListRow = Prisma.BookingGetPayload<{ select: typeof BOOKING_LIST_SELECT }>;
+
+const CALENDAR_BOOKING_SELECT = {
+  id: true,
+  startAt: true,
+  endAt: true,
+  status: true,
+  guestCount: true,
+  client: { select: { name: true } },
+  event: { select: { name: true } },
+} satisfies Prisma.BookingSelect;
+
+type CalendarBookingRow = Prisma.BookingGetPayload<{ select: typeof CALENDAR_BOOKING_SELECT }>;
+
+function mapCalendarBookingRow(b: CalendarBookingRow): CalendarBookingDTO {
+  return {
+    id: b.id,
+    clientName: b.client?.name || 'N/A',
+    eventTitle: b.event?.name,
+    startAt: b.startAt.toISOString(),
+    endAt: b.endAt.toISOString(),
+    status: b.status,
+    guestCount: b.guestCount,
+  };
+}
 
 function mapBookingRow(b: BookingListRow): BookingListDTO {
   const scheduledPaymentsSum = sumMoney(b.scheduledPayments?.map((sp) => sp.amount) || []);
@@ -129,14 +153,15 @@ export class BookingRepository {
   }
 
   /**
-   * Full, unpaginated booking list for the calendar view — it renders a whole month grid and
-   * needs every booking to bucket by day client-side, not a single page of results.
+   * Full, unpaginated booking list for the calendar view — it renders a whole month grid (plus
+   * an hour-by-hour day timeline) and needs every booking's time range to bucket/position
+   * client-side, not a single page of results.
    */
-  static async getAllBookingsFlat(): Promise<BookingListDTO[]> {
+  static async getAllBookingsForCalendar(): Promise<CalendarBookingDTO[]> {
     const bookings = await prisma.booking.findMany({
-      orderBy: { eventDate: 'asc' },
-      select: BOOKING_LIST_SELECT,
+      orderBy: { startAt: 'asc' },
+      select: CALENDAR_BOOKING_SELECT,
     });
-    return bookings.map(mapBookingRow);
+    return bookings.map(mapCalendarBookingRow);
   }
 }

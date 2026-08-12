@@ -121,12 +121,14 @@ export async function PUT(request: Request) {
     const { invoiceId, expenseId, status } = body;
 
     if (invoiceId) {
+      // `paidAmount` is deliberately not touched here — this route has no `PaymentTransaction` to
+      // derive it from, and a status-only change must never fabricate or destroy real paid-amount
+      // data. (This used to zero `paidAmount` whenever `status !== 'PAID'`, silently wiping out
+      // real partial-payment records — see the payment allocation engine in src/lib/payment-allocation.ts
+      // for the actual source of truth for `paidAmount`/`status`.)
       const updatedScheduledPayment = await prisma.scheduledPayment.update({
         where: { id: invoiceId },
-        data: {
-          status: status as PaymentStatus,
-          paidAmount: status === 'PAID' ? undefined : 0, // Incomplete but prevents crash
-        },
+        data: { status: status as PaymentStatus },
       });
       return NextResponse.json(serializeDecimals({ success: true, invoice: updatedScheduledPayment }));
     }

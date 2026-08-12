@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { BookingStatus, EventStatus, BookingType, PaymentStatus, Prisma } from '@prisma/client';
+import { BookingStatus, EventStatus, BookingType, Prisma } from '@prisma/client';
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
 import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
@@ -31,8 +31,6 @@ export async function PATCH(
       eventStatus,
       eventStatusReason,
       paymentAction,
-      invoiceId,
-      invoiceStatus,
       isEdit,
       selectedServices,
       capacityOverrideReason,
@@ -151,19 +149,11 @@ export async function PATCH(
         },
       });
 
-      // 2. Handle Payment Status Updates
-      if (invoiceId && invoiceStatus) {
-        // Mapping old invoiceStatus (PENDING, PAID, etc.) to PaymentStatus
-        await tx.scheduledPayment.update({
-          where: { id: invoiceId },
-          data: { status: invoiceStatus as PaymentStatus },
-        });
-      } else if (paymentAction === 'MARK_DEPOSIT_PAID' || paymentAction === 'MARK_ALL_PAID') {
-        await tx.scheduledPayment.updateMany({
-          where: { bookingId: id },
-          data: { status: 'PAID' },
-        });
-      }
+      // Payment status is never set directly here — it's owned entirely by the payment allocation
+      // engine (src/lib/payment-allocation.ts), recalculated from real PaymentTransaction rows via
+      // POST/DELETE /api/bookings/[id]/payments and PUT .../payments/schedule. `paymentAction` above
+      // only moves the booking's own lifecycle status (RESERVED/CONFIRMED/COMPLETED) — booking
+      // lifecycle and payment lifecycle are deliberately separate concepts and must not be conflated.
 
       // 3. Sync Event details and status
       if (existingBooking.event) {

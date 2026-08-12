@@ -36,11 +36,16 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
   const refreshData = async () => {
     try {
       const res = await fetch(`/api/bookings/${booking.id}/payments`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to refresh payment data');
+      }
       const data = await res.json();
       if (data.scheduledPayments) setScheduledPayments(data.scheduledPayments);
       if (data.paymentTransactions) setTransactions(data.paymentTransactions);
     } catch (err) {
       console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Failed to refresh payment data');
     }
   };
 

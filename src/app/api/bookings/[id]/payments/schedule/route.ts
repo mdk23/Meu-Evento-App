@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { PaymentStatus } from '@prisma/client';
-import { isMoneyGreaterThan, isMoneyGreaterThanOrEqual, isMoneyPositive } from '@/lib/money';
+import { isMoneyGreaterThan, isMoneyPositive } from '@/lib/money';
 import { validatePaymentPlan } from '@/lib/payment-plan';
+import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
 interface ScheduleInput {
   id?: string;
@@ -58,23 +58,15 @@ export async function PUT(
         await tx.scheduledPayment.delete({ where: { id: s.id } });
       }
 
-      // Upsert schedules
+      // Upsert schedules. Status/paidAmount are deliberately not set here — they're recalculated
+      // for the whole plan by syncScheduledPaymentAllocations below, against every existing
+      // PaymentTransaction (spec: editing the plan must reallocate money already received against
+      // the new milestones, never touch the transactions themselves).
       for (const s of schedules) {
         if (s.id) {
           const existing = existingSchedules.find(es => es.id === s.id);
           if (existing && isMoneyGreaterThan(existing.paidAmount, parseFloat(String(s.amount)))) {
              throw new Error(`Cannot set amount of "${s.name}" lower than already paid amount (${existing.paidAmount}).`);
-          }
-
-          let newStatus = existing?.status || PaymentStatus.PENDING;
-          if (existing) {
-             if (isMoneyGreaterThanOrEqual(existing.paidAmount, parseFloat(String(s.amount)))) {
-                 newStatus = PaymentStatus.PAID;
-             } else if (isMoneyPositive(existing.paidAmount)) {
-                 newStatus = PaymentStatus.PARTIALLY_PAID;
-             } else {
-                 newStatus = PaymentStatus.PENDING;
-             }
           }
 
           await tx.scheduledPayment.update({
@@ -83,7 +75,6 @@ export async function PUT(
               name: s.name,
               amount: parseFloat(String(s.amount)),
               dueDate: new Date(s.dueDate),
-              status: newStatus
             }
           });
         } else {
@@ -98,6 +89,8 @@ export async function PUT(
           });
         }
       }
+
+      await syncScheduledPaymentAllocations(tx, id);
     }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json({ success: true }, { status: 200 });

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { PaymentStatus } from '@prisma/client';
-import { isMoneyGreaterThan, isMoneyPositive, subtractMoneyFloor0 } from '@/lib/money';
+import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
 export async function DELETE(
   request: Request,
@@ -28,31 +27,9 @@ export async function DELETE(
         where: { id: transactionId },
       });
 
-      // 2. Rollback the scheduled payment amount
-      if (transaction.scheduledPaymentId) {
-        const schedule = await tx.scheduledPayment.findUnique({
-          where: { id: transaction.scheduledPaymentId },
-        });
-
-        if (schedule) {
-          const newPaidAmount = subtractMoneyFloor0(schedule.paidAmount, transaction.amount);
-
-          let newStatus = schedule.status;
-          if (!isMoneyPositive(newPaidAmount)) {
-            newStatus = PaymentStatus.PENDING;
-          } else if (isMoneyGreaterThan(schedule.amount, newPaidAmount)) {
-            newStatus = PaymentStatus.PARTIALLY_PAID;
-          }
-
-          await tx.scheduledPayment.update({
-            where: { id: schedule.id },
-            data: {
-              paidAmount: newPaidAmount,
-              status: newStatus,
-            },
-          });
-        }
-      }
+      // 2. Recalculate every scheduled payment's allocation from what's left — same engine, same
+      // reasoning as recording a payment: this is a full recompute, not a hand-rolled rollback.
+      await syncScheduledPaymentAllocations(tx, id);
     }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json({ success: true });

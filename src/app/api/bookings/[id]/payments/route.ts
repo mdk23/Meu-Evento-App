@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { PaymentStatus, PaymentMethod } from '@prisma/client';
-import { addMoney, isMoneyGreaterThanOrEqual, isMoneyPositive, serializeDecimals } from '@/lib/money';
+import { PaymentMethod } from '@prisma/client';
+import { serializeDecimals } from '@/lib/money';
+import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
 export async function GET(
   request: Request,
@@ -11,7 +12,7 @@ export async function GET(
     const { id } = await params;
     const scheduledPayments = await prisma.scheduledPayment.findMany({
       where: { bookingId: id },
-      orderBy: { dueDate: 'asc' },
+      orderBy: [{ dueDate: 'asc' }, { orderNumber: 'asc' }, { createdAt: 'asc' }],
       include: { transactions: true }
     });
 
@@ -61,31 +62,10 @@ export async function POST(
         }
       });
 
-      // Update Scheduled Payment if linked
-      if (scheduledPaymentId) {
-        const schedule = await tx.scheduledPayment.findUnique({
-          where: { id: scheduledPaymentId }
-        });
-
-        if (schedule) {
-          const newPaidAmount = addMoney(schedule.paidAmount, parseFloat(amount));
-          let newStatus = schedule.status;
-
-          if (isMoneyGreaterThanOrEqual(newPaidAmount, schedule.amount)) {
-            newStatus = PaymentStatus.PAID;
-          } else if (isMoneyPositive(newPaidAmount)) {
-            newStatus = PaymentStatus.PARTIALLY_PAID;
-          }
-
-          await tx.scheduledPayment.update({
-            where: { id: scheduledPaymentId },
-            data: {
-              paidAmount: newPaidAmount,
-              status: newStatus
-            }
-          });
-        }
-      }
+      // Recalculate every scheduled payment's allocation from scratch (this transaction plus every
+      // other one on the booking) rather than crediting only the targeted schedule — this is what
+      // lets an overpayment cascade into the next milestone instead of over-crediting one row.
+      await syncScheduledPaymentAllocations(tx, id);
 
       return newTransaction;
     }, { timeout: 15000, maxWait: 10000 });

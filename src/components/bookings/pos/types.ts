@@ -72,4 +72,7 @@ export interface BookingPOSTerminalProps {
   initialBookings?: BookingSummary[];
   initialBookingData?: BookingPOSInitialData | null;
   paymentsTabComponent?: React.ReactNode;
+  /** Pre-selects the event date (`YYYY-MM-DD`) for a brand-new booking — e.g. arriving from the
+   * calendar's day view. Ignored when `initialBookingData` is set (editing an existing booking). */
+  initialDate?: string;
 }

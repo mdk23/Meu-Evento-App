@@ -64,6 +64,17 @@ export interface BookingListDTO {
   depositDueDate?: string | null;
 }
 
+/** Lightweight booking shape for the calendar's month grid + day timeline — no payment/contract fields, just occupancy. */
+export interface CalendarBookingDTO {
+  id: string;
+  clientName: string;
+  eventTitle?: string | null;
+  startAt: string;
+  endAt: string;
+  status: string;
+  guestCount: number;
+}
+
 export interface EventOverviewDTO {
   id: string;
   bookingId: string;

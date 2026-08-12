@@ -20,6 +20,7 @@ export function useBookingPOS({
   initialSpaces = [],
   initialBookings = [],
   initialBookingData = null,
+  initialDate,
 }: BookingPOSTerminalProps) {
   const router = useRouter();
 
@@ -33,11 +34,26 @@ export function useBookingPOS({
   const [eventType, setEventType] = useState(initialBookingData?.bookingType || '');
   const [guestCount, setGuestCount] = useState<number>(initialBookingData?.guestCount || 1);
 
-  const [eventDate, setEventDate] = useState(initialBookingData?.eventDate ? new Date(initialBookingData.eventDate).toISOString().split('T')[0] : '');
+  const [eventDate, setEventDate] = useState(
+    initialBookingData?.eventDate
+      ? new Date(initialBookingData.eventDate).toISOString().split('T')[0]
+      : initialDate || ''
+  );
   const [depositDueDate, setDepositDueDate] = useState(initialBookingData?.depositDueDate ? new Date(initialBookingData.depositDueDate).toISOString().split('T')[0] : '');
 
   // Interactive calendar month selection
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => initialBookingData?.eventDate ? new Date(initialBookingData.eventDate) : new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    if (initialBookingData?.eventDate) return new Date(initialBookingData.eventDate);
+    // `initialDate` is a plain `YYYY-MM-DD` string representing a local calendar day (e.g. from
+    // the calendar's day view) — parsed via explicit local components rather than
+    // `new Date(dateOnlyString)`, which the spec treats as UTC midnight and can land on the wrong
+    // day in negative-UTC-offset timezones.
+    if (initialDate) {
+      const [y, m, d] = initialDate.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date();
+  });
   const [isWaitingList, setIsWaitingList] = useState(initialBookingData?.status === 'WAITING_LIST');
 
   const [startTime, setStartTime] = useState('18:00');

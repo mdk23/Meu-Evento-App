@@ -4,7 +4,13 @@ import { serializeDecimals } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CreateBookingPage() {
+interface CreateBookingPageProps {
+  searchParams: Promise<{ date?: string }>;
+}
+
+export default async function CreateBookingPage({ searchParams }: CreateBookingPageProps) {
+  const { date } = await searchParams;
+  const initialDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
   const clients = await prisma.client.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
@@ -37,6 +43,7 @@ export default async function CreateBookingPage() {
       initialServices={serializeDecimals(services)}
       initialSpaces={spaces}
       initialBookings={bookings}
+      initialDate={initialDate}
     />
   );
 }

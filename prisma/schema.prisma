@@ -446,9 +446,15 @@ model ScheduledPayment {
   bookingId   String
   name        String
   amount      Decimal       @db.Decimal(12, 2)
+  /// Cached/derived — recalculated from the payment allocation engine (src/lib/payment-allocation.ts)
+  /// on every payment write. Not authoritative; PaymentTransaction rows are the source of truth.
   paidAmount  Decimal       @default(0) @db.Decimal(12, 2)
+  /// Cached/derived, same as paidAmount above.
   status      PaymentStatus @default(PENDING)
   dueDate     DateTime
+  /// Explicit allocation-order tie-breaker (alongside dueDate, then createdAt) — lets a payment plan
+  /// be reordered independently of due dates without changing which milestone is "the deposit."
+  orderNumber Int?
   description String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
