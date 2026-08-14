@@ -50,14 +50,14 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className={`relative border-r border-zinc-900 bg-zinc-950 flex flex-col shrink-0 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
-      <div className={`p-6 border-b border-zinc-900 flex items-center justify-between ${isCollapsed ? 'justify-center p-4' : ''}`}>
+    <aside className={`sidebar relative transition-all duration-300 ${isCollapsed ? 'w-20' : ''}`}>
+      <div className={`p-6 flex items-center justify-between ${isCollapsed ? 'justify-center p-4' : ''}`} style={{ borderBottom: '1px solid var(--rule)' }}>
         <Link href="/">
           <div className="flex items-center gap-2 cursor-pointer">
-            <Building2 className="w-6 h-6 text-violet-500 shrink-0" />
+            <Building2 className="w-6 h-6 shrink-0" style={{ color: 'var(--accent)' }} />
             {!isCollapsed && (
-              <h1 className="text-white font-black text-xl tracking-tight animate-in fade-in duration-200">
-                AuraVenue
+              <h1 className="h-sm animate-in fade-in duration-200">
+                Aurelia
               </h1>
             )}
           </div>
@@ -65,8 +65,8 @@ export function Sidebar() {
       </div>
 
       {!isCollapsed && (
-        <div className="px-6 py-2 border-b border-zinc-900">
-          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Royal Events Co.</p>
+        <div className="px-6 py-2" style={{ borderBottom: '1px solid var(--rule)' }}>
+          <p className="label">Royal Events Co.</p>
         </div>
       )}
 
@@ -78,20 +78,17 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all relative group ${
-                isCollapsed ? 'justify-center px-0' : ''
-              } ${
-                isActive
-                  ? 'text-white bg-violet-600/15 border border-violet-500/30 text-violet-300 font-bold shadow-sm'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50'
-              }`}
+              className={`nav-item relative group ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0' : ''}`}
             >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-zinc-500'}`} />
+              <Icon className="w-4 h-4 shrink-0" />
               {!isCollapsed && <span>{item.label}</span>}
 
               {/* Tooltip on collapsed state */}
               {isCollapsed && (
-                <div className="absolute left-full ml-4 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap">
+                <div
+                  className="absolute left-full ml-4 px-2 py-1 text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap"
+                  style={{ background: 'var(--surface-solid)', border: '1px solid var(--rule)', color: 'var(--ink)' }}
+                >
                   {item.label}
                 </div>
               )}
@@ -103,7 +100,7 @@ export function Sidebar() {
       {/* Collapse Toggle Button */}
       <button
         onClick={toggleCollapse}
-        className="absolute bottom-4 -right-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white p-1 rounded-full shadow-lg z-50 transition-transform"
+        className="btn sm absolute bottom-4 -right-3 !p-1 !rounded-full shadow-lg z-50 transition-transform"
       >
         {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
       </button>

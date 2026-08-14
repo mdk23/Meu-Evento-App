@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { isMoneyGreaterThan, isMoneyPositive } from '@/lib/money';
+import { isMoneyPositive } from '@/lib/money';
 import { validatePaymentPlan } from '@/lib/payment-plan';
 import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
@@ -60,15 +60,13 @@ export async function PUT(
 
       // Upsert schedules. Status/paidAmount are deliberately not set here — they're recalculated
       // for the whole plan by syncScheduledPaymentAllocations below, against every existing
-      // PaymentTransaction (spec: editing the plan must reallocate money already received against
-      // the new milestones, never touch the transactions themselves).
+      // PaymentTransaction. Shrinking a milestone below its current cached `paidAmount` is
+      // intentionally allowed: paidAmount is a derived cache, not a per-milestone credit ledger —
+      // the excess correctly cascades into the next milestone (or overpayment) on recalculation,
+      // exactly what "the business changes the plan after a payment" is supposed to do. Nothing
+      // about the money received changes; only where it's currently allocated does.
       for (const s of schedules) {
         if (s.id) {
-          const existing = existingSchedules.find(es => es.id === s.id);
-          if (existing && isMoneyGreaterThan(existing.paidAmount, parseFloat(String(s.amount)))) {
-             throw new Error(`Cannot set amount of "${s.name}" lower than already paid amount (${existing.paidAmount}).`);
-          }
-
           await tx.scheduledPayment.update({
             where: { id: s.id },
             data: {
