@@ -6,7 +6,7 @@ import Backdrop from '@/components/aurelia/Backdrop';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-950 flex text-zinc-300 font-sans">
+    <div className="min-h-screen flex font-sans" style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
       <Backdrop />
       <Sidebar />
       <div className="aurelia-content flex-1 flex flex-col h-screen overflow-hidden">

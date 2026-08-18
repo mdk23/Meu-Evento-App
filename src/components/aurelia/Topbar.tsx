@@ -13,29 +13,17 @@ interface TopbarProps {
 export default function Topbar({ crumb, note, children }: TopbarProps) {
   return (
     <header className="topbar">
-      <div
-        style={{
-          padding: '20px 34px',
-          maxWidth: 1440,
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 24,
-        }}
-      >
-        <div>
-          <h2 className="h-sm">{crumb}</h2>
-          {note && (
-            <p className="serif-note" style={{ marginTop: 4 }}>
-              {note}
-            </p>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          {children}
-          <ThemeSwitch />
-        </div>
+      <div className="crumb">
+        <h2 className="h-sm">{crumb}</h2>
+        {note && (
+          <p className="serif-note" style={{ marginTop: 4 }}>
+            {note}
+          </p>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        {children}
+        <ThemeSwitch />
       </div>
     </header>
   );

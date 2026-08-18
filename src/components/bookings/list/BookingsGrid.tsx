@@ -18,16 +18,13 @@ interface BookingsGridProps {
 export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, onUpdateStatus, onDeletePrompt }: BookingsGridProps) {
   if (isEmpty) {
     return (
-      <div className="text-center py-16 text-zinc-600 border border-dashed border-zinc-800 rounded-2xl p-8">
-        <BookmarkCheck className="w-12 h-12 mx-auto mb-3 opacity-30 text-violet-400" />
-        <h3 className="text-sm font-bold text-zinc-300">No Bookings Found</h3>
-        <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
+      <div className="empty">
+        <BookmarkCheck className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3, color: 'var(--accent)' }} />
+        <h3 className="h-sm">No Bookings Found</h3>
+        <p className="mini dim" style={{ marginTop: 4, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
           No commercial bookings match the selected status filter. Create a new booking using the terminal.
         </p>
-        <Link
-          href="/bookings/create"
-          className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-all shadow-md"
-        >
+        <Link href="/bookings/create" className="btn primary sm" style={{ marginTop: 16, display: 'inline-flex' }}>
           <Plus className="w-4 h-4" /> Create Booking
         </Link>
       </div>
@@ -35,7 +32,7 @@ export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, 
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid g3">
       {bookings.map((b) => (
         <BookingCard
           key={b.id}

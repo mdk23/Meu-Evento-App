@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { X, Plus, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { CalendarBookingDTO } from '@/types/dtos';
 import { bookingsOverlap } from '@/lib/booking-conflict';
+import { statusChipStyle } from './statusColors';
 
 interface DayDetailModalProps {
   isOpen: boolean;
@@ -15,15 +16,6 @@ interface DayDetailModalProps {
 const HOUR_HEIGHT = 56;
 const TOTAL_HEIGHT = 24 * HOUR_HEIGHT;
 const MIN_BLOCK_HEIGHT = 24;
-
-const STATUS_STYLES: Record<string, string> = {
-  CONFIRMED: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300',
-  COMPLETED: 'bg-blue-500/15 border-blue-500/40 text-blue-300',
-  RESERVED: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-  PENDING_CONFIRMATION: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-  DRAFT: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-  WAITING_LIST: 'bg-zinc-800/60 border-zinc-600 border-dashed text-zinc-400',
-};
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -113,82 +105,94 @@ export default function DayDetailModal({ isOpen, date, bookings, onClose }: DayD
   const positioned = layoutDay(date, activeBookings);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="modal-scrim" onClick={onClose}>
       <div
-        className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        className="modal wide"
+        style={{ padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
+        <div
+          className="flex items-center justify-between"
+          style={{ padding: 20, borderBottom: '1px solid var(--rule)', flexShrink: 0 }}
+        >
           <div>
-            <h3 className="text-white font-bold text-base">
+            <h3 className="h-sm">
               {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </h3>
-            <p className="text-xs text-zinc-500">
+            <p className="mini dim" style={{ marginTop: 2 }}>
               {activeBookings.length} {activeBookings.length === 1 ? 'booking' : 'bookings'} scheduled
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href={`/bookings/create?date=${formatDateParam(date)}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-lg transition-all shadow-md"
-            >
+            <Link href={`/bookings/create?date=${formatDateParam(date)}`} className="btn primary sm">
               <Plus className="w-3.5 h-3.5" /> New Booking
             </Link>
-            <button onClick={onClose} className="p-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white">
+            <button onClick={onClose} className="icon-btn">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {activeBookings.length === 0 ? (
-          <div className="p-10 text-center text-zinc-600">
-            <p className="text-sm text-zinc-400 font-bold mb-1">No bookings scheduled this day</p>
-            <p className="text-xs text-zinc-600">The space is free all day — use &quot;New Booking&quot; above to book this date.</p>
+          <div className="empty" style={{ margin: 20, border: 'none' }}>
+            <p className="mini" style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>No bookings scheduled this day</p>
+            <p className="mini dim">The space is free all day — use &quot;New Booking&quot; above to book this date.</p>
           </div>
         ) : (
           <div className="overflow-y-auto flex-1">
-            <div className="flex px-4 py-4">
+            <div className="flex" style={{ padding: 16 }}>
               {/* HOUR GUTTER */}
-              <div className="w-14 shrink-0" style={{ height: TOTAL_HEIGHT }}>
+              <div className="shrink-0" style={{ width: 56, height: TOTAL_HEIGHT }}>
                 {HOURS.map((h) => (
-                  <div key={h} className="text-[10px] text-zinc-600 font-bold text-right pr-2 -translate-y-1.5" style={{ height: HOUR_HEIGHT }}>
+                  <div
+                    key={h}
+                    className="mini dim"
+                    style={{ height: HOUR_HEIGHT, fontWeight: 700, textAlign: 'right', paddingRight: 8, transform: 'translateY(-6px)' }}
+                  >
                     {String(h).padStart(2, '0')}:00
                   </div>
                 ))}
               </div>
 
               {/* TIMELINE */}
-              <div className="relative flex-1 border-l border-zinc-850" style={{ height: TOTAL_HEIGHT }}>
+              <div className="relative flex-1" style={{ height: TOTAL_HEIGHT, borderLeft: '1px solid var(--rule)' }}>
                 {HOURS.map((h) => (
-                  <div key={h} className="absolute left-0 right-0 border-t border-zinc-900" style={{ top: h * HOUR_HEIGHT }} />
+                  <div
+                    key={h}
+                    className="absolute left-0 right-0"
+                    style={{ top: h * HOUR_HEIGHT, borderTop: '1px solid var(--rule)' }}
+                  />
                 ))}
 
                 {positioned.map((b) => {
-                  const style = STATUS_STYLES[b.status] || STATUS_STYLES.RESERVED;
                   const widthPct = 100 / b.totalCols;
                   return (
                     <Link
                       key={b.id}
                       href={`/bookings/${b.id}/edit`}
-                      className={`absolute rounded-lg border p-2 overflow-hidden hover:brightness-125 transition-all ${style}`}
+                      className="absolute overflow-hidden transition-all"
                       style={{
+                        ...statusChipStyle(b.status),
                         top: b.top,
                         height: b.height,
                         left: `${b.col * widthPct}%`,
                         width: `calc(${widthPct}% - 4px)`,
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid',
+                        padding: 6,
                       }}
                       title={`${b.clientName} — ${formatTime(b.startAt)}–${formatTime(b.endAt)}`}
                     >
-                      <div className="flex items-center gap-1 text-[10px] font-bold truncate">
+                      <div className="flex items-center gap-1 truncate" style={{ fontSize: 10, fontWeight: 700 }}>
                         {b.continuesBefore && <ArrowDownRight className="w-3 h-3 shrink-0 rotate-180" />}
                         <span className="truncate">{b.clientName}</span>
                         {b.continuesAfter && <ArrowUpRight className="w-3 h-3 shrink-0" />}
                       </div>
-                      <div className="text-[9px] opacity-80 truncate">
+                      <div className="truncate" style={{ fontSize: 9, opacity: 0.8 }}>
                         {formatTime(b.startAt)}–{formatTime(b.endAt)}
                       </div>
                       {b.height > 44 && (
-                        <div className="text-[9px] opacity-70 flex items-center gap-1 mt-0.5">
+                        <div className="flex items-center gap-1" style={{ fontSize: 9, opacity: 0.7, marginTop: 2 }}>
                           <Users className="w-2.5 h-2.5" /> {b.guestCount} pax
                         </div>
                       )}

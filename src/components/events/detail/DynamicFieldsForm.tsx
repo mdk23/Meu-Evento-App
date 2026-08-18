@@ -6,8 +6,6 @@ interface DynamicFieldsFormProps {
   onChange: (values: WorkOrderCustomFields) => void;
 }
 
-const inputClasses = 'w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white outline-none';
-
 export default function DynamicFieldsForm({ fields, values, onChange }: DynamicFieldsFormProps) {
   if (fields.length === 0) return null;
 
@@ -22,19 +20,19 @@ export default function DynamicFieldsForm({ fields, values, onChange }: DynamicF
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div className="grid g2">
       {fields.map((field) => {
         const label = field.label || field.key;
         const value = values[field.key];
 
         if (field.type === 'boolean') {
           return (
-            <label key={field.key} className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <label key={field.key} className="mini row" style={{ gap: 8, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={Boolean(value)}
                 onChange={(e) => setValue(field.key, e.target.checked)}
-                className="accent-emerald-500 w-4 h-4"
+                style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
               />
               {label}
             </label>
@@ -43,12 +41,12 @@ export default function DynamicFieldsForm({ fields, values, onChange }: DynamicF
 
         if (field.type === 'select') {
           return (
-            <div key={field.key}>
-              <label className="text-[10px] text-zinc-500 font-bold block mb-1">{label}</label>
+            <div key={field.key} className="field" style={{ marginBottom: 0 }}>
+              <label className="label">{label}</label>
               <select
                 value={typeof value === 'string' ? value : ''}
                 onChange={(e) => setValue(field.key, e.target.value)}
-                className={inputClasses}
+                className="input"
               >
                 <option value="">-- Select --</option>
                 {(field.options || []).map((opt) => (
@@ -62,16 +60,16 @@ export default function DynamicFieldsForm({ fields, values, onChange }: DynamicF
         if (field.type === 'multiselect') {
           const selected = Array.isArray(value) ? value : [];
           return (
-            <div key={field.key} className="md:col-span-2">
-              <label className="text-[10px] text-zinc-500 font-bold block mb-1">{label}</label>
-              <div className="flex flex-wrap gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+            <div key={field.key} className="field" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+              <label className="label">{label}</label>
+              <div className="row" style={{ flexWrap: 'wrap', gap: 12, border: '1px solid var(--rule-strong)', borderRadius: 'var(--radius-sm)', padding: '8px 13px', background: 'var(--surface-solid)' }}>
                 {(field.options || []).map((opt) => (
-                  <label key={opt} className="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer">
+                  <label key={opt} className="mini row" style={{ gap: 6, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={selected.includes(opt)}
                       onChange={() => toggleMultiselectOption(field.key, opt)}
-                      className="accent-emerald-500 w-3.5 h-3.5"
+                      style={{ width: 14, height: 14, accentColor: 'var(--accent)' }}
                     />
                     {opt}
                   </label>
@@ -83,13 +81,13 @@ export default function DynamicFieldsForm({ fields, values, onChange }: DynamicF
 
         if (field.type === 'textarea') {
           return (
-            <div key={field.key} className="md:col-span-2">
-              <label className="text-[10px] text-zinc-500 font-bold block mb-1">{label}</label>
+            <div key={field.key} className="field" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+              <label className="label">{label}</label>
               <textarea
                 value={typeof value === 'string' ? value : ''}
                 onChange={(e) => setValue(field.key, e.target.value)}
                 rows={3}
-                className={inputClasses}
+                className="input"
               />
             </div>
           );
@@ -97,13 +95,13 @@ export default function DynamicFieldsForm({ fields, values, onChange }: DynamicF
 
         const htmlType = field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : 'text';
         return (
-          <div key={field.key}>
-            <label className="text-[10px] text-zinc-500 font-bold block mb-1">{label}</label>
+          <div key={field.key} className="field" style={{ marginBottom: 0 }}>
+            <label className="label">{label}</label>
             <input
               type={htmlType}
               value={value === null || value === undefined ? '' : String(value)}
               onChange={(e) => setValue(field.key, field.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)}
-              className={inputClasses}
+              className="input"
             />
           </div>
         );

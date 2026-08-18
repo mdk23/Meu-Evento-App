@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Boxes, Building2, Package, Users, Truck, Plus, Loader2, X } from 'lucide-react';
+import { Building2, Package, Users, Truck, Plus, Loader2, X } from 'lucide-react';
 import { Prisma } from '@prisma/client';
+import Topbar from '@/components/aurelia/Topbar';
 
 type ResourceSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
 type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; quantity: true; category: true } }>;
@@ -71,23 +72,12 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
 
   return (
     <>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* HEADER */}
-        <header className="h-16 border-b border-zinc-900 bg-zinc-950/50 flex items-center px-8 justify-between shrink-0">
-          <div>
-            <h2 className="text-white font-bold text-lg flex items-center gap-2">
-              <Boxes className="w-5 h-5 text-violet-400" /> Resource Operations Portal
-            </h2>
-            <p className="text-xs text-zinc-500">Manage main Space, Inventory, Staff team, and Supplier partners.</p>
-          </div>
-
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-lg"
-          >
-            <Plus className="w-4 h-4" /> Add {activeTab.slice(0, 1).toUpperCase() + activeTab.slice(1)}
+      <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
+        <Topbar crumb="Resource Operations Portal" note="Manage main Space, Inventory, Staff team, and Supplier partners.">
+          <button onClick={() => setIsModalOpen(true)} className="btn primary sm">
+            <Plus className="w-3.5 h-3.5" /> Add {activeTab.slice(0, 1).toUpperCase() + activeTab.slice(1)}
           </button>
-        </header>
+        </Topbar>
 
         {/* RESOURCE TAB NAV */}
         <div className="bg-zinc-950 border-b border-zinc-900 px-8 flex gap-6 shrink-0">

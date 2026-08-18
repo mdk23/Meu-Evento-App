@@ -27,10 +27,6 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
   const outstandingBalance = totalBookingValue - totalPaid;
   const progressPercent = totalBookingValue > 0 ? (totalPaid / totalBookingValue) * 100 : 0;
 
-  const depositSchedule = scheduledPayments[0]; // Usually the first one is the deposit
-  const depositRequired = depositSchedule ? depositSchedule.amount : 0;
-  const depositPaid = depositSchedule ? depositSchedule.paidAmount : 0;
-
   const nextPayment = scheduledPayments.find(sp => sp.status === 'PENDING' || sp.status === 'PARTIALLY_PAID');
   
   const refreshData = async () => {
@@ -65,60 +61,61 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
     }
   };
 
+  const scheduleBadge = (status: string) => {
+    if (status === 'PAID') return 'b-ok';
+    if (status === 'PARTIALLY_PAID') return 'b-warn';
+    if (status === 'OVERDUE') return 'b-bad';
+    return 'b-mute';
+  };
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 pb-32">
-      <div className="flex items-center justify-between">
+    <div className="page" style={{ padding: '24px 24px 128px', maxWidth: 1180 }}>
+      <div className="between" style={{ marginBottom: 24 }}>
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <DollarSign className="w-6 h-6 text-emerald-400" />
+          <h2 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <DollarSign className="w-5 h-5" style={{ color: 'var(--ok)' }} />
             Financial Dashboard
-          </h1>
-          <p className="text-zinc-400 text-sm mt-1">Manage payments and schedules for {booking.client?.name}</p>
+          </h2>
+          <p className="mini dim" style={{ marginTop: 4 }}>Manage payments and schedules for {booking.client?.name}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsEditScheduleModalOpen(true)}
-            className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-semibold border border-zinc-800 hover:bg-zinc-800 transition-all flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" />
+        <div className="row" style={{ gap: 12 }}>
+          <button onClick={() => setIsEditScheduleModalOpen(true)} className="btn sm">
+            <Edit className="w-3.5 h-3.5" />
             Edit Schedule
           </button>
-          <button
-            onClick={() => setIsRegisterModalOpen(true)}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
+          <button onClick={() => setIsRegisterModalOpen(true)} className="btn primary sm">
+            <Plus className="w-3.5 h-3.5" />
             Register Payment
           </button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-1">Total Booking Value</div>
-          <div className="text-2xl font-black text-white">{totalBookingValue.toLocaleString('pt-MZ')} MT</div>
-          <div className="mt-4 h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-             <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${progressPercent}%` }} />
+      <div className="grid g4" style={{ marginBottom: 24 }}>
+        <div className="card kpi plain f-in d1">
+          <span className="label">Total Booking Value</span>
+          <div className="val">{totalBookingValue.toLocaleString('pt-MZ')} MT</div>
+          <div className="bar" style={{ marginTop: 12 }}>
+            <span style={{ width: `${progressPercent}%` }} />
           </div>
-          <div className="mt-2 text-xs text-zinc-500 text-right">{progressPercent.toFixed(0)}% Paid</div>
+          <div className="delta dim" style={{ justifyContent: 'flex-end' }}>{progressPercent.toFixed(0)}% Paid</div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-1">Total Paid</div>
-          <div className="text-2xl font-black text-emerald-400">{totalPaid.toLocaleString('pt-MZ')} MT</div>
+        <div className="card kpi plain f-in d2">
+          <span className="label">Total Paid</span>
+          <div className="val" style={{ color: 'var(--ok)' }}>{totalPaid.toLocaleString('pt-MZ')} MT</div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-1">Outstanding Balance</div>
-          <div className="text-2xl font-black text-rose-400">{outstandingBalance.toLocaleString('pt-MZ')} MT</div>
+        <div className="card kpi plain f-in d3">
+          <span className="label">Outstanding Balance</span>
+          <div className="val" style={{ color: 'var(--bad)' }}>{outstandingBalance.toLocaleString('pt-MZ')} MT</div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-1">Next Payment Due</div>
-          <div className="text-xl font-bold text-white">{nextPayment ? nextPayment.name : 'All Paid'}</div>
+        <div className="card kpi plain f-in d4">
+          <span className="label">Next Payment Due</span>
+          <div className="val" style={{ fontSize: 21 }}>{nextPayment ? nextPayment.name : 'All Paid'}</div>
           {nextPayment && (
-            <div className="text-sm text-zinc-400 mt-1">
+            <div className="delta dim">
               {(nextPayment.amount - nextPayment.paidAmount).toLocaleString('pt-MZ')} MT due on {new Date(nextPayment.dueDate).toLocaleDateString('pt-MZ')}
             </div>
           )}
@@ -126,46 +123,39 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
       </div>
 
       {/* Payment Schedule (The Plan) */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-zinc-400" />
-          <h2 className="text-lg font-bold text-white">Payment Schedule</h2>
+      <div className="card plain" style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+        <div className="row" style={{ gap: 8, padding: '16px 22px', borderBottom: '1px solid var(--rule)' }}>
+          <Calendar className="w-4 h-4" style={{ color: 'var(--ink-3)' }} />
+          <h3 className="h-sm">Payment Schedule</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-300">
-            <thead className="bg-zinc-950/50 text-xs uppercase text-zinc-500 font-semibold">
+        <div className="scrollx" style={{ padding: '0 22px 6px' }}>
+          <table className="tbl">
+            <thead>
               <tr>
-                <th className="px-6 py-4">Payment</th>
-                <th className="px-6 py-4">Due Date</th>
-                <th className="px-6 py-4 text-right">Amount</th>
-                <th className="px-6 py-4 text-right">Paid</th>
-                <th className="px-6 py-4 text-right">Balance</th>
-                <th className="px-6 py-4 text-center">Status</th>
+                <th>Payment</th>
+                <th>Due Date</th>
+                <th className="r">Amount</th>
+                <th className="r">Paid</th>
+                <th className="r">Balance</th>
+                <th>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/50">
+            <tbody>
               {scheduledPayments.map((sp) => (
-                <tr key={sp.id} className="hover:bg-zinc-800/20 transition-colors">
-                  <td className="px-6 py-4 font-medium text-white">{sp.name}</td>
-                  <td className="px-6 py-4">{new Date(sp.dueDate).toLocaleDateString('pt-MZ')}</td>
-                  <td className="px-6 py-4 text-right font-mono">{sp.amount.toLocaleString('pt-MZ')} MT</td>
-                  <td className="px-6 py-4 text-right font-mono text-emerald-400">{sp.paidAmount.toLocaleString('pt-MZ')} MT</td>
-                  <td className="px-6 py-4 text-right font-mono text-rose-400">{(sp.amount - sp.paidAmount).toLocaleString('pt-MZ')} MT</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex px-2 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${
-                      sp.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                      sp.status === 'PARTIALLY_PAID' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                      sp.status === 'OVERDUE' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                      'bg-zinc-800 text-zinc-400'
-                    }`}>
-                      {sp.status.replace('_', ' ')}
-                    </span>
+                <tr key={sp.id}>
+                  <td style={{ fontWeight: 600 }}>{sp.name}</td>
+                  <td>{new Date(sp.dueDate).toLocaleDateString('pt-MZ')}</td>
+                  <td className="r num">{sp.amount.toLocaleString('pt-MZ')} MT</td>
+                  <td className="r num" style={{ color: 'var(--ok)' }}>{sp.paidAmount.toLocaleString('pt-MZ')} MT</td>
+                  <td className="r num" style={{ color: 'var(--bad)' }}>{(sp.amount - sp.paidAmount).toLocaleString('pt-MZ')} MT</td>
+                  <td>
+                    <span className={`badge ${scheduleBadge(sp.status)}`}>{sp.status.replace('_', ' ')}</span>
                   </td>
                 </tr>
               ))}
               {scheduledPayments.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">No scheduled payments found.</td>
+                  <td colSpan={6} className="mini dim" style={{ textAlign: 'center', padding: '32px 0' }}>No scheduled payments found.</td>
                 </tr>
               )}
             </tbody>
@@ -174,52 +164,42 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
       </div>
 
       {/* Payment History (The Reality) */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-emerald-400" />
-          <h2 className="text-lg font-bold text-white">Payment History</h2>
+      <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="row" style={{ gap: 8, padding: '16px 22px', borderBottom: '1px solid var(--rule)' }}>
+          <CreditCard className="w-4 h-4" style={{ color: 'var(--ok)' }} />
+          <h3 className="h-sm">Payment History</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-300">
-            <thead className="bg-zinc-950/50 text-xs uppercase text-zinc-500 font-semibold">
+        <div className="scrollx" style={{ padding: '0 22px 6px' }}>
+          <table className="tbl">
+            <thead>
               <tr>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4 text-right">Amount</th>
-                <th className="px-6 py-4">Method</th>
-                <th className="px-6 py-4">Reference</th>
-                <th className="px-6 py-4">Recorded By</th>
-                <th className="px-6 py-4">Notes</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th>Date</th>
+                <th className="r">Amount</th>
+                <th>Method</th>
+                <th>Reference</th>
+                <th>Recorded By</th>
+                <th>Notes</th>
+                <th className="r">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/50">
+            <tbody>
               {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-zinc-800/20 transition-colors">
-                  <td className="px-6 py-4">{new Date(tx.date).toLocaleDateString('pt-MZ')}</td>
-                  <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400">{tx.amount.toLocaleString('pt-MZ')} MT</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-2 py-1 text-[10px] font-bold rounded-md bg-zinc-800 text-zinc-300">
-                      {tx.method.replace('_', ' ')}
-                    </span>
+                <tr key={tx.id}>
+                  <td>{new Date(tx.date).toLocaleDateString('pt-MZ')}</td>
+                  <td className="r num" style={{ fontWeight: 600, color: 'var(--ok)' }}>{tx.amount.toLocaleString('pt-MZ')} MT</td>
+                  <td>
+                    <span className="badge b-mute">{tx.method.replace('_', ' ')}</span>
                   </td>
-                  <td className="px-6 py-4 font-mono text-xs">{tx.reference || '-'}</td>
-                  <td className="px-6 py-4">{tx.recordedBy}</td>
-                  <td className="px-6 py-4 text-zinc-500">{tx.notes || '-'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => setReceiptTransaction(tx)}
-                        className="p-2 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 rounded-lg transition-colors"
-                        title="View Receipt"
-                      >
-                        <Receipt className="w-4 h-4" />
+                  <td className="mini dim">{tx.reference || '-'}</td>
+                  <td>{tx.recordedBy}</td>
+                  <td className="mini dim">{tx.notes || '-'}</td>
+                  <td className="r">
+                    <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                      <button onClick={() => setReceiptTransaction(tx)} className="icon-btn" style={{ width: 30, height: 30 }} title="View Receipt">
+                        <Receipt className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        onClick={() => handleDeleteTransaction(tx.id)}
-                        className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
-                        title="Delete Payment"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <button onClick={() => handleDeleteTransaction(tx.id)} className="icon-btn" style={{ width: 30, height: 30, color: 'var(--bad)' }} title="Delete Payment">
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -227,7 +207,7 @@ export default function BookingPaymentsClient({ booking, initialScheduledPayment
               ))}
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-zinc-500">No payments recorded yet.</td>
+                  <td colSpan={7} className="mini dim" style={{ textAlign: 'center', padding: '32px 0' }}>No payments recorded yet.</td>
                 </tr>
               )}
             </tbody>

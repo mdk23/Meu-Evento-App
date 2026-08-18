@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ServiceCardDTO } from '@/types/dtos';
 import { FieldSchemaField, FieldType, parseFieldSchema } from '@/components/events/detail/types';
+import Topbar from '@/components/aurelia/Topbar';
 
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
@@ -227,126 +228,96 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     : initialServices.filter(s => s.defaultExecutionType === executionFilter);
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-950 text-white font-sans">
-      {/* HEADER */}
-      <header className="h-16 border-b border-zinc-900 bg-zinc-950/80 px-8 flex items-center justify-between shrink-0 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Briefcase className="w-5 h-5 text-violet-400" />
-          <div>
-            <h2 className="text-white font-bold text-lg tracking-tight">Services Catalog</h2>
-            <p className="text-xs text-zinc-500">Commercial offerings with Internal vs External routing</p>
-          </div>
-        </div>
-
-        <button
-          onClick={openAddModal}
-          className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-violet-600/20"
-        >
-          <Plus className="w-4 h-4" /> Add Catalog Service
+    <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
+      <Topbar crumb="Services Catalog" note="Commercial offerings with Internal vs External routing.">
+        <button onClick={openAddModal} className="btn primary sm">
+          <Plus className="w-3.5 h-3.5" /> Add Catalog Service
         </button>
-      </header>
+      </Topbar>
 
       {/* FILTER TABS */}
-      <div className="px-8 pt-6 flex gap-2 shrink-0">
+      <div className="tabs" style={{ margin: '24px 32px 0' }}>
         {(['ALL', 'INTERNAL', 'EXTERNAL'] as const).map((filterOpt) => {
-          const count = filterOpt === 'ALL' 
-            ? initialServices.length 
+          const count = filterOpt === 'ALL'
+            ? initialServices.length
             : initialServices.filter(s => s.defaultExecutionType === filterOpt).length;
 
           return (
             <button
               key={filterOpt}
               onClick={() => setExecutionFilter(filterOpt)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
-                executionFilter === filterOpt
-                  ? 'bg-violet-600/20 text-violet-300 border-violet-500/40 shadow-sm'
-                  : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
-              }`}
+              className={`tab ${executionFilter === filterOpt ? 'active' : ''}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
               <span>
                 {filterOpt === 'ALL' && 'All Services'}
                 {filterOpt === 'INTERNAL' && 'Internal House Services'}
                 {filterOpt === 'EXTERNAL' && 'External Supplier Services'}
               </span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-zinc-950 text-zinc-500 border border-zinc-800">
-                {count}
-              </span>
+              <span className="badge b-mute">{count}</span>
             </button>
           );
         })}
       </div>
 
       {/* WORKSPACE - TABLE VIEW */}
-      <div className="flex-1 overflow-y-auto p-8 pr-4">
+      <div className="flex-1 overflow-y-auto page" style={{ paddingTop: 22 }}>
         {filteredServices.length === 0 ? (
-          <div className="text-center py-16 text-zinc-600 border border-dashed border-zinc-800 rounded-2xl p-8">
-            <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-30 text-violet-400" />
-            <h3 className="text-sm font-bold text-zinc-300">No Services Found</h3>
-            <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-              No catalog services match the selected filter. Click "Add Catalog Service" to populate.
+          <div className="empty">
+            <Briefcase className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3 }} />
+            <h3 className="h-sm">No Services Found</h3>
+            <p className="mini dim" style={{ marginTop: 4, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+              No catalog services match the selected filter. Click &ldquo;Add Catalog Service&rdquo; to populate.
             </p>
           </div>
         ) : (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+          <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="scrollx" style={{ padding: '20px 22px 6px' }}>
+              <table className="tbl">
                 <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-950/45 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-                    <th className="py-4 px-6">Service Name</th>
-                    <th className="py-4 px-6">Category</th>
-                    <th className="py-4 px-6">Price Type</th>
-                    <th className="py-4 px-6 text-right">Base Price</th>
-                    <th className="py-4 px-6">Execution Mode</th>
-                    <th className="py-4 px-6 text-center">Actions</th>
+                  <tr>
+                    <th>Service Name</th>
+                    <th>Category</th>
+                    <th>Price Type</th>
+                    <th className="r">Base Price</th>
+                    <th>Execution Mode</th>
+                    <th className="r">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-xs text-zinc-200">
+                <tbody>
                   {filteredServices.map((s) => {
                     const isInternal = s.defaultExecutionType === 'INTERNAL';
                     const isDeleting = deletingId === s.id;
 
                     return (
-                      <tr key={s.id} className="hover:bg-zinc-850/40 transition-colors">
-                        <td className="py-4 px-6 font-bold text-white text-sm">{s.name}</td>
-                        <td className="py-4 px-6">
-                          <span className="bg-zinc-950 text-zinc-400 border border-zinc-800 px-2.5 py-1 rounded-md text-[10px] uppercase font-bold">
-                            {s.category}
-                          </span>
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 600 }}>{s.name}</td>
+                        <td>
+                          <span className="badge b-mute">{s.category}</span>
                         </td>
-                        <td className="py-4 px-6">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            s.priceType === 'PER_GUEST' 
-                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
-                              : 'bg-zinc-950 text-zinc-400 border border-zinc-800'
-                          }`}>
+                        <td>
+                          <span className={`badge ${s.priceType === 'PER_GUEST' ? 'b-warn' : 'b-mute'}`}>
                             {s.priceType === 'PER_GUEST' ? 'Per Guest (Pax)' : 'Fixed Price'}
                           </span>
                         </td>
-                        <td className="py-4 px-6 text-right font-mono font-bold text-violet-400">
+                        <td className="r num" style={{ fontWeight: 600, color: 'var(--accent)' }}>
                           {s.defaultPrice.toLocaleString()} MT
                         </td>
-                        <td className="py-4 px-6">
-                          <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${
-                            isInternal
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                          }`}>
-                            {isInternal ? '🟢 INTERNAL WORK' : '🔵 EXTERNAL SUPPLIER'}
+                        <td>
+                          <span className={`badge ${isInternal ? 'b-ok' : 'b-info'}`}>
+                            {isInternal ? 'Internal Work' : 'External Supplier'}
                           </span>
                         </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => openEditModal(s)}
-                              className="text-violet-400 hover:text-violet-300 p-1.5 rounded bg-violet-500/10 hover:bg-violet-500/20 transition-all"
-                              title="Edit Service"
-                            >
+                        <td className="r">
+                          <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                            <button onClick={() => openEditModal(s)} className="icon-btn" style={{ width: 30, height: 30 }} title="Edit Service">
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               disabled={isDeleting}
                               onClick={() => handleDeletePrompt(s.id, s.name)}
-                              className="text-zinc-500 hover:text-red-400 p-1.5 rounded hover:bg-zinc-800 transition-colors"
+                              className="icon-btn"
+                              style={{ width: 30, height: 30, color: 'var(--bad)' }}
                               title="Deactivate Service"
                             >
                               {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
@@ -365,11 +336,11 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
 
       {/* CREATE & EDIT SERVICE DIALOG */}
       {(isAddModalOpen || editingService) && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
-              <h3 className="text-white font-bold text-base flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-violet-400" />
+        <div className="modal-scrim">
+          <div className="modal" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
+              <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Briefcase className="w-5 h-5" style={{ color: 'var(--accent)' }} />
                 {isAddModalOpen ? 'Add New Catalog Service' : 'Edit Catalog Service'}
               </h3>
               <button
@@ -377,115 +348,101 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                   setIsAddModalOpen(false);
                   setEditingService(null);
                 }}
-                className="text-zinc-500 hover:text-white"
+                className="icon-btn"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={isAddModalOpen ? handleCreateService : handleUpdateService} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Service Name</label>
+            <form onSubmit={isAddModalOpen ? handleCreateService : handleUpdateService} className="stack" style={{ marginTop: 20 }}>
+              <div className="field">
+                <label className="label">Service Name</label>
                 <input
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Buffet Banquete Real"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500 font-bold"
+                  className="input"
                 />
               </div>
 
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Category</label>
+              <div className="field">
+                <label className="label">Category</label>
                 <input
                   required
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. Catering, Dj, Security, Bar"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500 font-bold"
+                  className="input"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Execution Mode</label>
-                  <select
-                    value={executionType}
-                    onChange={(e) => setExecutionType(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500 font-bold"
-                  >
+              <div className="grid g2">
+                <div className="field">
+                  <label className="label">Execution Mode</label>
+                  <select value={executionType} onChange={(e) => setExecutionType(e.target.value)} className="input">
                     <option value="INTERNAL">House Staff (Internal)</option>
                     <option value="EXTERNAL">Supplier Partner (External)</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Price Unit</label>
-                  <select
-                    value={priceType}
-                    onChange={(e) => setPriceType(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500 font-bold"
-                  >
+                <div className="field">
+                  <label className="label">Price Unit</label>
+                  <select value={priceType} onChange={(e) => setPriceType(e.target.value)} className="input">
                     <option value="FIXED">Fixed Amount (Total)</option>
                     <option value="PER_GUEST">Per Guest (Pax)</option>
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Base Price (MT)</label>
+              <div className="field">
+                <label className="label">Base Price (MT)</label>
                 <input
                   type="number"
                   required
                   value={defaultPrice}
                   onChange={(e) => setDefaultPrice(e.target.value)}
                   placeholder="e.g. 15000"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500 font-mono font-bold"
+                  className="input"
                 />
               </div>
 
-              <div className="border-t border-zinc-800 pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-zinc-400 font-bold flex items-center gap-1.5">
-                    <Settings2 className="w-3.5 h-3.5 text-violet-400" /> Work Order Fields
+              <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 16 }} className="stack">
+                <div className="between">
+                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Settings2 className="w-3.5 h-3.5" /> Work Order Fields
                   </label>
-                  <button
-                    type="button"
-                    onClick={addFieldSchemaRow}
-                    className="text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1"
-                  >
+                  <button type="button" onClick={addFieldSchemaRow} className="btn ghost sm">
                     <Plus className="w-3 h-3" /> Add Field
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500 -mt-2">
+                <p className="mini dim">
                   Operational fields collected on this service&apos;s work orders (e.g. menu, theme). Services with no fields defined show none.
                 </p>
 
                 {fieldSchemaRows.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="stack" style={{ gap: 8 }}>
                     {fieldSchemaRows.map((row, index) => (
-                      <div key={index} className="bg-zinc-950 border border-zinc-850 rounded-xl p-3 space-y-2">
-                        <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
+                      <div key={index} className="stack" style={{ gap: 8, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+                        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
                           <input
                             value={row.key}
                             onChange={(e) => updateFieldSchemaRow(index, { key: e.target.value })}
                             placeholder="key (e.g. menu)"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none font-mono"
+                            className="input"
+                            style={{ padding: '8px 10px', fontSize: 12 }}
                           />
                           <select
                             value={row.type}
                             onChange={(e) => updateFieldSchemaRow(index, { type: e.target.value as FieldType })}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none"
+                            className="input"
+                            style={{ padding: '8px 10px', fontSize: 12 }}
                           >
                             {FIELD_TYPES.map((t) => (
                               <option key={t} value={t}>{t}</option>
                             ))}
                           </select>
-                          <button
-                            type="button"
-                            onClick={() => removeFieldSchemaRow(index)}
-                            className="text-zinc-500 hover:text-red-400 p-1.5"
-                          >
+                          <button type="button" onClick={() => removeFieldSchemaRow(index)} className="icon-btn" style={{ width: 30, height: 30 }}>
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -493,14 +450,16 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                           value={row.label}
                           onChange={(e) => updateFieldSchemaRow(index, { label: e.target.value })}
                           placeholder="Display label (optional)"
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none"
+                          className="input"
+                          style={{ padding: '8px 10px', fontSize: 12 }}
                         />
                         {(row.type === 'select' || row.type === 'multiselect') && (
                           <input
                             value={row.optionsText}
                             onChange={(e) => updateFieldSchemaRow(index, { optionsText: e.target.value })}
                             placeholder="Options, comma-separated (e.g. Standard, Premium, Custom)"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none"
+                            className="input"
+                            style={{ padding: '8px 10px', fontSize: 12 }}
                           />
                         )}
                       </div>
@@ -509,11 +468,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-violet-600/20"
-              >
+              <button type="submit" disabled={submitting} className="btn primary" style={{ justifyContent: 'center' }}>
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
@@ -527,6 +482,6 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

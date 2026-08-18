@@ -32,11 +32,11 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
 
   return (
     <>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <EventDetailHeader event={event} />
         <EventDetailTabs activeTab={detail.activeTab} onTabChange={detail.setActiveTab} />
 
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto page">
           {detail.activeTab === 'overview' && <OverviewTab event={event} space={space} onNavigateTab={detail.setActiveTab} />}
           {detail.activeTab === 'services' && (
             <ServicesTab

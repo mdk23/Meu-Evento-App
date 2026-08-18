@@ -13,6 +13,14 @@ interface BookingCardProps {
   onDeletePrompt: (bookingId: string, clientName: string) => void;
 }
 
+const STATUS_BADGE: Record<string, string> = {
+  CONFIRMED: 'b-ok',
+  COMPLETED: 'b-info',
+  CANCELLED: 'b-bad',
+  RESERVED: 'b-warn',
+  WAITING_LIST: 'b-mute',
+};
+
 export default function BookingCard({ booking: b, isDeleting, updating, onUpdateStatus, onDeletePrompt }: BookingCardProps) {
   const contractAmt = b.totalContractAmount || 0;
   const paidAmt = b.paidAmount || 0;
@@ -20,95 +28,69 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
   const depositAmt = b.downPaymentAmount || 0;
   const depositPct = b.downPaymentPercent || 50;
   const depositIsPaid = b.depositStatus === 'PAID' || b.status === 'CONFIRMED' || b.status === 'COMPLETED';
+  const statusBadge = STATUS_BADGE[b.status] || 'b-warn';
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-zinc-700 transition-all">
-      <div className="space-y-3">
+    <div className="card plain flex flex-col justify-between" style={{ gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="flex justify-between items-start">
-          <span className="text-[10px] uppercase font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full">
-            {b.bookingType?.replace('_', ' ') || 'SPACE AND SERVICES'}
-          </span>
-
-          <span
-            className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-              b.status === 'CONFIRMED'
-                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                : b.status === 'COMPLETED'
-                ? 'text-blue-400 bg-blue-500/10 border-blue-500/20'
-                : b.status === 'CANCELLED'
-                ? 'text-red-400 bg-red-500/10 border-red-500/20'
-                : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-            }`}
-          >
-            ● {b.status || 'RESERVED'}
-          </span>
+          <span className="badge b-accent">{b.bookingType?.replace('_', ' ') || 'SPACE AND SERVICES'}</span>
+          <span className={`badge ${statusBadge}`}>{b.status || 'RESERVED'}</span>
         </div>
 
         <div>
-          <h3 className="text-white font-bold text-lg">
-            {b.clientName || 'Client Name'}
-          </h3>
-          <p className="text-xs text-zinc-500">{b.eventTitle || b.clientEmail || b.clientPhone || 'Direct Client'}</p>
+          <h3 className="h-sm">{b.clientName || 'Client Name'}</h3>
+          <p className="mini dim">{b.eventTitle || b.clientEmail || b.clientPhone || 'Direct Client'}</p>
         </div>
 
-        <div className="space-y-2 text-xs text-zinc-400 pt-2 border-t border-zinc-800">
+        <div className="mini dim" style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
           <p className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-violet-400" /> Event Date:{' '}
-            <strong className="text-zinc-200">{new Date(b.eventDate).toLocaleDateString()}</strong>
+            <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} /> Event Date:{' '}
+            <strong style={{ color: 'var(--ink)' }}>{new Date(b.eventDate).toLocaleDateString()}</strong>
           </p>
           <p className="flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-violet-400" /> Guest Count:{' '}
-            <strong className="text-zinc-200">{b.guestCount} pax</strong>
+            <Users className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} /> Guest Count:{' '}
+            <strong style={{ color: 'var(--ink)' }}>{b.guestCount} pax</strong>
           </p>
           {contractAmt > 0 && (
             <p className="flex items-center gap-2">
-              <CreditCard className="w-3.5 h-3.5 text-violet-400" /> Total Contract:{' '}
-              <strong className="text-white font-bold">{contractAmt.toLocaleString()} MT</strong>
-              {isFullyPaid && (
-                <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
-                  Fully Paid
-                </span>
-              )}
+              <CreditCard className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} /> Total Contract:{' '}
+              <strong style={{ color: 'var(--ink)', fontWeight: 700 }}>{contractAmt.toLocaleString()} MT</strong>
+              {isFullyPaid && <span className="badge b-ok" style={{ padding: '2px 8px' }}>Fully Paid</span>}
             </p>
           )}
 
           {depositAmt > 0 && (
-            <div className="flex items-center justify-between text-[11px] bg-zinc-950/80 px-2.5 py-1.5 rounded-lg border border-zinc-800/80 mt-1">
-              <span className="text-zinc-400">
-                Initial Deposit: <strong className="text-zinc-200">{depositAmt.toLocaleString()} MT</strong> ({depositPct}%)
+            <div
+              className="flex items-center justify-between"
+              style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', marginTop: 4 }}
+            >
+              <span>
+                Initial Deposit: <strong style={{ color: 'var(--ink)' }}>{depositAmt.toLocaleString()} MT</strong> ({depositPct}%)
               </span>
-              <span
-                className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                  depositIsPaid
-                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                    : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                }`}
-              >
-                {depositIsPaid ? '● PAID' : '● PENDING'}
+              <span className={`badge ${depositIsPaid ? 'b-ok' : 'b-warn'}`} style={{ padding: '2px 8px' }}>
+                {depositIsPaid ? 'Paid' : 'Pending'}
               </span>
             </div>
           )}
         </div>
 
         {b.notes && (
-          <p className="text-[11px] text-zinc-500 line-clamp-2 bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80 font-mono">
+          <p
+            className="mini dim"
+            style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: 8, fontFamily: 'var(--font-data)' }}
+          >
             {b.notes}
           </p>
         )}
       </div>
 
-      <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2" style={{ paddingTop: 12, borderTop: '1px solid var(--rule)' }}>
         <div className="flex gap-2">
-          <Link
-            href={`/bookings/${b.id}/edit`}
-            className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-violet-500/10 hover:bg-violet-500/20 px-3 py-1.5 rounded-lg border border-violet-500/20 transition-all"
-          >
+          <Link href={`/bookings/${b.id}/edit`} className="btn ghost sm">
             Edit Services <Edit3 className="w-3.5 h-3.5" />
           </Link>
-          <Link
-            href={`/bookings/${b.id}/payments`}
-            className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all"
-          >
+          <Link href={`/bookings/${b.id}/payments`} className="btn ghost sm">
             Payments <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -118,7 +100,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
             <button
               disabled={updating}
               onClick={() => onUpdateStatus(b.id, { paymentAction: 'MARK_DEPOSIT_PAID' })}
-              className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg transition-all"
+              className="btn ghost sm"
               title="Record Deposit & Confirm Booking"
             >
               Record Deposit
@@ -129,7 +111,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
             <button
               disabled={updating}
               onClick={() => onUpdateStatus(b.id, { paymentAction: 'COMPLETE_FINANCIAL_CLOSURE' })}
-              className="text-[11px] font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-2.5 py-1.5 rounded-lg transition-all"
+              className="btn ghost sm"
               title="Complete Booking & Closure"
             >
               Complete Closure
@@ -139,7 +121,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
           <button
             disabled={isDeleting}
             onClick={() => onDeletePrompt(b.id, b.clientName || 'Client')}
-            className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+            className="icon-btn"
             title="Delete Booking"
           >
             {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}

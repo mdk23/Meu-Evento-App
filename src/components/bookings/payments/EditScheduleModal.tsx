@@ -92,56 +92,67 @@ export default function EditScheduleModal({ isOpen, onClose, bookingId, totalCon
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
+    <div className="modal-scrim">
+      <div className="modal wide" style={{ padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+        <div className="between" style={{ padding: '18px 22px', borderBottom: '1px solid var(--rule)', flexShrink: 0 }}>
           <div>
-            <h2 className="text-lg font-bold text-white">Edit Payment Schedule</h2>
-            <p className="text-xs text-zinc-400">Total Contract Value: <strong className="text-emerald-400">{totalContractAmount.toLocaleString()} MT</strong></p>
+            <h3 className="h-sm">Edit Payment Schedule</h3>
+            <p className="mini dim" style={{ marginTop: 2 }}>Total Contract Value: <strong style={{ color: 'var(--ok)' }}>{totalContractAmount.toLocaleString()} MT</strong></p>
           </div>
-          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="icon-btn">
+            <X className="w-4 h-4" />
           </button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-4">
-          
-          <div className="space-y-3">
+
+        <form onSubmit={handleSubmit} className="stack" style={{ padding: 22, overflowY: 'auto', flex: 1 }}>
+          <div className="stack">
             {schedules.map((sp, idx) => {
               const isPaid = sp.paidAmount > 0;
               return (
-                <div key={idx} className={`p-4 border rounded-xl flex items-end gap-3 ${isPaid ? 'bg-zinc-900/50 border-emerald-500/30' : 'bg-zinc-900 border-zinc-800'}`}>
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Payment Name</label>
+                <div
+                  key={idx}
+                  className="row"
+                  style={{
+                    alignItems: 'flex-end',
+                    gap: 12,
+                    padding: 16,
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${isPaid ? 'var(--ok)' : 'var(--rule)'}`,
+                    background: isPaid ? 'var(--accent-soft)' : 'var(--surface-2)',
+                  }}
+                >
+                  <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="label">Payment Name</label>
                     <input
                       type="text"
                       required
                       value={sp.name}
                       onChange={e => handleUpdateSchedule(idx, 'name', e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                      className="input"
                     />
                   </div>
-                  
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Due Date</label>
+
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Due Date</label>
                     <input
                       type="date"
                       required
                       value={sp.dueDate ? new Date(sp.dueDate).toISOString().split('T')[0] : ''}
                       onChange={e => handleUpdateSchedule(idx, 'dueDate', e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                      className="input"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Amount (MT)</label>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Amount (MT)</label>
                     <input
                       type="number"
                       required
                       min={sp.paidAmount || 0}
                       value={sp.amount}
                       onChange={e => handleUpdateSchedule(idx, 'amount', e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 min-w-[120px]"
+                      className="input"
+                      style={{ minWidth: 120 }}
                     />
                   </div>
 
@@ -149,48 +160,38 @@ export default function EditScheduleModal({ isOpen, onClose, bookingId, totalCon
                     type="button"
                     onClick={() => handleRemoveSchedule(idx)}
                     disabled={isPaid}
-                    className="p-3 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-xl disabled:opacity-30 transition-colors"
-                    title={isPaid ? "Cannot delete paid schedule" : "Remove"}
+                    className="icon-btn"
+                    style={{ color: 'var(--bad)', opacity: isPaid ? 0.3 : 1 }}
+                    title={isPaid ? 'Cannot delete paid schedule' : 'Remove'}
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               );
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddSchedule}
-            className="w-full p-4 border border-dashed border-zinc-700 hover:border-emerald-500 hover:bg-emerald-500/5 text-zinc-400 hover:text-emerald-400 rounded-xl flex items-center justify-center gap-2 transition-all font-bold"
-          >
-            <Plus className="w-5 h-5" /> Add Milestone
+          <button type="button" onClick={handleAddSchedule} className="btn" style={{ width: '100%', justifyContent: 'center', borderStyle: 'dashed' }}>
+            <Plus className="w-4 h-4" /> Add Milestone
           </button>
 
-          <div className={`p-4 rounded-xl text-center text-sm font-bold border ${Math.abs(difference) < 0.01 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
-            {Math.abs(difference) < 0.01 
-              ? 'Schedule is balanced. Amounts equal total contract value.' 
+          <div
+            className={`badge ${Math.abs(difference) < 0.01 ? 'b-ok' : 'b-warn'}`}
+            style={{ width: '100%', justifyContent: 'center', padding: '10px 16px', fontSize: 12 }}
+          >
+            {Math.abs(difference) < 0.01
+              ? 'Schedule is balanced. Amounts equal total contract value.'
               : `Difference: ${difference > 0 ? '+' : ''}${difference.toLocaleString()} MT`}
           </div>
-
         </form>
-        <div className="p-4 border-t border-zinc-800 flex justify-end gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl font-bold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-          >
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 12, padding: 18, borderTop: '1px solid var(--rule)', flexShrink: 0 }}>
+          <button type="button" onClick={onClose} className="btn ghost">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-5 py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 disabled:opacity-50"
-          >
+          <button type="button" onClick={handleSubmit} disabled={isSubmitting} className="btn primary">
             {isSubmitting ? 'Saving...' : (
               <>
-                <Check className="w-5 h-5" /> Save Schedule
+                <Check className="w-4 h-4" /> Save Schedule
               </>
             )}
           </button>

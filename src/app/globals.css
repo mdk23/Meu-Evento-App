@@ -2,17 +2,16 @@
 @import "./aurelia.css";
 
 :root {
-  --background: #000000;
-  --foreground: #f4f4f5;
   --font-sans: var(--font-geist-sans), sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
   overflow-x: hidden;
+  transition: background-color var(--t-theme), color var(--t-theme);
 }
 
 /* Custom Scrollbar Styles for premium feel */

@@ -32,48 +32,48 @@ export default async function DashboardPage() {
 
         {/* KPI METRICS */}
         <div className="grid g4">
-          <div className="card">
-            <div className="flex justify-between items-start mb-2">
+          <div className="card kpi plain f-in d1">
+            <div className="flex justify-between items-start">
               <span className="label">Total Revenue</span>
               <span className="badge b-ok" style={{ padding: 6 }}>
                 <TrendingUp className="w-3.5 h-3.5" />
               </span>
             </div>
-            <span className="h-lg num" style={{ display: 'block' }}>{kpis.revenue.toLocaleString()} MT</span>
-            <span className="mini dim" style={{ marginTop: 4, display: 'block' }}>Contracted service value</span>
+            <div className="val">{kpis.revenue.toLocaleString()} MT</div>
+            <div className="delta dim">Contracted service value</div>
           </div>
 
-          <div className="card">
-            <div className="flex justify-between items-start mb-2">
+          <div className="card kpi plain f-in d2">
+            <div className="flex justify-between items-start">
               <span className="label">Pending Income</span>
               <span className="badge b-warn" style={{ padding: 6 }}>
                 <Clock className="w-3.5 h-3.5" />
               </span>
             </div>
-            <span className="h-lg num" style={{ display: 'block', color: 'var(--warn)' }}>{kpis.pendingAmount.toLocaleString()} MT</span>
-            <span className="mini dim" style={{ marginTop: 4, display: 'block' }}>Outstanding invoices</span>
+            <div className="val" style={{ color: 'var(--warn)' }}>{kpis.pendingAmount.toLocaleString()} MT</div>
+            <div className="delta dim">Outstanding invoices</div>
           </div>
 
-          <div className="card">
-            <div className="flex justify-between items-start mb-2">
+          <div className="card kpi plain f-in d3">
+            <div className="flex justify-between items-start">
               <span className="label">Net Profit</span>
               <span className="badge b-accent" style={{ padding: 6 }}>
                 <DollarSign className="w-3.5 h-3.5" />
               </span>
             </div>
-            <span className="h-lg num" style={{ display: 'block', color: 'var(--accent)' }}>{kpis.netProfit.toLocaleString()} MT</span>
-            <span className="mini dim" style={{ marginTop: 4, display: 'block' }}>Revenue minus costs</span>
+            <div className="val" style={{ color: 'var(--accent)' }}>{kpis.netProfit.toLocaleString()} MT</div>
+            <div className="delta dim">Revenue minus costs</div>
           </div>
 
-          <div className="card">
-            <div className="flex justify-between items-start mb-2">
+          <div className="card kpi plain f-in d4">
+            <div className="flex justify-between items-start">
               <span className="label">Active Bookings</span>
               <span className="badge b-info" style={{ padding: 6 }}>
                 <CalendarDays className="w-3.5 h-3.5" />
               </span>
             </div>
-            <span className="h-lg num" style={{ display: 'block' }}>{kpis.totalBookings}</span>
-            <span className="mini dim" style={{ marginTop: 4, display: 'block' }}>{kpis.totalClients} Total Clients</span>
+            <div className="val">{kpis.totalBookings}</div>
+            <div className="delta dim">{kpis.totalClients} Total Clients</div>
           </div>
         </div>
 

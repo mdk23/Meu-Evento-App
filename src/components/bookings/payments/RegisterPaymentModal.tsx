@@ -64,35 +64,31 @@ export default function RegisterPaymentModal({ isOpen, onClose, bookingId, sched
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white">Register Payment</h2>
-          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-900 transition-colors">
-            <X className="w-5 h-5" />
+    <div className="modal-scrim">
+      <div className="modal" style={{ width: 'min(460px,100%)', padding: 0 }}>
+        <div className="between" style={{ padding: '18px 22px', borderBottom: '1px solid var(--rule)' }}>
+          <h3 className="h-sm">Register Payment</h3>
+          <button onClick={onClose} className="icon-btn">
+            <X className="w-4 h-4" />
           </button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Amount (MT)</label>
+
+        <form onSubmit={handleSubmit} className="stack" style={{ padding: 22 }}>
+          <div className="field">
+            <label className="label">Amount (MT)</label>
             <input
               type="number"
               required
               value={amount}
               onChange={e => setAmount(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              className="input"
               placeholder="0.00"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Payment Method</label>
-            <select
-              value={method}
-              onChange={e => setMethod(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-            >
+          <div className="field">
+            <label className="label">Payment Method</label>
+            <select value={method} onChange={e => setMethod(e.target.value)} className="input">
               <option value="CASH">Cash</option>
               <option value="M_PESA">M-Pesa</option>
               <option value="E_MOLA">E-Mola</option>
@@ -102,13 +98,9 @@ export default function RegisterPaymentModal({ isOpen, onClose, bookingId, sched
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Allocate to Schedule</label>
-            <select
-              value={scheduledPaymentId}
-              onChange={e => setScheduledPaymentId(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-            >
+          <div className="field">
+            <label className="label">Allocate to Schedule</label>
+            <select value={scheduledPaymentId} onChange={e => setScheduledPaymentId(e.target.value)} className="input">
               <option value="">-- Unallocated / General Payment --</option>
               {pendingSchedules.map(sp => (
                 <option key={sp.id} value={sp.id}>
@@ -118,43 +110,36 @@ export default function RegisterPaymentModal({ isOpen, onClose, bookingId, sched
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Reference / Receipt No.</label>
+          <div className="field">
+            <label className="label">Reference / Receipt No.</label>
             <input
               type="text"
               value={reference}
               onChange={e => setReference(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              className="input"
               placeholder="e.g. TRX-123456"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 uppercase mb-1.5">Notes</label>
+          <div className="field">
+            <label className="label">Notes</label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 min-h-[80px]"
+              className="input"
+              style={{ minHeight: 80 }}
               placeholder="Optional notes..."
             />
           </div>
 
-          <div className="pt-4 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl font-bold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 12, paddingTop: 8 }}>
+            <button type="button" onClick={onClose} className="btn ghost">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 disabled:opacity-50"
-            >
+            <button type="submit" disabled={isSubmitting} className="btn primary">
               {isSubmitting ? 'Processing...' : (
                 <>
-                  <Check className="w-5 h-5" /> Confirm Payment
+                  <Check className="w-4 h-4" /> Confirm Payment
                 </>
               )}
             </button>

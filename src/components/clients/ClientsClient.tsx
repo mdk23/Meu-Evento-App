@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Users, Plus, Loader2, Mail, Phone, X, Edit3, Trash2, Save, Building2 } from 'lucide-react';
 import { ClientCardDTO, ClientListPageDTO } from '@/types/dtos';
 import PaginationControls from '../shared/PaginationControls';
+import Topbar from '@/components/aurelia/Topbar';
 
 interface ClientsClientProps {
   data: ClientListPageDTO;
@@ -146,90 +147,67 @@ export default function ClientsClient({ data }: ClientsClientProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-950 text-white font-sans">
-      {/* HEADER */}
-      <header className="h-16 border-b border-zinc-900 bg-zinc-950/80 px-8 flex items-center justify-between shrink-0 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-violet-400" />
-          <div>
-            <h2 className="text-white font-bold text-lg tracking-tight">Client Directory & CRM</h2>
-            <p className="text-xs text-zinc-500">Manage individual contacts, hosts, and corporate clients</p>
-          </div>
-        </div>
-
-        <button
-          onClick={openAddModal}
-          className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-violet-600/20"
-        >
-          <Plus className="w-4 h-4" /> Add Client
+    <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
+      <Topbar crumb="Client Directory & CRM" note="Manage individual contacts, hosts, and corporate clients.">
+        <button onClick={openAddModal} className="btn primary sm">
+          <Plus className="w-3.5 h-3.5" /> Add Client
         </button>
-      </header>
+      </Topbar>
 
-      {/* WORKSPACE */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-6">
+      <div className="flex-1 overflow-y-auto page space-y-6">
         {initialClients.length === 0 ? (
-          <div className="text-center py-16 text-zinc-600 border border-dashed border-zinc-800 rounded-2xl p-8">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-30 text-violet-400" />
-            <h3 className="text-sm font-bold text-zinc-300">No Clients Registered</h3>
-            <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-              Your CRM registry is empty. Click "Add Client" to register new client profiles.
+          <div className="empty">
+            <Users className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3 }} />
+            <h3 className="h-sm">No Clients Registered</h3>
+            <p className="mini dim" style={{ marginTop: 4, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+              Your CRM registry is empty. Click &ldquo;Add Client&rdquo; to register new client profiles.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {initialClients.map((c) => {
+          <div className="grid g3">
+            {initialClients.map((c, i) => {
               const isDeleting = deletingId === c.id;
 
               return (
-                <div
-                  key={c.id}
-                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-zinc-700 transition-all group"
-                >
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
+                <div key={c.id} className={`card plain f-in d${(i % 4) + 1} flex flex-col justify-between`} style={{ gap: 16 }}>
+                  <div className="stack">
+                    <div className="between items-start">
                       <div>
-                        <h3 className="text-white font-bold text-lg group-hover:text-violet-300 transition-colors">
-                          {c.name}
-                        </h3>
-                        <p className="text-xs text-violet-400 font-medium flex items-center gap-1">
+                        <h3 className="h-sm">{c.name}</h3>
+                        <p className="mini row" style={{ color: 'var(--accent)', gap: 6, marginTop: 2 }}>
                           <Building2 className="w-3.5 h-3.5" />
                           {c.companyName || 'Individual Contact'}
                         </p>
                       </div>
-                      <span className="text-[10px] bg-zinc-950 text-zinc-400 border border-zinc-800 font-bold px-2.5 py-1 rounded-full">
-                        {c.bookingCount} Bookings
-                      </span>
+                      <span className="badge b-mute">{c.bookingCount} Bookings</span>
                     </div>
 
-                    <div className="space-y-1.5 text-xs text-zinc-400 pt-3 border-t border-zinc-850">
-                      <p className="flex items-center gap-2">
-                        <Mail className="w-3.5 h-3.5 text-zinc-500" /> {c.email || 'No email registered'}
+                    <div className="stack" style={{ gap: 6, paddingTop: 12, borderTop: '1px solid var(--rule)' }}>
+                      <p className="mini dim row" style={{ gap: 8 }}>
+                        <Mail className="w-3.5 h-3.5" /> {c.email || 'No email registered'}
                       </p>
-                      <p className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-zinc-500" /> {c.phone || 'No phone registered'}
+                      <p className="mini dim row" style={{ gap: 8 }}>
+                        <Phone className="w-3.5 h-3.5" /> {c.phone || 'No phone registered'}
                       </p>
                     </div>
 
                     {c.notes && (
-                      <p className="text-[11px] text-zinc-500 line-clamp-2 bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80 font-mono">
+                      <p className="mini dim" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)', border: '1px solid var(--rule)' }}>
                         {c.notes}
                       </p>
                     )}
                   </div>
 
-                  {/* CRM ACTIONS */}
-                  <div className="pt-3 border-t border-zinc-800 flex items-center justify-between">
-                    <button
-                      onClick={() => openEditModal(c)}
-                      className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-violet-500/10 hover:bg-violet-500/20 px-3 py-1.5 rounded-lg border border-violet-500/20 transition-all"
-                    >
+                  <div className="between" style={{ paddingTop: 12, borderTop: '1px solid var(--rule)' }}>
+                    <button onClick={() => openEditModal(c)} className="btn ghost sm">
                       <Edit3 className="w-3.5 h-3.5" /> Edit Profile
                     </button>
 
                     <button
                       disabled={isDeleting}
                       onClick={() => handleDeletePrompt(c.id, c.name)}
-                      className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                      className="icon-btn"
+                      style={{ width: 30, height: 30 }}
                       title="Deactivate Client"
                     >
                       {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
@@ -251,11 +229,11 @@ export default function ClientsClient({ data }: ClientsClientProps) {
 
       {/* CREATE & EDIT CLIENT DIALOG */}
       {(isAddModalOpen || editingClient) && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
-              <h3 className="text-white font-bold text-base flex items-center gap-2">
-                <Users className="w-5 h-5 text-violet-400" />
+        <div className="modal-scrim">
+          <div className="modal">
+            <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
+              <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Users className="w-5 h-5" style={{ color: 'var(--accent)' }} />
                 {isAddModalOpen ? 'Add New Client' : 'Edit Client Profile'}
               </h3>
               <button
@@ -263,73 +241,69 @@ export default function ClientsClient({ data }: ClientsClientProps) {
                   setIsAddModalOpen(false);
                   setEditingClient(null);
                 }}
-                className="text-zinc-500 hover:text-white"
+                className="icon-btn"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={isAddModalOpen ? handleCreateClient : handleUpdateClient} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Full Name</label>
+            <form onSubmit={isAddModalOpen ? handleCreateClient : handleUpdateClient} className="stack" style={{ marginTop: 20 }}>
+              <div className="field">
+                <label className="label">Full Name</label>
                 <input
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Sofia Albuquerque"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
+                  className="input"
                 />
               </div>
 
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Company / Corporate Entity (Optional)</label>
+              <div className="field">
+                <label className="label">Company / Corporate Entity (Optional)</label>
                 <input
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="e.g. Standard Bank"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
+                  className="input"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Email</label>
+              <div className="grid g2">
+                <div className="field">
+                  <label className="label">Email</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@domain.com"
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
+                    className="input"
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Phone Contact</label>
+                <div className="field">
+                  <label className="label">Phone Contact</label>
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+258 84..."
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
+                    className="input"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">CRM Notes & Preferences</label>
+              <div className="field">
+                <label className="label">CRM Notes & Preferences</label>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Preferences, allergy details, contract patterns..."
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl p-3 text-white text-xs outline-none focus:border-violet-500 font-mono"
+                  className="input"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-violet-600/20"
-              >
+              <button type="submit" disabled={submitting} className="btn primary" style={{ justifyContent: 'center' }}>
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
@@ -343,6 +317,6 @@ export default function ClientsClient({ data }: ClientsClientProps) {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

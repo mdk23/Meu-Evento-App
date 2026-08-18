@@ -83,6 +83,7 @@ export default function ServiceWorkOrderModal({
   onClose,
 }: ServiceWorkOrderModalProps) {
   const isInternal = selectedService.providerType === 'INTERNAL';
+  const accentVar = isInternal ? 'var(--ok)' : 'var(--info)';
   const tasks = selectedService.serviceTasks;
   const assignedStaff = selectedService.staffAssignments;
   const reservedInventory = selectedService.inventoryReservations;
@@ -90,37 +91,39 @@ export default function ServiceWorkOrderModal({
   const fieldSchema = parseFieldSchema(selectedService.service?.fieldSchema);
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-2xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
+    <div className="modal-scrim" onClick={onClose}>
+      <div
+        className="modal wide"
+        style={{ padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="between" style={{ padding: 20, borderBottom: '1px solid var(--rule)', flexShrink: 0 }}>
           <div>
-            <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-              isInternal ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'
-            }`}>
+            <span className={`badge ${isInternal ? 'b-ok' : 'b-info'}`}>
               {isInternal ? '🟢 Internal Work Order' : '🔵 External Supplier'}
             </span>
-            <h3 className="text-white font-bold text-lg mt-1">{selectedService.service?.name}</h3>
+            <h3 className="h-md" style={{ marginTop: 6 }}>{selectedService.service?.name}</h3>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="icon-btn">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {workOrderError && (
-          <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl p-3">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{workOrderError}</span>
-          </div>
-        )}
+        <div className="stack" style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+          {workOrderError && (
+            <div className="alert bad">
+              <AlertTriangle className="w-4 h-4 shrink-0" style={{ marginTop: 2 }} />
+              <span>{workOrderError}</span>
+            </div>
+          )}
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-zinc-400 font-bold block mb-1">Operational Work Order Status</label>
+          <div className="grid g2">
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label className="label">Operational Work Order Status</label>
               <select
                 value={workOrderStatus}
                 onChange={(e) => setWorkOrderStatus(e.target.value)}
-                className={`w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none ${isInternal ? 'focus:border-emerald-500' : 'focus:border-blue-500'}`}
+                className="input"
               >
                 <option value="PLANNING">PLANNING</option>
                 <option value="READY">READY</option>
@@ -131,61 +134,64 @@ export default function ServiceWorkOrderModal({
             </div>
 
             {isInternal && (
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Selling Price (MT)</label>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">Selling Price (MT)</label>
                 <input
                   type="number"
                   value={sellingPrice}
                   onChange={(e) => setSellingPrice(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-emerald-500"
+                  className="input"
                 />
               </div>
             )}
           </div>
 
           {fieldSchema.length > 0 && (
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 space-y-3">
-              <h4 className={`text-xs font-bold flex items-center gap-1.5 ${isInternal ? 'text-emerald-400' : 'text-blue-400'}`}>
+            <div className="card plain stack" style={{ padding: 16, gap: 12 }}>
+              <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: accentVar }}>
                 <ChefHat className="w-4 h-4" /> Operational Parameters
               </h4>
               <DynamicFieldsForm fields={fieldSchema} values={customFields} onChange={setCustomFields} />
             </div>
           )}
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-white">Execution Tasks</h4>
-            <div className="flex gap-2">
+          <div className="stack" style={{ gap: 10 }}>
+            <h4 className="mini" style={{ fontWeight: 700, color: 'var(--ink)' }}>Execution Tasks</h4>
+            <div className="row">
               <input
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 placeholder="Add task title..."
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
+                className="input"
+                style={{ flex: 1 }}
               />
-              <button
-                type="button"
-                onClick={onAddTask}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold"
-              >
+              <button type="button" onClick={onAddTask} className="btn ghost sm">
                 + Add
               </button>
             </div>
 
-            <div className="space-y-2 max-h-36 overflow-y-auto p-2 bg-zinc-950 border border-zinc-850 rounded-xl">
+            <div
+              className="stack"
+              style={{ gap: 8, maxHeight: 144, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
+            >
               {tasks.map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-zinc-900 text-xs">
-                  <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                <div key={t.id} className="between" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                  <label className="row" style={{ gap: 10, cursor: 'pointer', flex: 1, minWidth: 0 }}>
                     <input
                       type="checkbox"
                       checked={t.status === 'DONE'}
                       onChange={() => onToggleTask(t.id)}
-                      className="accent-emerald-500 w-4 h-4 shrink-0"
+                      style={{ width: 16, height: 16, accentColor: 'var(--accent)', flexShrink: 0 }}
                     />
-                    <span className={t.status === 'DONE' ? 'line-through text-zinc-500' : 'text-zinc-200'}>{t.title}</span>
+                    <span className="mini" style={t.status === 'DONE' ? { textDecoration: 'line-through', color: 'var(--ink-3)' } : { color: 'var(--ink)' }}>
+                      {t.title}
+                    </span>
                   </label>
                   <button
                     type="button"
                     onClick={() => onRemoveTask(t.id)}
-                    className="text-zinc-500 hover:text-red-400 shrink-0"
+                    className="icon-btn"
+                    style={{ width: 28, height: 28, flexShrink: 0 }}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -194,15 +200,16 @@ export default function ServiceWorkOrderModal({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-              <Users className={isInternal ? 'w-4 h-4 text-emerald-400' : 'w-4 h-4 text-blue-400'} /> {isInternal ? 'Assigned Staff' : 'Coordinator Staff'}
+          <div className="stack" style={{ gap: 10 }}>
+            <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
+              <Users className="w-4 h-4" style={{ color: accentVar }} /> {isInternal ? 'Assigned Staff' : 'Coordinator Staff'}
             </h4>
-            <div className="flex gap-2">
+            <div className="row">
               <select
                 value={selectedStaffId}
                 onChange={(e) => setSelectedStaffId(e.target.value)}
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
+                className="input"
+                style={{ flex: 1 }}
               >
                 <option value="">-- Select Staff Member --</option>
                 {unassignedStaff.map((s) => (
@@ -213,21 +220,27 @@ export default function ServiceWorkOrderModal({
                 type="button"
                 onClick={onAssignStaff}
                 disabled={!selectedStaffId}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold disabled:opacity-40"
+                className="btn ghost sm"
               >
                 + Assign
               </button>
             </div>
 
             {assignedStaff.length > 0 && (
-              <div className="space-y-2 max-h-32 overflow-y-auto p-2 bg-zinc-950 border border-zinc-850 rounded-xl">
+              <div
+                className="stack"
+                style={{ gap: 8, maxHeight: 128, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
+              >
                 {assignedStaff.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-2 rounded-lg bg-zinc-900 text-xs">
-                    <span className="text-zinc-200">{a.staffNameSnapshot} <span className="text-zinc-500">({a.role})</span></span>
+                  <div key={a.id} className="between" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                    <span className="mini" style={{ color: 'var(--ink)' }}>
+                      {a.staffNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>({a.role})</span>
+                    </span>
                     <button
                       type="button"
                       onClick={() => onUnassignStaff(a.id)}
-                      className="text-zinc-500 hover:text-red-400"
+                      className="icon-btn"
+                      style={{ width: 28, height: 28, flexShrink: 0 }}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -237,15 +250,16 @@ export default function ServiceWorkOrderModal({
             )}
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-              <Package className={isInternal ? 'w-4 h-4 text-emerald-400' : 'w-4 h-4 text-blue-400'} /> Reserved Inventory
+          <div className="stack" style={{ gap: 10 }}>
+            <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
+              <Package className="w-4 h-4" style={{ color: accentVar }} /> Reserved Inventory
             </h4>
-            <div className="flex gap-2">
+            <div className="row">
               <select
                 value={selectedInventoryId}
                 onChange={(e) => setSelectedInventoryId(e.target.value)}
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
+                className="input"
+                style={{ flex: 1 }}
               >
                 <option value="">-- Select Inventory Item --</option>
                 {inventoryItems.map((i) => (
@@ -257,27 +271,34 @@ export default function ServiceWorkOrderModal({
                 min={1}
                 value={reserveQuantity}
                 onChange={(e) => setReserveQuantity(e.target.value)}
-                className="w-20 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
+                className="input"
+                style={{ width: 80 }}
               />
               <button
                 type="button"
                 onClick={onReserveInventory}
                 disabled={!selectedInventoryId}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold disabled:opacity-40"
+                className="btn ghost sm"
               >
                 + Reserve
               </button>
             </div>
 
             {reservedInventory.length > 0 && (
-              <div className="space-y-2 max-h-32 overflow-y-auto p-2 bg-zinc-950 border border-zinc-850 rounded-xl">
+              <div
+                className="stack"
+                style={{ gap: 8, maxHeight: 128, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
+              >
                 {reservedInventory.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between p-2 rounded-lg bg-zinc-900 text-xs">
-                    <span className="text-zinc-200">{r.itemNameSnapshot} <span className="text-zinc-500">× {r.quantity}</span></span>
+                  <div key={r.id} className="between" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                    <span className="mini" style={{ color: 'var(--ink)' }}>
+                      {r.itemNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>× {r.quantity}</span>
+                    </span>
                     <button
                       type="button"
                       onClick={() => onRemoveReservedInventory(r.id)}
-                      className="text-zinc-500 hover:text-red-400"
+                      className="icon-btn"
+                      style={{ width: 28, height: 28, flexShrink: 0 }}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -288,14 +309,14 @@ export default function ServiceWorkOrderModal({
           </div>
 
           {!isInternal && (
-            <div className="border-t border-zinc-800 pt-6 space-y-4">
-              <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wide">Supplier</h4>
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Assign External Supplier</label>
+            <div className="stack" style={{ gap: 16, paddingTop: 20, borderTop: '1px solid var(--rule)' }}>
+              <h4 className="label" style={{ color: 'var(--info)' }}>Supplier</h4>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">Assign External Supplier</label>
                 <select
                   value={supplierId}
                   onChange={(e) => setSupplierId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-blue-500"
+                  className="input"
                 >
                   <option value="">-- Select Supplier Partner --</option>
                   {suppliers.map((sup) => (
@@ -304,22 +325,22 @@ export default function ServiceWorkOrderModal({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Supplier Cost (MT)</label>
+              <div className="grid g2">
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label className="label">Supplier Cost (MT)</label>
                   <input
                     type="number"
                     value={supplierCost}
                     onChange={(e) => setSupplierCost(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white text-xs outline-none focus:border-blue-500"
+                    className="input"
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Supplier Status</label>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label className="label">Supplier Status</label>
                   <select
                     value={supplierStatus}
                     onChange={(e) => setSupplierStatus(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white text-xs outline-none focus:border-blue-500"
+                    className="input"
                   >
                     <option value="REQUESTED">REQUESTED</option>
                     <option value="CONFIRMED">CONFIRMED</option>
@@ -330,12 +351,12 @@ export default function ServiceWorkOrderModal({
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Supplier Payment Status</label>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">Supplier Payment Status</label>
                 <select
                   value={paymentStatus}
                   onChange={(e) => setPaymentStatus(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white text-xs outline-none focus:border-blue-500"
+                  className="input"
                 >
                   <option value="UNPAID">UNPAID</option>
                   <option value="PARTIAL">PARTIAL</option>
@@ -346,20 +367,11 @@ export default function ServiceWorkOrderModal({
           )}
         </div>
 
-        <div className="flex gap-3 justify-end pt-4 border-t border-zinc-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold"
-          >
+        <div className="row" style={{ justifyContent: 'flex-end', padding: 20, borderTop: '1px solid var(--rule)', flexShrink: 0 }}>
+          <button type="button" onClick={onClose} className="btn ghost sm">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={savingWorkOrder}
-            className="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold flex items-center gap-2"
-          >
+          <button type="button" onClick={onSave} disabled={savingWorkOrder} className="btn primary sm">
             {savingWorkOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Work Order'}
           </button>
         </div>

@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TrendingUp, Plus, Loader2, X } from 'lucide-react';
+import { Plus, Loader2, X } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 import { FinanceSummaryDTO } from '@/types/dtos';
 import { DecimalToNumber } from '@/lib/money';
+import Topbar from '@/components/aurelia/Topbar';
 
 type FinanceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true } }>;
 type FinanceBooking = Prisma.BookingGetPayload<{ select: { id: true; eventDate: true; client: { select: { name: true } } } }>;
@@ -91,23 +92,12 @@ export default function FinanceClient({
 
   return (
     <>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* HEADER */}
-        <header className="h-16 border-b border-zinc-900 bg-zinc-950/50 flex items-center px-8 justify-between shrink-0">
-          <div>
-            <h2 className="text-white font-bold text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-violet-400" /> Financial Audit & Profit Analysis
-            </h2>
-            <p className="text-xs text-zinc-500">Track client revenue collections vs external supplier costs.</p>
-          </div>
-
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-lg"
-          >
-            <Plus className="w-4 h-4" /> Add Record
+      <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
+        <Topbar crumb="Financial Audit & Profit Analysis" note="Track client revenue collections vs external supplier costs.">
+          <button onClick={() => setIsModalOpen(true)} className="btn primary sm">
+            <Plus className="w-3.5 h-3.5" /> Add Record
           </button>
-        </header>
+        </Topbar>
 
         {/* WORKSPACE */}
         <div className="flex-1 overflow-auto p-8 space-y-8">
