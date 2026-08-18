@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, DollarSign, Layers } from 'lucide-react';
 import { EventDetailPayload } from '../types';
+import { providerTypeBadgeClass } from '../statusStyles';
 
 interface FinanceTabProps {
   scheduledPayments: EventDetailPayload['booking']['scheduledPayments'];
@@ -26,60 +27,68 @@ export default function FinanceTab({ scheduledPayments, expenses, eventServices,
   const eventProfit = revenue - totalCosts;
 
   return (
-    <div className="space-y-6">
+    <div className="stack" style={{ gap: 24 }}>
       {/* PROFIT SUMMARY */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Revenue</span>
-          <span className="text-xl font-black text-white block">{revenue.toLocaleString()} MT</span>
+      <div className="grid g4">
+        <div className="card plain kpi">
+          <span className="label">Revenue</span>
+          <span className="val num">{revenue.toLocaleString()} MT</span>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Internal Cost</span>
-          <span className="text-xl font-black text-emerald-400 block">{internalCost.toLocaleString()} MT</span>
+        <div className="card plain kpi">
+          <span className="label">Internal Cost</span>
+          <span className="val num" style={{ color: 'var(--ok)' }}>{internalCost.toLocaleString()} MT</span>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Supplier Cost</span>
-          <span className="text-xl font-black text-blue-400 block">{supplierCost.toLocaleString()} MT</span>
+        <div className="card plain kpi">
+          <span className="label">Supplier Cost</span>
+          <span className="val num" style={{ color: 'var(--info)' }}>{supplierCost.toLocaleString()} MT</span>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1 mb-1">
-            {eventProfit >= 0 ? <TrendingUp className="w-3 h-3 text-violet-400" /> : <TrendingDown className="w-3 h-3 text-red-400" />}
+        <div className="card plain kpi">
+          <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {eventProfit >= 0 ? (
+              <TrendingUp className="w-3 h-3" style={{ color: 'var(--accent)' }} />
+            ) : (
+              <TrendingDown className="w-3 h-3" style={{ color: 'var(--bad)' }} />
+            )}
             Event Profit
           </span>
-          <span className={`text-xl font-black block ${eventProfit >= 0 ? 'text-violet-400' : 'text-red-400'}`}>
+          <span className="val num" style={{ color: eventProfit >= 0 ? 'var(--accent)' : 'var(--bad)' }}>
             {eventProfit.toLocaleString()} MT
           </span>
         </div>
       </div>
 
       {/* SERVICE PROFITABILITY */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <h3 className="text-white font-bold text-base flex items-center gap-2">
-          <Layers className="w-4 h-4 text-violet-400" /> Service Profitability
+      <div className="card plain stack">
+        <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Layers className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Service Profitability
         </h3>
         {eventServices.length === 0 ? (
-          <p className="text-xs text-zinc-500">No services attached to this event.</p>
+          <p className="mini dim">No services attached to this event.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="stack" style={{ gap: 8 }}>
             {eventServices.map((es) => {
               const isInternal = es.providerType === 'INTERNAL';
               const cost = isInternal ? es.cost : es.supplierCost;
               const profit = es.sellingPrice - cost;
               return (
-                <div key={es.id} className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 flex items-center justify-between text-xs gap-3">
-                  <div className="min-w-0">
-                    <span className="text-white font-bold block truncate">{es.service?.name || es.serviceNameSnapshot || 'Service'}</span>
-                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                      isInternal ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'
-                    }`}>
+                <div
+                  key={es.id}
+                  className="between"
+                  style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', gap: 12 }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <span className="mini" style={{ color: 'var(--ink)', fontWeight: 700, display: 'block' }}>
+                      {es.service?.name || es.serviceNameSnapshot || 'Service'}
+                    </span>
+                    <span className={`badge ${providerTypeBadgeClass(es.providerType)}`} style={{ marginTop: 4 }}>
                       {isInternal ? 'Internal' : 'External'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0 font-mono">
-                    <span className="text-zinc-400">{es.sellingPrice.toLocaleString()} MT</span>
-                    <span className="text-zinc-600">−</span>
-                    <span className="text-zinc-400">{cost.toLocaleString()} MT</span>
-                    <span className={`font-bold w-24 text-right ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <div className="row num mini dim" style={{ gap: 16, flexShrink: 0 }}>
+                    <span>{es.sellingPrice.toLocaleString()} MT</span>
+                    <span>&minus;</span>
+                    <span>{cost.toLocaleString()} MT</span>
+                    <span style={{ fontWeight: 700, width: 96, textAlign: 'right', color: profit >= 0 ? 'var(--ok)' : 'var(--bad)' }}>
                       {profit.toLocaleString()} MT
                     </span>
                   </div>
@@ -90,37 +99,41 @@ export default function FinanceTab({ scheduledPayments, expenses, eventServices,
         )}
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <h3 className="text-white font-bold text-base">Client Invoices</h3>
+      <div className="card plain stack">
+        <h3 className="h-md">Client Invoices</h3>
         {scheduledPayments.map((inv) => (
-          <div key={inv.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
+          <div
+            key={inv.id}
+            className="between"
+            style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: 14 }}
+          >
             <div>
-              <span className="text-white font-bold block">{inv.amount.toLocaleString()} MT</span>
-              <span className="text-zinc-500">Due: {new Date(inv.dueDate).toLocaleDateString()}</span>
+              <span className="mini" style={{ color: 'var(--ink)', fontWeight: 700, display: 'block' }}>{inv.amount.toLocaleString()} MT</span>
+              <span className="mini dim">Due: {new Date(inv.dueDate).toLocaleDateString()}</span>
             </div>
-            <span className={`px-3 py-1 rounded-full font-bold text-[10px] ${
-              inv.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-            }`}>
-              {inv.status}
-            </span>
+            <span className={`badge ${inv.status === 'PAID' ? 'b-ok' : 'b-warn'}`}>{inv.status}</span>
           </div>
         ))}
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <h3 className="text-white font-bold text-base flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-violet-400" /> Supplier & Operational Expenses
+      <div className="card plain stack">
+        <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <DollarSign className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Supplier & Operational Expenses
         </h3>
         {expenses.length === 0 ? (
-          <p className="text-xs text-zinc-500">No expenses recorded for this event.</p>
+          <p className="mini dim">No expenses recorded for this event.</p>
         ) : (
           expenses.map((exp) => (
-            <div key={exp.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
+            <div
+              key={exp.id}
+              className="between"
+              style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: 14 }}
+            >
               <div>
-                <span className="text-white font-bold block">{exp.description}</span>
-                <span className="text-zinc-500">Supplier: {exp.supplier?.name || 'N/A'}</span>
+                <span className="mini" style={{ color: 'var(--ink)', fontWeight: 700, display: 'block' }}>{exp.description}</span>
+                <span className="mini dim">Supplier: {exp.supplier?.name || 'N/A'}</span>
               </div>
-              <span className="text-white font-bold">{exp.amount.toLocaleString()} MT</span>
+              <span className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{exp.amount.toLocaleString()} MT</span>
             </div>
           ))
         )}

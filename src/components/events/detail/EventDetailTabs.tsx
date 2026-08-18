@@ -17,7 +17,7 @@ interface EventDetailTabsProps {
 
 export default function EventDetailTabs({ activeTab, onTabChange }: EventDetailTabsProps) {
   return (
-    <div className="bg-zinc-950 border-b border-zinc-900 px-8 flex gap-6">
+    <div className="tabs" style={{ padding: '0 34px' }}>
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -25,13 +25,10 @@ export default function EventDetailTabs({ activeTab, onTabChange }: EventDetailT
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all ${
-              isActive
-                ? 'border-violet-500 text-white'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
+            className={`tab${isActive ? ' active' : ''}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            <Icon className={`w-4 h-4 ${isActive ? 'text-violet-400' : 'text-zinc-500'}`} />
+            <Icon className="w-4 h-4" />
             {tab.label}
           </button>
         );

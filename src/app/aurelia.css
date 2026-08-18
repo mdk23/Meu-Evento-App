@@ -756,6 +756,11 @@
   border-color: color-mix(in srgb, var(--warn) 35%, transparent);
   color: color-mix(in srgb, var(--warn) 70%, var(--ink));
 }
+.alert.ok {
+  background: color-mix(in srgb, var(--ok) 10%, var(--surface-solid));
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  color: color-mix(in srgb, var(--ok) 70%, var(--ink));
+}
 .alert .action {
   margin-left: auto;
   flex-shrink: 0;

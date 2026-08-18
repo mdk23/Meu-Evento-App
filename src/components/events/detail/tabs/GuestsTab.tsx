@@ -1,5 +1,6 @@
 import { Loader2, Plus, Users, UserPlus, UtensilsCrossed } from 'lucide-react';
 import { Guest } from '@prisma/client';
+import { guestStatusBadgeClass } from '../statusStyles';
 
 interface GuestsTabProps {
   guests: Guest[];
@@ -12,12 +13,6 @@ interface GuestsTabProps {
   addingGuest: boolean;
   onAddGuest: (e: React.FormEvent) => void;
 }
-
-const STATUS_STYLES: Record<string, string> = {
-  PENDING: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-  CONFIRMED: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-  DECLINED: 'text-red-400 bg-red-500/10 border-red-500/20',
-};
 
 export default function GuestsTab({
   guests,
@@ -39,30 +34,30 @@ export default function GuestsTab({
   }, {});
 
   return (
-    <div className="space-y-6">
+    <div className="stack" style={{ gap: 24 }}>
       {guests.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+        <div className="grid g4">
+          <div className="card plain kpi">
+            <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Users className="w-3 h-3" /> Guests Invited
             </span>
-            <span className="text-lg font-black text-white block">{guests.length}</span>
+            <span className="val num">{guests.length}</span>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+          <div className="card plain kpi">
+            <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <UserPlus className="w-3 h-3" /> Plus-Ones
             </span>
-            <span className="text-lg font-black text-white block">{totalPlusOnes}</span>
+            <span className="val num">{totalPlusOnes}</span>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1.5 block">Total Headcount</span>
-            <span className="text-lg font-black text-violet-400 block">{totalHeadcount}</span>
+          <div className="card plain kpi">
+            <span className="label">Total Headcount</span>
+            <span className="val num" style={{ color: 'var(--accent)' }}>{totalHeadcount}</span>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1.5 block">RSVP Status</span>
-            <div className="flex flex-wrap gap-1">
+          <div className="card plain kpi">
+            <span className="label">RSVP Status</span>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
               {Object.entries(statusCounts).map(([status, count]) => (
-                <span key={status} className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${STATUS_STYLES[status] || 'text-zinc-400 bg-zinc-800 border-zinc-700'}`}>
+                <span key={status} className={`badge ${guestStatusBadgeClass(status)}`}>
                   {count} {status}
                 </span>
               ))}
@@ -71,77 +66,82 @@ export default function GuestsTab({
         </div>
       )}
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <h3 className="text-white font-bold text-base flex items-center gap-2">
-          <Plus className="w-5 h-5 text-violet-400" /> Add Guest to Event
+      <div className="card plain stack">
+        <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Plus className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Add Guest to Event
         </h3>
-        <form onSubmit={onAddGuest} className="flex gap-4">
-          <input
-            required
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            placeholder="Guest Full Name"
-            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-violet-500"
-          />
-          <input
-            value={guestEmail}
-            onChange={(e) => setGuestEmail(e.target.value)}
-            placeholder="Guest Email (Optional)"
-            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-violet-500"
-          />
-          <input
-            type="number"
-            min={0}
-            value={guestPlusOnes}
-            onChange={(e) => setGuestPlusOnes(Math.max(0, parseInt(e.target.value, 10) || 0))}
-            placeholder="Plus-Ones"
-            title="Plus-Ones"
-            className="w-28 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-violet-500"
-          />
-          <button
-            type="submit"
-            disabled={addingGuest}
-            className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0"
-          >
+        <form onSubmit={onAddGuest} className="row" style={{ alignItems: 'flex-end', gap: 16 }}>
+          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <label className="label">Guest Name</label>
+            <input
+              required
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              placeholder="Guest Full Name"
+              className="input"
+            />
+          </div>
+          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <label className="label">Email (Optional)</label>
+            <input
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+              placeholder="Guest Email (Optional)"
+              className="input"
+            />
+          </div>
+          <div className="field" style={{ width: 112, marginBottom: 0 }}>
+            <label className="label">Plus-Ones</label>
+            <input
+              type="number"
+              min={0}
+              value={guestPlusOnes}
+              onChange={(e) => setGuestPlusOnes(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              placeholder="Plus-Ones"
+              title="Plus-Ones"
+              className="input"
+            />
+          </div>
+          <button type="submit" disabled={addingGuest} className="btn primary" style={{ flexShrink: 0 }}>
             {addingGuest ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Guest'}
           </button>
         </form>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-white font-bold text-base mb-4">Guest List ({guests.length})</h3>
+      <div className="card plain stack">
+        <h3 className="h-md">Guest List ({guests.length})</h3>
         {guests.length === 0 ? (
-          <div className="text-center py-12 text-zinc-600">
-            <Users className="w-10 h-10 mx-auto mb-2 opacity-30 text-violet-400" />
-            <p className="text-xs text-zinc-500">No guests registered yet.</p>
+          <div className="empty">
+            <Users className="w-10 h-10 mx-auto mb-2" style={{ opacity: 0.3 }} />
+            <p className="mini dim">No guests registered yet.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="stack" style={{ gap: 8 }}>
             {guests.map((g) => (
-              <div key={g.id} className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 flex justify-between items-center text-xs gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-8 h-8 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-bold flex items-center justify-center shrink-0 text-xs">
-                    {g.name.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="min-w-0">
-                    <span className="text-white font-bold block truncate">{g.name}</span>
-                    <span className="text-zinc-500 truncate block">{g.email || 'No email'}</span>
+              <div
+                key={g.id}
+                className="between"
+                style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: 12, gap: 12 }}
+              >
+                <div className="row" style={{ minWidth: 0 }}>
+                  <span className="avatar">{g.name.charAt(0).toUpperCase()}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <span className="mini" style={{ color: 'var(--ink)', fontWeight: 700, display: 'block' }}>{g.name}</span>
+                    <span className="mini dim">{g.email || 'No email'}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="row" style={{ flexShrink: 0, gap: 8 }}>
                   {g.plusOnes > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg">
+                    <span className="badge b-mute">
                       <UserPlus className="w-3 h-3" /> +{g.plusOnes}
                     </span>
                   )}
                   {g.menuPreference && g.menuPreference !== 'STANDARD' && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg">
+                    <span className="badge b-mute">
                       <UtensilsCrossed className="w-3 h-3" /> {g.menuPreference}
                     </span>
                   )}
-                  <span className={`px-2.5 py-1 rounded-lg font-bold border ${STATUS_STYLES[g.status] || 'text-zinc-400 bg-zinc-900 border-zinc-800'}`}>
-                    {g.status}
-                  </span>
+                  <span className={`badge ${guestStatusBadgeClass(g.status)}`}>{g.status}</span>
                 </div>
               </div>
             ))}

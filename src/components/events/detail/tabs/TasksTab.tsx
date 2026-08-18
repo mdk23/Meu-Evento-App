@@ -1,5 +1,6 @@
-import { CheckSquare, Building2, Truck, AlertCircle, ListChecks } from 'lucide-react';
+import { CheckSquare, Building2, Truck, AlertCircle, ListChecks, Check } from 'lucide-react';
 import { EventServiceWithRelations } from '../types';
+import { providerTypeBadgeClass } from '../statusStyles';
 
 interface TasksTabProps {
   eventServices: EventServiceWithRelations[];
@@ -15,10 +16,10 @@ export default function TasksTab({ eventServices, onToggleTask, onOpenWorkOrder 
 
   if (servicesWithTasks.length === 0) {
     return (
-      <div className="text-center py-16 text-zinc-600 border border-dashed border-zinc-800 rounded-2xl p-8">
-        <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-30 text-emerald-400" />
-        <h3 className="text-sm font-bold text-zinc-300">No Tasks Created</h3>
-        <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
+      <div className="empty">
+        <CheckSquare className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3 }} />
+        <h3 className="h-sm">No Tasks Created</h3>
+        <p className="mini dim" style={{ marginTop: 4, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
           Click on any service in the Services tab to add work order tasks.
         </p>
       </div>
@@ -26,25 +27,25 @@ export default function TasksTab({ eventServices, onToggleTask, onOpenWorkOrder 
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+    <div className="stack" style={{ gap: 24 }}>
+      <div className="grid g3">
+        <div className="card plain kpi">
+          <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <ListChecks className="w-3 h-3" /> Total Tasks
           </span>
-          <span className="text-lg font-black text-white block">{totalTasks}</span>
+          <span className="val num">{totalTasks}</span>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1.5 block">Completed</span>
-          <span className="text-lg font-black text-emerald-400 block">{doneTasks} / {totalTasks}</span>
+        <div className="card plain kpi">
+          <span className="label">Completed</span>
+          <span className="val num" style={{ color: 'var(--ok)' }}>{doneTasks} / {totalTasks}</span>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1.5 block">Overall Progress</span>
-          <span className="text-lg font-black text-violet-400 block">{overallPercent}%</span>
+        <div className="card plain kpi">
+          <span className="label">Overall Progress</span>
+          <span className="val num" style={{ color: 'var(--accent)' }}>{overallPercent}%</span>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="stack">
         {servicesWithTasks.map((es) => {
           const isInternal = es.providerType === 'INTERNAL';
           const taskTotal = es.serviceTasks.length;
@@ -52,68 +53,66 @@ export default function TasksTab({ eventServices, onToggleTask, onOpenWorkOrder 
           const now = new Date();
 
           return (
-            <div key={es.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 ${
-                    isInternal
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                  }`}>
+            <div key={es.id} className="card plain stack">
+              <div className="between">
+                <div className="row" style={{ minWidth: 0 }}>
+                  <span className={`badge ${providerTypeBadgeClass(es.providerType)}`}>
                     {isInternal ? <Building2 className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
                   </span>
-                  <h4 className="text-white font-bold text-sm truncate">{es.service?.name || es.serviceNameSnapshot}</h4>
+                  <h4 className="h-sm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {es.service?.name || es.serviceNameSnapshot}
+                  </h4>
                 </div>
-                <button
-                  onClick={() => onOpenWorkOrder(es)}
-                  className="text-[11px] font-bold text-violet-400 hover:text-violet-300 shrink-0"
-                >
-                  Manage →
+                <button onClick={() => onOpenWorkOrder(es)} className="mini" style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
+                  Manage &rarr;
                 </button>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+              <div className="stack" style={{ gap: 4 }}>
+                <div className="between label">
                   <span>Task Progress</span>
                   <span>{taskDone} / {taskTotal}</span>
                 </div>
-                <div className="h-1 w-full bg-zinc-950 rounded-full overflow-hidden border border-zinc-850">
-                  <div
-                    className="h-full bg-violet-500 rounded-full transition-all"
-                    style={{ width: `${taskTotal > 0 ? Math.round((taskDone / taskTotal) * 100) : 0}%` }}
-                  />
+                <div className="bar">
+                  <span style={{ width: `${taskTotal > 0 ? Math.round((taskDone / taskTotal) * 100) : 0}%` }} />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="stack" style={{ gap: 8 }}>
                 {es.serviceTasks.map((t) => {
                   const isDone = t.status === 'DONE';
                   const isOverdue = !isDone && t.dueDate && new Date(t.dueDate) < now;
                   return (
-                    <div key={t.id} className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 flex justify-between items-center text-xs gap-3">
-                      <label className="flex items-center gap-3 min-w-0 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isDone}
-                          onChange={() => onToggleTask(es.id, t.id, t.status)}
-                          className="accent-violet-600 w-4 h-4 shrink-0"
-                        />
-                        <span className={`truncate ${isDone ? 'line-through text-zinc-500' : 'text-zinc-200 font-medium'}`}>
+                    <div
+                      key={t.id}
+                      className="between"
+                      style={{ background: 'var(--bg-deep)', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: 12, gap: 12 }}
+                    >
+                      <label className="row" style={{ minWidth: 0, cursor: 'pointer' }}>
+                        <span
+                          className={`chk${isDone ? ' on' : ''}`}
+                          onClick={() => onToggleTask(es.id, t.id, t.status)}
+                        >
+                          {isDone && <Check className="w-3 h-3" style={{ color: 'var(--surface-solid)' }} />}
+                        </span>
+                        <span
+                          className="mini"
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            textDecoration: isDone ? 'line-through' : 'none',
+                            color: isDone ? 'var(--ink-3)' : 'var(--ink)',
+                            fontWeight: isDone ? 400 : 600,
+                          }}
+                        >
                           {t.title}
                         </span>
                       </label>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {t.assignedTo && (
-                          <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md">
-                            {t.assignedTo}
-                          </span>
-                        )}
+                      <div className="row" style={{ flexShrink: 0, gap: 8 }}>
+                        {t.assignedTo && <span className="badge b-mute">{t.assignedTo}</span>}
                         {t.dueDate && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                            isOverdue
-                              ? 'text-red-400 bg-red-500/10 border border-red-500/20'
-                              : 'text-zinc-500 bg-zinc-900 border border-zinc-800'
-                          }`}>
+                          <span className={`badge ${isOverdue ? 'b-bad' : 'b-mute'}`}>
                             {isOverdue && <AlertCircle className="w-3 h-3" />}
                             {new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>

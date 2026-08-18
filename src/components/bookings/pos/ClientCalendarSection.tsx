@@ -82,26 +82,24 @@ export default function ClientCalendarSection({
   setCapacityOverrideReason,
 }: ClientCalendarSectionProps) {
   return (
-    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col gap-5 h-full min-h-0">
+    <section className="lg:col-span-4 card plain flex flex-col gap-5 h-full min-h-0">
       {/* STEP HEADER */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 text-xs font-black flex items-center justify-center">
-            1
-          </span>
+      <div className="between" style={{ paddingBottom: 12, borderBottom: '1px solid var(--rule)', flexShrink: 0 }}>
+        <div className="row" style={{ gap: 12 }}>
+          <span className="avatar" style={{ width: 28, height: 28, fontSize: 12 }}>1</span>
           <div>
-            <h2 className="text-sm font-bold text-white tracking-tight">Client & Calendar</h2>
-            <p className="text-[11px] text-zinc-500">Client details and event date</p>
+            <h2 className="h-sm">Client & Calendar</h2>
+            <p className="mini dim">Client details and event date</p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-5 pr-2 min-h-0">
+      <div className="flex-1 overflow-y-auto stack" style={{ gap: 20, paddingRight: 8, minHeight: 0 }}>
 
       {/* CRM SELECTION OR NEW CLIENT */}
-      <div className="space-y-2">
-        <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5 text-violet-400" />
+      <div className="field" style={{ marginBottom: 0 }}>
+        <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Users className="w-3.5 h-3.5" />
           Select a Client
         </label>
         <select
@@ -118,115 +116,97 @@ export default function ClientCalendarSection({
               }
             }
           }}
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-violet-500 transition-all font-medium"
+          className="input"
         >
           <option value="NEW">+ Register New Client</option>
           {initialClients.map(c => (
             <option key={c.id} value={c.id}>
-              👤 {c.name} ({c.phone || c.email || 'No contact info'})
+              {c.name} ({c.phone || c.email || 'No contact info'})
             </option>
           ))}
         </select>
       </div>
 
       {/* CLIENT FORM INPUTS */}
-      <div className="space-y-3 bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
-        <div>
-          <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-            Client Name
-          </label>
+      <div className="stack" style={{ gap: 12, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label className="label">Client Name</label>
           <input
             type="text"
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             placeholder="e.g. Sophia Miller"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 font-medium"
+            className="input"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-              Phone
-            </label>
+        <div className="grid g2">
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="label">Phone</label>
             <input
               type="text"
               value={clientPhone}
               onChange={(e) => setClientPhone(e.target.value)}
               placeholder="+258 84 123 4567"
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500"
+              className="input"
             />
           </div>
 
-          <div>
-            <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-              Email
-            </label>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="label">Email</label>
             <input
               type="email"
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
               placeholder="sophia@email.com"
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500"
+              className="input"
             />
           </div>
         </div>
 
-        <div>
-          <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-            Event Title
-          </label>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label className="label">Event Title</label>
           <input
             type="text"
             value={eventTitle}
             onChange={(e) => setEventTitle(e.target.value)}
             placeholder="e.g. Sophia & Arthur's Wedding"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 font-medium"
+            className="input"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-              Event Type
-            </label>
-            <select
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500"
-            >
+        <div className="grid g2">
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="label">Event Type</label>
+            <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="input">
               <option value="">Select...</option>
-              <option value="💍 Wedding">💍 Wedding</option>
-              <option value="🎂 Birthday / Anniversary">🎂 Birthday / Anniversary</option>
-              <option value="🏢 Corporate">🏢 Corporate</option>
-              <option value="🎓 Graduation">🎓 Graduation</option>
-              <option value="🎉 Social Party">🎉 Social Party</option>
+              <option value="Wedding">Wedding</option>
+              <option value="Birthday / Anniversary">Birthday / Anniversary</option>
+              <option value="Corporate">Corporate</option>
+              <option value="Graduation">Graduation</option>
+              <option value="Social Party">Social Party</option>
             </select>
           </div>
 
-          <div>
-            <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-              Guest Count
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                value={guestCount}
-                onChange={(e) => setGuestCount(Math.max(1, parseInt(e.target.value || '1', 10)))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-violet-500"
-              />
-
-            </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="label">Guest Count</label>
+            <input
+              type="number"
+              value={guestCount}
+              onChange={(e) => setGuestCount(Math.max(1, parseInt(e.target.value || '1', 10)))}
+              className="input"
+              style={{ fontWeight: 700 }}
+            />
           </div>
         </div>
 
         {/* CAPACITY WARNING */}
         {overCapacity && (
-          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-3 rounded-xl space-y-2 animate-in fade-in zoom-in duration-200">
-            <p className="font-bold flex items-center gap-1.5 text-[11px]">
+          <div className="alert warn" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+            <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12 }}>
               <AlertTriangle className="w-3.5 h-3.5" /> Guest count exceeds space capacity ({spaceCapacity})!
             </p>
-            <p className="text-[10px] text-zinc-400 leading-normal">
+            <p className="mini dim">
               Confirming this booking requires an override reason.
             </p>
             <input
@@ -234,34 +214,36 @@ export default function ClientCalendarSection({
               value={capacityOverrideReason}
               onChange={(e) => setCapacityOverrideReason(e.target.value)}
               placeholder="Reason for exceeding capacity (e.g. standing room, outdoor overflow)"
-              className="w-full bg-zinc-950 border border-amber-500/30 rounded-lg px-3 py-1.5 text-[11px] text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+              className="input"
             />
           </div>
         )}
       </div>
 
       {/* DATE & CALENDAR SCHEDULE */}
-      <div className="space-y-4 bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
-        <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
-          <h3 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-            <CalendarIcon className="w-3.5 h-3.5 text-violet-400" />
+      <div className="stack" style={{ gap: 14, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+        <div className="between" style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>
+          <h3 className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CalendarIcon className="w-3.5 h-3.5" />
             Select Event Date
           </h3>
-          <div className="flex items-center gap-1">
+          <div className="row" style={{ gap: 2 }}>
             <button
               type="button"
               onClick={() => setCalendarMonth(new Date(calendarYear, calendarMonthIndex - 1, 1))}
-              className="p-1 hover:bg-zinc-850 rounded text-zinc-400 hover:text-white"
+              className="icon-btn"
+              style={{ width: 24, height: 24 }}
             >
               &larr;
             </button>
-            <span className="text-[10px] font-black text-white px-1">
+            <span className="mini dim" style={{ padding: '0 4px', whiteSpace: 'nowrap' }}>
               {calendarMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
             </span>
             <button
               type="button"
               onClick={() => setCalendarMonth(new Date(calendarYear, calendarMonthIndex + 1, 1))}
-              className="p-1 hover:bg-zinc-850 rounded text-zinc-400 hover:text-white"
+              className="icon-btn"
+              style={{ width: 24, height: 24 }}
             >
               &rarr;
             </button>
@@ -269,14 +251,14 @@ export default function ClientCalendarSection({
         </div>
 
         {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-500 mb-1">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <span key={d}>{d}</span>)}
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' }}>
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <span key={d} className="label">{d}</span>)}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
           {calendarDaysArr.map((day, idx) => {
             if (day === null) {
-              return <div key={`empty-${idx}`} className="h-7" />;
+              return <div key={`empty-${idx}`} style={{ height: 28 }} />;
             }
 
             const dayStr = `${calendarYear}-${String(calendarMonthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -298,19 +280,28 @@ export default function ClientCalendarSection({
                   d.setDate(d.getDate() + 14);
                   setDepositDueDate(d.toISOString().split('T')[0]);
                 }}
-                className={`h-7 rounded-lg text-[10px] font-bold relative flex flex-col items-center justify-center transition-all ${isSelected
-                  ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
-                  : hasBookings
-                    ? 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-zinc-700'
-                    : 'bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-white'
-                  }`}
+                style={{
+                  height: 28,
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all var(--t-fast)',
+                  border: isSelected ? 'none' : '1px solid var(--rule)',
+                  background: isSelected ? 'var(--accent)' : hasBookings ? 'var(--surface-solid)' : 'transparent',
+                  color: isSelected ? '#fff' : 'var(--ink-2)',
+                }}
               >
                 <span>{day}</span>
                 {hasBookings && (
-                  <div className="absolute bottom-0.5 flex gap-0.5">
-                    {hasConfirmed && <span className="w-1 h-1 rounded-full bg-emerald-500" />}
-                    {hasReserved && <span className="w-1 h-1 rounded-full bg-amber-500" />}
-                    {hasWaitingList && <span className="w-1 h-1 rounded-full bg-purple-500" />}
+                  <div style={{ position: 'absolute', bottom: 2, display: 'flex', gap: 2 }}>
+                    {hasConfirmed && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : 'var(--ok)' }} />}
+                    {hasReserved && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : 'var(--warn)' }} />}
+                    {hasWaitingList && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : 'var(--accent)' }} />}
                   </div>
                 )}
               </button>
@@ -319,62 +310,50 @@ export default function ClientCalendarSection({
         </div>
 
         {/* Selected dates indicators & Conflict Alerts */}
-        <div className="pt-2 border-t border-zinc-900 space-y-2 text-xs">
-          <div className="flex justify-between items-center text-zinc-400">
+        <div className="stack" style={{ gap: 10, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+          <div className="between mini dim">
             <span>Event Date:</span>
-            <strong className="text-white">{eventDate ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-US') : 'None'}</strong>
+            <strong style={{ color: 'var(--ink)' }}>{eventDate ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-US') : 'None'}</strong>
           </div>
 
-          <div className="space-y-1.5 pt-1.5 border-t border-zinc-900/60">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+          <div className="field" style={{ marginBottom: 0, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+            <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <Clock className="w-3 h-3" /> Event Time Range
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
-              />
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
-              />
+            <div className="grid g2">
+              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="input" />
+              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="input" />
             </div>
           </div>
 
-          <div className="space-y-1 pt-1.5 border-t border-zinc-900/60">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
-              Deposit Due Date
-            </label>
+          <div className="field" style={{ marginBottom: 0, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+            <label className="label">Deposit Due Date</label>
             <input
               type="date"
               value={depositDueDate}
               onChange={(e) => setDepositDueDate(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+              className="input"
+              style={{ fontWeight: 700 }}
             />
           </div>
 
           {/* Conflict Check Warning Banner */}
           {hasConflict && (
-            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-3 rounded-xl space-y-2.5 animate-in fade-in zoom-in duration-200">
-              <p className="font-bold flex items-center gap-1.5 text-[11px]">
-                ⚠️ Date already booked for another event!
+            <div className="alert warn" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+              <p style={{ fontWeight: 700, fontSize: 12 }}>
+                Date already booked for another event!
               </p>
-              <p className="text-[10px] text-zinc-400 leading-normal">
+              <p className="mini dim">
                 A booking already exists for this date ({selectedDateBookings[0]?.client?.name || 'Client'}). You can save it to the Waiting List.
               </p>
 
-              <label className="flex items-center gap-2 cursor-pointer pt-1">
+              <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={isWaitingList}
                   onChange={(e) => setIsWaitingList(e.target.checked)}
-                  className="rounded border-zinc-800 bg-zinc-950 text-violet-500 focus:ring-violet-500"
                 />
-                <span className="text-[11px] font-bold text-white uppercase">Add to Waiting List</span>
+                <span className="label" style={{ color: 'var(--ink)' }}>Add to Waiting List</span>
               </label>
             </div>
           )}

@@ -51,58 +51,50 @@ export default function POSExtractSummarySection({
   isEdit,
 }: POSExtractSummarySectionProps) {
   return (
-    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl flex flex-col gap-5 h-full min-h-0">
+    <section className="lg:col-span-4 card plain flex flex-col gap-5 h-full min-h-0">
       <div className="flex-1 flex flex-col gap-5 overflow-hidden">
         {/* STEP HEADER */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 text-xs font-black flex items-center justify-center">
-              3
-            </span>
+        <div className="between" style={{ paddingBottom: 12, borderBottom: '1px solid var(--rule)', flexShrink: 0 }}>
+          <div className="row" style={{ gap: 12 }}>
+            <span className="avatar" style={{ width: 28, height: 28, fontSize: 12 }}>3</span>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Register Total & POS Extract</h2>
-              <p className="text-[11px] text-zinc-500">Final summary & contract creation</p>
+              <h2 className="h-sm">Register Total & POS Extract</h2>
+              <p className="mini dim">Final summary & contract creation</p>
             </div>
           </div>
 
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-zinc-950 text-violet-400 border border-zinc-800 shrink-0">
-            {selectedItems.length} item(s)
-          </span>
+          <span className="badge b-accent" style={{ flexShrink: 0 }}>{selectedItems.length} item(s)</span>
         </div>
 
         {/* CART ITEMS LIST */}
-        <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0">
+        <div className="flex-1 overflow-y-auto stack" style={{ gap: 10, paddingRight: 4, minHeight: 0 }}>
           {selectedItems.length === 0 ? (
-            <div className="text-center py-10 text-zinc-600 border border-dashed border-zinc-800 rounded-xl p-4">
-              <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-xs">No services selected yet.</p>
+            <div className="empty" style={{ padding: '28px 16px' }}>
+              <ShoppingBag className="w-8 h-8 mx-auto mb-2" style={{ opacity: 0.3 }} />
+              <p className="mini dim">No services selected yet.</p>
             </div>
           ) : (
             selectedItems.map((item) => (
               <div
                 key={item.id}
-                className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 flex justify-between items-start gap-3 shadow-sm"
+                className="between"
+                style={{ alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}
               >
-                <div className="flex-1 min-w-0">
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-900 text-violet-400 border border-zinc-800 block w-fit mb-1 truncate">
-                    {item.category === 'SPACE' ? '🏛️ VENUE' : '🎉 EVENT'} • {item.providerName}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span className="badge b-mute" style={{ marginBottom: 4 }}>
+                    {item.category === 'SPACE' ? 'Venue' : 'Event'} • {item.providerName}
                   </span>
-                  <h4 className="text-xs font-bold text-white truncate">{item.name}</h4>
-                  <p className="text-[10px] font-mono text-zinc-400 mt-0.5">
+                  <h4 style={{ fontSize: 13, fontWeight: 600 }} className="truncate">{item.name}</h4>
+                  <p className="mini dim num" style={{ marginTop: 2 }}>
                     {item.price.toLocaleString()} MT × {item.quantity} {item.priceType === 'PER_GUEST' ? 'guests' : 'units'}
                   </p>
                 </div>
 
-                <div className="text-right shrink-0 flex items-center gap-2">
-                  <span className="text-xs font-black text-violet-300">
+                <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+                  <span className="num" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
                     {item.totalPrice.toLocaleString()} MT
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeItemFromCart(item.id)}
-                    className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                    title="Remove item"
-                  >
+                  <button type="button" onClick={() => removeItemFromCart(item.id)} className="icon-btn" style={{ width: 28, height: 28, color: 'var(--bad)' }} title="Remove item">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -112,200 +104,171 @@ export default function POSExtractSummarySection({
         </div>
 
         {/* BOTTOM FIXED SUMMARY BLOCKS */}
-        <div className="shrink-0 space-y-5 pb-2">
+        <div className="stack" style={{ gap: 20, flexShrink: 0, paddingBottom: 8 }}>
           {/* BREAKDOWN SUMMARY BOX */}
-          <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-2.5 text-xs">
-            <div className="flex justify-between items-center text-zinc-300 font-medium">
-              <span className="flex items-center gap-1.5">
-                <span>🏛️</span> Venue Services:
-              </span>
-              <span className="font-bold text-white">
-                {spaceServicesTotal.toLocaleString()} MT
-              </span>
-          </div>
-
-          <div className="flex justify-between items-center text-zinc-300 font-medium">
-            <span className="flex items-center gap-1.5">
-              <span>🎉</span> Event Services:
-            </span>
-            <span className="font-bold text-white">
-              {eventServicesTotal.toLocaleString()} MT
-            </span>
-          </div>
-
-          <div className="border-t border-zinc-800/80 pt-2 space-y-1.5 text-[11px]">
-            <div className="flex justify-between items-center text-emerald-400">
-              <span>• Internal Revenue:</span>
-              <span className="font-bold">{internalRevenue.toLocaleString()} MT</span>
+          <div className="stack" style={{ gap: 10, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+            <div className="between mini">
+              <span>Venue Services:</span>
+              <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{spaceServicesTotal.toLocaleString()} MT</span>
             </div>
-            <div className="flex justify-between items-center text-blue-400">
-              <span>• External Partner Payout:</span>
-              <span className="font-bold">{externalRepass.toLocaleString()} MT</span>
+
+            <div className="between mini">
+              <span>Event Services:</span>
+              <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{eventServicesTotal.toLocaleString()} MT</span>
             </div>
-          </div>
 
-          {/* DISCOUNT INPUT */}
-          <div className="border-t border-zinc-800/80 pt-2 flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-violet-400 flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5" /> POS Discount:
-            </span>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-zinc-400">MT</span>
-              <input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value || '0')))}
-                className="w-24 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-xs text-violet-400 font-bold text-right focus:outline-none focus:border-violet-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* GRAND TOTAL BANNER */}
-        <div className="bg-gradient-to-r from-violet-950 via-zinc-900 to-violet-950 border border-violet-500/30 rounded-2xl p-5 shadow-xl text-center space-y-1">
-          <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest block">
-            Total Contract Amount
-          </span>
-          <span className="text-3xl md:text-4xl font-black text-white tracking-tight block">
-            {grandTotal.toLocaleString()} MT
-          </span>
-
-        </div>
-
-        {/* PAYMENT CONDITIONS */}
-        {isEdit ? (
-          <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-1 text-xs text-zinc-400">
-            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1">Payment Schedule</h3>
-            <p>Payment milestones are managed on the <strong className="text-white">Payments</strong> tab, not here.</p>
-          </div>
-        ) : (
-          <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 space-y-3">
-            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-              Payment Terms
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                  Deposit (%)
-                </label>
-                <select
-                  value={depositPercent}
-                  onChange={(e) => setDepositPercent(parseInt(e.target.value, 10))}
-                  disabled={paymentPlanId === 'FULL'}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white font-bold disabled:opacity-40"
-                >
-                  {DEPOSIT_PERCENT_OPTIONS.map((pct) => (
-                    <option key={pct} value={pct}>{pct}% ({(grandTotal * pct / 100).toLocaleString()} MT)</option>
-                  ))}
-                </select>
+            <div className="stack" style={{ gap: 6, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+              <div className="between mini" style={{ color: 'var(--ok)' }}>
+                <span>Internal Revenue:</span>
+                <span style={{ fontWeight: 700 }}>{internalRevenue.toLocaleString()} MT</span>
               </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                  Payment Plan
-                </label>
-                <select
-                  value={paymentPlanId}
-                  onChange={(e) => handlePlanChange(e.target.value as PaymentPlanId)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white font-bold"
-                >
-                  {PAYMENT_PLAN_OPTIONS.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label}</option>
-                  ))}
-                </select>
+              <div className="between mini" style={{ color: 'var(--info)' }}>
+                <span>External Partner Payout:</span>
+                <span style={{ fontWeight: 700 }}>{externalRepass.toLocaleString()} MT</span>
               </div>
             </div>
 
-            {/* MILESTONE LIST */}
-            <div className="space-y-2">
-              {milestones.map((m, idx) => (
-                <div key={idx} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex items-center gap-2 text-[11px]">
-                  {paymentPlanId === 'CUSTOM' ? (
-                    <>
-                      <input
-                        value={m.name}
-                        onChange={(e) => handleUpdateMilestone(idx, 'name', e.target.value)}
-                        className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-white"
-                      />
-                      <input
-                        type="date"
-                        value={m.dueDate}
-                        onChange={(e) => handleUpdateMilestone(idx, 'dueDate', e.target.value)}
-                        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-white"
-                      />
-                      <input
-                        type="number"
-                        value={m.amount}
-                        onChange={(e) => handleUpdateMilestone(idx, 'amount', e.target.value)}
-                        className="w-24 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-right text-violet-300 font-bold"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMilestone(idx)}
-                        className="text-zinc-500 hover:text-red-400 p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="flex-1 min-w-0 truncate text-zinc-300 font-medium">{m.name}</span>
-                      <span className="text-zinc-500">{new Date(m.dueDate).toLocaleDateString()}</span>
-                      <span className="font-bold text-violet-400 w-24 text-right">{m.amount.toLocaleString()} MT</span>
-                    </>
-                  )}
+            {/* DISCOUNT INPUT */}
+            <div className="between" style={{ paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+              <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Tag className="w-3.5 h-3.5" /> POS Discount
+              </span>
+              <div className="row" style={{ gap: 6 }}>
+                <span className="mini dim">MT</span>
+                <input
+                  type="number"
+                  value={discount}
+                  onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value || '0')))}
+                  className="input num"
+                  style={{ width: 96, padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* GRAND TOTAL BANNER */}
+          <div className="card kpi plain" style={{ textAlign: 'center', background: 'var(--accent-soft)', border: '1px solid var(--rule-strong)' }}>
+            <span className="label">Total Contract Amount</span>
+            <div className="val" style={{ fontSize: 32 }}>{grandTotal.toLocaleString()} MT</div>
+          </div>
+
+          {/* PAYMENT CONDITIONS */}
+          {isEdit ? (
+            <div className="stack mini dim" style={{ padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+              <h3 className="label">Payment Schedule</h3>
+              <p>Payment milestones are managed on the <strong style={{ color: 'var(--ink)' }}>Payments</strong> tab, not here.</p>
+            </div>
+          ) : (
+            <div className="stack" style={{ gap: 12, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+              <h3 className="label">Payment Terms</h3>
+
+              <div className="grid g2">
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label className="label">Deposit (%)</label>
+                  <select
+                    value={depositPercent}
+                    onChange={(e) => setDepositPercent(parseInt(e.target.value, 10))}
+                    disabled={paymentPlanId === 'FULL'}
+                    className="input"
+                    style={{ opacity: paymentPlanId === 'FULL' ? 0.4 : 1 }}
+                  >
+                    {DEPOSIT_PERCENT_OPTIONS.map((pct) => (
+                      <option key={pct} value={pct}>{pct}% ({(grandTotal * pct / 100).toLocaleString()} MT)</option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-              {paymentPlanId === 'CUSTOM' && (
-                <button
-                  type="button"
-                  onClick={handleAddMilestone}
-                  className="w-full p-2 border border-dashed border-zinc-700 hover:border-emerald-500 hover:bg-emerald-500/5 text-zinc-400 hover:text-emerald-400 rounded-lg flex items-center justify-center gap-1.5 transition-all text-[11px] font-bold"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Milestone
-                </button>
-              )}
-            </div>
 
-            {/* VALIDATION BANNER */}
-            <div className={`flex items-start gap-2 p-2.5 rounded-lg text-[11px] font-bold border ${
-              planValidation.valid
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-            }`}>
-              {planValidation.valid ? (
-                <>
-                  <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>Payment plan is balanced and valid.</span>
-                </>
-              ) : (
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              )}
-              {!planValidation.valid && (
-                <ul className="space-y-0.5">
-                  {planValidation.errors.map((err, i) => <li key={i}>{err}</li>)}
-                </ul>
-              )}
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label className="label">Payment Plan</label>
+                  <select value={paymentPlanId} onChange={(e) => handlePlanChange(e.target.value as PaymentPlanId)} className="input">
+                    {PAYMENT_PLAN_OPTIONS.map((p) => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* MILESTONE LIST */}
+              <div className="stack" style={{ gap: 8 }}>
+                {milestones.map((m, idx) => (
+                  <div key={idx} className="row mini" style={{ gap: 8, padding: 8, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-solid)' }}>
+                    {paymentPlanId === 'CUSTOM' ? (
+                      <>
+                        <input
+                          value={m.name}
+                          onChange={(e) => handleUpdateMilestone(idx, 'name', e.target.value)}
+                          className="input"
+                          style={{ flex: 1, minWidth: 0, padding: '6px 8px' }}
+                        />
+                        <input
+                          type="date"
+                          value={m.dueDate}
+                          onChange={(e) => handleUpdateMilestone(idx, 'dueDate', e.target.value)}
+                          className="input"
+                          style={{ padding: '6px 8px', width: 'auto' }}
+                        />
+                        <input
+                          type="number"
+                          value={m.amount}
+                          onChange={(e) => handleUpdateMilestone(idx, 'amount', e.target.value)}
+                          className="input num"
+                          style={{ width: 96, padding: '6px 8px', textAlign: 'right', color: 'var(--accent)', fontWeight: 700 }}
+                        />
+                        <button type="button" onClick={() => handleRemoveMilestone(idx)} className="icon-btn" style={{ width: 28, height: 28, color: 'var(--bad)' }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="truncate" style={{ flex: 1, minWidth: 0, fontWeight: 600 }}>{m.name}</span>
+                        <span className="dim">{new Date(m.dueDate).toLocaleDateString()}</span>
+                        <span className="num" style={{ fontWeight: 700, color: 'var(--accent)', width: 96, textAlign: 'right' }}>{m.amount.toLocaleString()} MT</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {paymentPlanId === 'CUSTOM' && (
+                  <button type="button" onClick={handleAddMilestone} className="btn sm" style={{ width: '100%', justifyContent: 'center', borderStyle: 'dashed' }}>
+                    <Plus className="w-3.5 h-3.5" /> Add Milestone
+                  </button>
+                )}
+              </div>
+
+              {/* VALIDATION BANNER */}
+              <div className={`alert ${planValidation.valid ? 'ok' : 'warn'}`} style={{ alignItems: 'flex-start' }}>
+                {planValidation.valid ? (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>Payment plan is balanced and valid.</span>
+                  </>
+                ) : (
+                  <AlertTriangle className="w-3.5 h-3.5" style={{ flexShrink: 0, marginTop: 2 }} />
+                )}
+                {!planValidation.valid && (
+                  <ul className="stack" style={{ gap: 2 }}>
+                    {planValidation.errors.map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       </div>
 
       {/* FINAL ACTION BUTTONS */}
-      <div className="space-y-2.5 pt-2">
+      <div style={{ paddingTop: 8 }}>
         <button
           type="button"
           disabled={submitting || (!isEdit && !planValidation.valid)}
           onClick={() => handleSubmitPOS()}
-          className="w-full bg-violet-600 hover:bg-violet-500 text-white py-3.5 px-4 rounded-xl text-xs font-bold transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 border border-violet-500/30 disabled:opacity-50"
+          className="btn primary"
+          style={{ width: '100%', justifyContent: 'center', padding: '14px 16px' }}
         >
           {submitting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <>
-              <CheckCircle2 className="w-4 h-4 text-violet-200" />
+              <CheckCircle2 className="w-4 h-4" />
               {isEdit ? 'Update Booking' : 'Save Booking'}
             </>
           )}

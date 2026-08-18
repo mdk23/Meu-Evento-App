@@ -100,92 +100,77 @@ export default function FinanceClient({
         </Topbar>
 
         {/* WORKSPACE */}
-        <div className="flex-1 overflow-auto p-8 space-y-8">
-          
+        <div className="flex-1 overflow-auto page stack" style={{ gap: 28 }}>
+
           {/* PROFIT AUDIT SUMMARY METRICS */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Total Revenue</span>
-              <span className="text-2xl font-black text-emerald-400">{initialSummary.totalRevenue.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Contracted service value</span>
+          <div className="grid g4" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+            <div className="card kpi plain f-in d1">
+              <span className="label">Total Revenue</span>
+              <div className="val" style={{ fontSize: 24, color: 'var(--ok)' }}>{initialSummary.totalRevenue.toLocaleString()} MT</div>
+              <div className="delta dim">Contracted service value</div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Total Collected</span>
-              <span className="text-2xl font-black text-white">{initialSummary.totalCollected.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Cash actually received</span>
+            <div className="card kpi plain f-in d1">
+              <span className="label">Total Collected</span>
+              <div className="val" style={{ fontSize: 24 }}>{initialSummary.totalCollected.toLocaleString()} MT</div>
+              <div className="delta dim">Cash actually received</div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Pending Invoices</span>
-              <span className="text-2xl font-black text-amber-400">{initialSummary.pendingInvoicesAmount.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Awaiting collection</span>
+            <div className="card kpi plain f-in d2">
+              <span className="label">Pending Invoices</span>
+              <div className="val" style={{ fontSize: 24, color: 'var(--warn)' }}>{initialSummary.pendingInvoicesAmount.toLocaleString()} MT</div>
+              <div className="delta dim">Awaiting collection</div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Internal Cost</span>
-              <span className="text-2xl font-black text-blue-400">{initialSummary.internalCost.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">In-house service costs</span>
+            <div className="card kpi plain f-in d2">
+              <span className="label">Internal Cost</span>
+              <div className="val" style={{ fontSize: 24, color: 'var(--info)' }}>{initialSummary.internalCost.toLocaleString()} MT</div>
+              <div className="delta dim">In-house service costs</div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Supplier Cost</span>
-              <span className="text-2xl font-black text-red-400">{initialSummary.supplierCost.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Outsourced supplier costs</span>
+            <div className="card kpi plain f-in d3">
+              <span className="label">Supplier Cost</span>
+              <div className="val" style={{ fontSize: 24, color: 'var(--bad)' }}>{initialSummary.supplierCost.toLocaleString()} MT</div>
+              <div className="delta dim">Outsourced supplier costs</div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Net Business Profit</span>
-              <span className="text-2xl font-black text-violet-400">{initialSummary.netProfit.toLocaleString()} MT</span>
-              <span className="text-[11px] text-zinc-500 mt-1 block">Revenue minus total costs</span>
+            <div className="card kpi plain f-in d3">
+              <span className="label">Net Business Profit</span>
+              <div className="val" style={{ fontSize: 24, color: 'var(--accent)' }}>{initialSummary.netProfit.toLocaleString()} MT</div>
+              <div className="delta dim">Revenue minus total costs</div>
             </div>
           </div>
 
           {/* TAB SELECTION */}
-          <div className="flex gap-4 border-b border-zinc-900 pb-3">
-            <button
-              onClick={() => setActiveTab('invoices')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'invoices' ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-400'
-              }`}
-            >
+          <div className="tabs">
+            <button onClick={() => setActiveTab('invoices')} className={`tab ${activeTab === 'invoices' ? 'active' : ''}`}>
               Client Invoices ({invoices.length})
             </button>
-            <button
-              onClick={() => setActiveTab('expenses')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'expenses' ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-400'
-              }`}
-            >
+            <button onClick={() => setActiveTab('expenses')} className={`tab ${activeTab === 'expenses' ? 'active' : ''}`}>
               Supplier & Operational Expenses ({expenses.length})
             </button>
           </div>
 
           {/* INVOICES LIST */}
           {activeTab === 'invoices' && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-              <h3 className="text-white font-bold text-base">Client Invoices</h3>
-              <div className="space-y-3">
+            <div className="card plain stack">
+              <h3 className="h-sm">Client Invoices</h3>
+              <div className="stack" style={{ gap: 10 }}>
                 {invoices.map((inv) => (
-                  <div key={inv.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
+                  <div key={inv.id} className="between" style={{ padding: 14, borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--rule)' }}>
                     <div>
-                      <h4 className="text-white font-bold text-sm">{inv.booking?.client?.name || 'Client'}</h4>
-                      <p className="text-zinc-500">
+                      <h4 style={{ fontWeight: 600, fontSize: 14 }}>{inv.booking?.client?.name || 'Client'}</h4>
+                      <p className="mini dim">
                         Due: {new Date(inv.dueDate).toLocaleDateString()}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <span className="text-white font-black text-base">{inv.amount.toLocaleString()} MT</span>
+                    <div className="row" style={{ gap: 16 }}>
+                      <span className="num" style={{ fontWeight: 700, fontSize: 15 }}>{inv.amount.toLocaleString()} MT</span>
                       {inv.status === 'PAID' ? (
-                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-bold text-[10px]">
-                          PAID
-                        </span>
+                        <span className="badge b-ok">Paid</span>
                       ) : (
-                        <button
-                          onClick={() => handleUpdateStatus('INVOICE', inv.id, 'PAID')}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px]"
-                        >
+                        <button onClick={() => handleUpdateStatus('INVOICE', inv.id, 'PAID')} className="btn primary sm">
                           Mark Paid
                         </button>
                       )}
@@ -198,29 +183,24 @@ export default function FinanceClient({
 
           {/* EXPENSES LIST */}
           {activeTab === 'expenses' && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-              <h3 className="text-white font-bold text-base">Supplier Expenses & Operational Costs</h3>
-              <div className="space-y-3">
+            <div className="card plain stack">
+              <h3 className="h-sm">Supplier Expenses & Operational Costs</h3>
+              <div className="stack" style={{ gap: 10 }}>
                 {expenses.map((exp) => (
-                  <div key={exp.id} className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
+                  <div key={exp.id} className="between" style={{ padding: 14, borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--rule)' }}>
                     <div>
-                      <h4 className="text-white font-bold text-sm">{exp.description}</h4>
-                      <p className="text-zinc-500">
+                      <h4 style={{ fontWeight: 600, fontSize: 14 }}>{exp.description}</h4>
+                      <p className="mini dim">
                         Supplier: {exp.supplier?.name || 'N/A'} • Category: {exp.category}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <span className="text-red-400 font-black text-base">{exp.amount.toLocaleString()} MT</span>
+                    <div className="row" style={{ gap: 16 }}>
+                      <span className="num" style={{ fontWeight: 700, fontSize: 15, color: 'var(--bad)' }}>{exp.amount.toLocaleString()} MT</span>
                       {exp.status === 'PAID' ? (
-                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-bold text-[10px]">
-                          PAID
-                        </span>
+                        <span className="badge b-ok">Paid</span>
                       ) : (
-                        <button
-                          onClick={() => handleUpdateStatus('EXPENSE', exp.id, 'PAID')}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px]"
-                        >
+                        <button onClick={() => handleUpdateStatus('EXPENSE', exp.id, 'PAID')} className="btn primary sm">
                           Mark Paid
                         </button>
                       )}
@@ -236,39 +216,30 @@ export default function FinanceClient({
 
       {/* CREATE FINANCIAL RECORD MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
-              <h3 className="text-white font-bold text-base flex items-center gap-2">
-                <Plus className="w-5 h-5 text-violet-400" /> New Financial Transaction
+        <div className="modal-scrim">
+          <div className="modal">
+            <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
+              <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Plus className="w-5 h-5" style={{ color: 'var(--accent)' }} /> New Financial Transaction
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white">
-                <X className="w-5 h-5" />
+              <button onClick={() => setIsModalOpen(false)} className="icon-btn">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRecord} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Transaction Type</label>
-                <select
-                  value={recordType}
-                  onChange={e => setRecordType(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                >
+            <form onSubmit={handleCreateRecord} className="stack" style={{ marginTop: 20 }}>
+              <div className="field">
+                <label className="label">Transaction Type</label>
+                <select value={recordType} onChange={e => setRecordType(e.target.value)} className="input">
                   <option value="INVOICE">CLIENT INVOICE (INCOME)</option>
                   <option value="EXPENSE">SUPPLIER EXPENSE (COST)</option>
                 </select>
               </div>
 
               {recordType === 'INVOICE' ? (
-                <div>
-                  <label className="text-xs text-zinc-400 font-bold block mb-1">Select Booking</label>
-                  <select
-                    required
-                    value={bookingId}
-                    onChange={e => setBookingId(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                  >
+                <div className="field">
+                  <label className="label">Select Booking</label>
+                  <select required value={bookingId} onChange={e => setBookingId(e.target.value)} className="input">
                     <option value="">-- Choose Booking --</option>
                     {bookings.map((b) => (
                       <option key={b.id} value={b.id}>{b.client?.name} ({new Date(b.eventDate).toLocaleDateString()})</option>
@@ -277,24 +248,20 @@ export default function FinanceClient({
                 </div>
               ) : (
                 <>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Expense Description</label>
+                  <div className="field">
+                    <label className="label">Expense Description</label>
                     <input
                       required
                       value={description}
                       onChange={e => setDescription(e.target.value)}
                       placeholder="e.g. Photo Package Supplier Fee"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
+                      className="input"
                     />
                   </div>
 
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Select Supplier Partner</label>
-                    <select
-                      value={supplierId}
-                      onChange={e => setSupplierId(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    >
+                  <div className="field">
+                    <label className="label">Select Supplier Partner</label>
+                    <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="input">
                       <option value="">-- Optional Supplier --</option>
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
@@ -304,31 +271,23 @@ export default function FinanceClient({
                 </>
               )}
 
-              <div>
-                <label className="text-xs text-zinc-400 font-bold block mb-1">Amount (MT)</label>
+              <div className="field">
+                <label className="label">Amount (MT)</label>
                 <input
                   type="number"
                   required
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
                   placeholder="e.g. 25000"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
+                  className="input"
                 />
               </div>
 
-              <div className="flex gap-3 justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold"
-                >
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 12 }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn ghost">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold flex items-center gap-2"
-                >
+                <button type="submit" disabled={submitting} className="btn primary">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Record'}
                 </button>
               </div>

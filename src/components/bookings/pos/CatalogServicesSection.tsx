@@ -42,16 +42,14 @@ export default function CatalogServicesSection({
   );
 
   return (
-    <section className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col gap-5 h-full min-h-0">
+    <section className="lg:col-span-4 card plain flex flex-col gap-5 h-full min-h-0">
       {/* STEP HEADER */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 text-xs font-black flex items-center justify-center">
-            2
-          </span>
+      <div className="between" style={{ paddingBottom: 12, borderBottom: '1px solid var(--rule)', flexShrink: 0 }}>
+        <div className="row" style={{ gap: 12 }}>
+          <span className="avatar" style={{ width: 28, height: 28, fontSize: 12 }}>2</span>
           <div>
-            <h2 className="text-sm font-bold text-white tracking-tight">Service Catalog</h2>
-            <p className="text-[11px] text-zinc-500">Venue Services & Event Services</p>
+            <h2 className="h-sm">Service Catalog</h2>
+            <p className="mini dim">Venue Services & Event Services</p>
           </div>
         </div>
       </div>
@@ -59,97 +57,66 @@ export default function CatalogServicesSection({
       <div className="flex-1 flex flex-col gap-5 overflow-hidden">
         {/* SEARCH BAR */}
         <div className="relative shrink-0">
-          <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search services (e.g. buffet, lighting, generator, DJ...)"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all font-medium"
+            className="input"
+            style={{ paddingLeft: 34 }}
           />
         </div>
 
         {/* CATEGORY TABS */}
-        <div className="flex gap-1.5 bg-zinc-950 p-1 rounded-xl border border-zinc-800 shrink-0">
+        <div className="tabs" style={{ border: 'none', margin: 0, gap: 6 }}>
           <button
             type="button"
             onClick={() => setCategoryFilter('ALL')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center ${categoryFilter === 'ALL'
-              ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-sm'
-              : 'text-zinc-400 hover:text-white'
-              }`}
+            className={`tab ${categoryFilter === 'ALL' ? 'active' : ''}`}
           >
-            🌟 All ({catalogServices.length})
+            All ({catalogServices.length})
           </button>
 
           <button
             type="button"
             onClick={() => setCategoryFilter('SPACE')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center ${categoryFilter === 'SPACE'
-              ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-sm'
-              : 'text-zinc-400 hover:text-white'
-              }`}
+            className={`tab ${categoryFilter === 'SPACE' ? 'active' : ''}`}
           >
-            🏛️ Venue ({catalogServices.filter(s => s.category === 'SPACE').length})
+            Venue ({catalogServices.filter(s => s.category === 'SPACE').length})
           </button>
 
           <button
             type="button"
             onClick={() => setCategoryFilter('EVENT')}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all text-center ${categoryFilter === 'EVENT'
-              ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30 shadow-sm'
-              : 'text-zinc-400 hover:text-white'
-              }`}
+            className={`tab ${categoryFilter === 'EVENT' ? 'active' : ''}`}
           >
-            🎉 Event ({catalogServices.filter(s => s.category === 'EVENT').length})
+            Event ({catalogServices.filter(s => s.category === 'EVENT').length})
           </button>
         </div>
 
         {/* ORIGIN SUB-FILTERS */}
-        <div className="flex items-center gap-2 text-[11px] text-zinc-400 shrink-0">
-          <span className="font-bold text-zinc-500 shrink-0">Source:</span>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            <button
-              type="button"
-              onClick={() => setOriginFilter('ALL')}
-              className={`px-2.5 py-1 rounded-full font-bold transition-all shrink-0 ${originFilter === 'ALL'
-                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-            >
+        <div className="row mini dim" style={{ gap: 8, flexShrink: 0 }}>
+          <span className="label" style={{ flexShrink: 0 }}>Source:</span>
+          <div className="row" style={{ gap: 6, overflowX: 'auto' }}>
+            <button type="button" onClick={() => setOriginFilter('ALL')} className={`pill${originFilter === 'ALL' ? ' active' : ''}`}>
               All
             </button>
-
-            <button
-              type="button"
-              onClick={() => setOriginFilter('INTERNAL')}
-              className={`px-2.5 py-1 rounded-full font-bold transition-all shrink-0 ${originFilter === 'INTERNAL'
-                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-            >
-              🏛️ Internal
+            <button type="button" onClick={() => setOriginFilter('INTERNAL')} className={`pill${originFilter === 'INTERNAL' ? ' active' : ''}`}>
+              Internal
             </button>
-
-            <button
-              type="button"
-              onClick={() => setOriginFilter('EXTERNAL')}
-              className={`px-2.5 py-1 rounded-full font-bold transition-all shrink-0 ${originFilter === 'EXTERNAL'
-                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-            >
-              🤝 External Partners
+            <button type="button" onClick={() => setOriginFilter('EXTERNAL')} className={`pill${originFilter === 'EXTERNAL' ? ' active' : ''}`}>
+              External Partners
             </button>
           </div>
         </div>
 
         {/* SERVICES SCROLLABLE CARDS */}
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+        <div className="flex-1 overflow-y-auto stack" style={{ gap: 10, paddingRight: 4 }}>
           {paginatedCatalog.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500">
-              <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p className="text-xs">No services found for this filter.</p>
+            <div className="empty" style={{ padding: '32px 16px' }}>
+              <Search className="w-8 h-8 mx-auto mb-2" style={{ opacity: 0.4 }} />
+              <p className="mini dim">No services found for this filter.</p>
             </div>
           ) : (
             paginatedCatalog.map((service) => {
@@ -158,39 +125,36 @@ export default function CatalogServicesSection({
               return (
                 <div
                   key={service.id}
-                  className={`p-4 rounded-xl border transition-all ${isInCart
-                    ? 'bg-violet-600/10 border-violet-500/40 shadow-md'
-                    : 'bg-zinc-950 border-zinc-800/80 hover:border-zinc-700'
-                    }`}
+                  style={{
+                    padding: 14,
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${isInCart ? 'var(--accent)' : 'var(--rule)'}`,
+                    background: isInCart ? 'var(--accent-soft)' : 'var(--surface-2)',
+                    transition: 'all var(--t-fast)',
+                  }}
                 >
-                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-300 border border-violet-500/20">
-                      {service.category === 'SPACE' ? '🏛️ Venue Service' : '🎉 Event Service'}
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <span className="badge b-accent">
+                      {service.category === 'SPACE' ? 'Venue Service' : 'Event Service'}
                     </span>
-
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${service.providerType === 'INTERNAL'
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                      }`}>
-                      {service.providerType === 'INTERNAL' ? '🏛️ Internal' : `🤝 ${service.providerName || 'External Partner'}`}
+                    <span className={`badge ${service.providerType === 'INTERNAL' ? 'b-ok' : 'b-info'}`}>
+                      {service.providerType === 'INTERNAL' ? 'Internal' : service.providerName || 'External Partner'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-start gap-2 mb-1.5">
-                    <h3 className="text-xs font-bold text-white leading-snug">
-                      {service.name}
-                    </h3>
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-black text-violet-400 block">
+                  <div className="between" style={{ alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                    <h3 style={{ fontSize: 13, fontWeight: 600 }}>{service.name}</h3>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <span className="num" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', display: 'block' }}>
                         {service.price.toLocaleString()} MT
                       </span>
-                      <span className="text-[9px] font-bold text-zinc-500 uppercase">
+                      <span className="label">
                         {service.priceType === 'PER_GUEST' ? 'Per Guest' : service.priceType === 'HOURLY' ? 'Hourly' : 'Fixed Fee'}
                       </span>
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-zinc-400 line-clamp-2 mb-3 leading-relaxed">
+                  <p className="mini dim" style={{ marginBottom: 10 }}>
                     {service.description}
                   </p>
 
@@ -198,18 +162,15 @@ export default function CatalogServicesSection({
                     <button
                       type="button"
                       onClick={() => toggleCatalogService(service)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${isInCart
-                        ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700'
-                        }`}
+                      className={`btn sm ${isInCart ? '' : 'primary'}`}
                     >
                       {isInCart ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" /> Added
+                          <Check className="w-3.5 h-3.5" /> Added
                         </>
                       ) : (
                         <>
-                          <Plus className="w-3.5 h-3.5 text-violet-400" /> Add
+                          <Plus className="w-3.5 h-3.5" /> Add
                         </>
                       )}
                     </button>
@@ -222,24 +183,14 @@ export default function CatalogServicesSection({
 
         {/* PAGINATION CONTROLS */}
         {totalPages >= 1 && (
-          <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 shrink-0">
-            <button
-              type="button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 transition-all"
-            >
+          <div className="between" style={{ paddingTop: 12, borderTop: '1px solid var(--rule)', flexShrink: 0 }}>
+            <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="btn sm">
               Previous
             </button>
-            <span className="text-[11px] font-medium text-zinc-400">
+            <span className="mini dim">
               Page {currentPage} of {totalPages}
             </span>
-            <button
-              type="button"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 transition-all"
-            >
+            <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="btn sm">
               Next
             </button>
           </div>
