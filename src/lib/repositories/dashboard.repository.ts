@@ -28,8 +28,10 @@ export class DashboardRepository {
       prisma.paymentTransaction.aggregate({
         _sum: { amount: true },
       }),
-      // 2. PostgreSQL DB aggregate for Pending Amount
+      // 2. PostgreSQL DB aggregate for Pending Amount — active plan only, so a superseded plan
+      // version's milestones don't get double-counted alongside its replacement.
       prisma.scheduledPayment.aggregate({
+        where: { plan: { active: true } },
         _sum: { amount: true, paidAmount: true },
       }),
       // 3. Revenue/cost source of truth (Phase 9): every EventService's selling price and cost fields

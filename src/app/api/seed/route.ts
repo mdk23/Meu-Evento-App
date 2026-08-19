@@ -363,10 +363,14 @@ export async function POST() {
 
     // Create Invoice & Expense for Booking 1
     const totalSelling1 = 60000 + 112500 + 35000 + 25000; // 232,500 MT
+    const plan1 = await prisma.paymentPlan.create({
+      data: { bookingId: booking1.id, version: 1, active: true },
+    });
     await prisma.scheduledPayment.create({
       data: {
         tenantId: tenant.id,
         bookingId: booking1.id,
+        planId: plan1.id,
         name: 'Full Payment',
         amount: totalSelling1,
         paidAmount: totalSelling1,
@@ -445,10 +449,14 @@ export async function POST() {
       },
     });
 
+    const plan2 = await prisma.paymentPlan.create({
+      data: { bookingId: booking2.id, version: 1, active: true },
+    });
     await prisma.scheduledPayment.create({
       data: {
         tenantId: tenant.id,
         bookingId: booking2.id,
+        planId: plan2.id,
         name: 'Initial Deposit',
         amount: 75000,
         paidAmount: 0,

@@ -35,6 +35,7 @@ const BOOKING_LIST_SELECT = {
     },
   },
   scheduledPayments: {
+    where: { plan: { active: true } },
     select: { id: true, name: true, amount: true, paidAmount: true, status: true, description: true, dueDate: true },
   },
 } satisfies Prisma.BookingSelect;

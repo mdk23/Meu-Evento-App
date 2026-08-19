@@ -11,7 +11,7 @@ export async function GET(
   try {
     const { id } = await params;
     const scheduledPayments = await prisma.scheduledPayment.findMany({
-      where: { bookingId: id },
+      where: { bookingId: id, plan: { active: true } },
       orderBy: [{ dueDate: 'asc' }, { orderNumber: 'asc' }, { createdAt: 'asc' }],
       include: { transactions: true }
     });

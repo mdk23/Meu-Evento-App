@@ -19,8 +19,15 @@ function sched(partial: Partial<ScheduledPaymentInput> & { amount: number }): Sc
   };
 }
 
-function tx(amount: number): TransactionInput {
-  return { amount };
+let txSeq = 0;
+function tx(amount: number, partial?: Partial<TransactionInput>): TransactionInput {
+  txSeq += 1;
+  return {
+    id: partial?.id ?? `txn-${txSeq}`,
+    amount,
+    date: partial?.date ?? new Date(2026, 0, txSeq),
+    createdAt: partial?.createdAt ?? new Date(2026, 0, txSeq),
+  };
 }
 
 describe('allocatePayments', () => {
@@ -107,8 +114,8 @@ describe('allocatePayments', () => {
     expect(revisedResult.schedules.find((s) => s.id === 'p3')!.status).toBe(PaymentStatus.PENDING);
     expect(revisedResult.schedules.find((s) => s.id === 'p3')!.allocatedAmount.toNumber()).toBe(0);
 
-    // The transaction itself was never read/written by this function — same object in, untouched.
-    expect(transactions).toEqual([{ amount: 80000 }]);
+    // The transaction itself was never read/written by this function — same amount in, untouched.
+    expect(transactions[0].amount).toBe(80000);
   });
 
   it('TEST 7 — one payment split across milestones in order', () => {
@@ -173,5 +180,34 @@ describe('allocatePayments', () => {
       now: NOW,
     });
     expect(status).toBe(PaymentStatus.PENDING);
+  });
+
+  it('TEST 10 — a single transaction spanning two schedules produces two allocation lines', () => {
+    const deposit = sched({ id: 'deposit', amount: 66250, dueDate: new Date('2026-06-10'), orderNumber: 1 });
+    const payment2 = sched({ id: 'payment2', amount: 33125, dueDate: new Date('2026-06-20'), orderNumber: 2 });
+    const payment = tx(80000, { id: 'txn-a' });
+    const { allocationLines } = allocatePayments([deposit, payment2], [payment], NOW);
+
+    expect(allocationLines).toHaveLength(2);
+    expect(allocationLines.find((l) => l.scheduledPaymentId === 'deposit')!.amount.toNumber()).toBe(66250);
+    expect(allocationLines.find((l) => l.scheduledPaymentId === 'payment2')!.amount.toNumber()).toBe(13750);
+    expect(allocationLines.every((l) => l.transactionId === 'txn-a')).toBe(true);
+  });
+
+  it('TEST 11 — multiple transactions attribute their own lines, applied in date order', () => {
+    const deposit = sched({ id: 'deposit', amount: 50000, dueDate: new Date('2026-06-01'), orderNumber: 1 });
+    const p2 = sched({ id: 'p2', amount: 50000, dueDate: new Date('2026-06-10'), orderNumber: 2 });
+    // Passed out of date order — the function must sort by `date`, not array position.
+    const second = tx(30000, { id: 'txn-second', date: new Date('2026-05-02') });
+    const first = tx(40000, { id: 'txn-first', date: new Date('2026-05-01') });
+    const { allocationLines } = allocatePayments([deposit, p2], [second, first], NOW);
+
+    // txn-first (40,000) fully covers the deposit; txn-second (30,000) finishes the deposit's
+    // remaining 10,000 then spills 20,000 into p2.
+    const firstLines = allocationLines.filter((l) => l.transactionId === 'txn-first');
+    const secondLines = allocationLines.filter((l) => l.transactionId === 'txn-second');
+    expect(firstLines.reduce((s, l) => s + l.amount.toNumber(), 0)).toBe(40000);
+    expect(secondLines.find((l) => l.scheduledPaymentId === 'deposit')!.amount.toNumber()).toBe(10000);
+    expect(secondLines.find((l) => l.scheduledPaymentId === 'p2')!.amount.toNumber()).toBe(20000);
   });
 });

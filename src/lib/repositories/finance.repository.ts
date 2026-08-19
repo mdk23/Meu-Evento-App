@@ -18,7 +18,10 @@ export class FinanceRepository {
       prisma.paymentTransaction.aggregate({
         _sum: { amount: true },
       }),
+      // Active plan only, so a superseded plan version's milestones aren't double-counted
+      // alongside its replacement.
       prisma.scheduledPayment.aggregate({
+        where: { plan: { active: true } },
         _sum: { amount: true, paidAmount: true },
       }),
       // Revenue/cost source of truth (Phase 9)

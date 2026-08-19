@@ -28,7 +28,7 @@ export default async function EditBookingPage({
       eventServices: {
         include: { service: true }
       },
-      scheduledPayments: true,
+      scheduledPayments: { where: { plan: { active: true } } },
     }
   });
 

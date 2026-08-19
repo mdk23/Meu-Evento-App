@@ -47,7 +47,7 @@ export async function GET() {
     const paidTransactions = await prisma.paymentTransaction.findMany();
     const revenue = toDisplayNumber(sumMoney(paidTransactions.map((pt) => pt.amount)));
 
-    const scheduledPayments = await prisma.scheduledPayment.findMany();
+    const scheduledPayments = await prisma.scheduledPayment.findMany({ where: { plan: { active: true } } });
     const pendingAmount = toDisplayNumber(
       sumMoney(scheduledPayments.map((sp) => subtractMoneyFloor0(sp.amount, sp.paidAmount)))
     );

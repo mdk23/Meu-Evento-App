@@ -5,6 +5,7 @@ import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-con
 import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
 import { validatePaymentPlan, MilestoneDraft } from '@/lib/payment-plan';
+import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
 export async function GET() {
   try {
@@ -17,7 +18,7 @@ export async function GET() {
             eventServices: { include: { service: true, supplier: true } },
           },
         },
-        scheduledPayments: true,
+        scheduledPayments: { where: { plan: { active: true } } },
       },
     });
 
@@ -232,39 +233,49 @@ export async function POST(request: Request) {
         }
       }
 
-      // 4. Create Scheduled Payments from the submitted milestone plan. The first milestone is
-      // the deposit — mark it PAID (with a matching transaction) when the booking is being
-      // confirmed with a paid deposit, matching the previous behavior.
-      for (let i = 0; i < milestoneList.length; i++) {
-        const m = milestoneList[i];
-        const isDeposit = i === 0;
-        const milestoneStatus = isDeposit && finalStatus === BookingStatus.CONFIRMED ? 'PAID' : 'PENDING';
-
-        const scheduledPayment = await tx.scheduledPayment.create({
-          data: {
-            tenantId: tenant.id,
-            bookingId: booking.id,
-            name: m.name,
-            amount: m.amount,
-            paidAmount: milestoneStatus === 'PAID' ? m.amount : 0,
-            status: milestoneStatus,
-            dueDate: new Date(m.dueDate),
-          },
+      // 4. Create the initial Payment Plan (version 1) and its Scheduled Payments from the
+      // submitted milestone list. The first milestone is the deposit — recording a matching
+      // PaymentTransaction when the booking is confirmed with a paid deposit, matching previous
+      // behavior. `paidAmount`/`status` are never set directly here — `syncScheduledPaymentAllocations`
+      // below is the single source of truth for that cache, and also persists the matching
+      // `PaymentAllocation` rows for this initial deposit.
+      if (milestoneList.length > 0) {
+        const plan = await tx.paymentPlan.create({
+          data: { bookingId: booking.id, version: 1, active: true },
         });
 
-        if (milestoneStatus === 'PAID') {
-          await tx.paymentTransaction.create({
+        for (let i = 0; i < milestoneList.length; i++) {
+          const m = milestoneList[i];
+          const isDeposit = i === 0;
+          const depositIsPaid = isDeposit && finalStatus === BookingStatus.CONFIRMED;
+
+          const scheduledPayment = await tx.scheduledPayment.create({
             data: {
               tenantId: tenant.id,
               bookingId: booking.id,
-              scheduledPaymentId: scheduledPayment.id,
+              planId: plan.id,
+              name: m.name,
               amount: m.amount,
-              method: 'CASH', // Defaulting for POS, can be configured later
-              recordedBy: 'POS Terminal',
-              notes: 'Deposit paid at booking',
-            }
+              dueDate: new Date(m.dueDate),
+            },
           });
+
+          if (depositIsPaid) {
+            await tx.paymentTransaction.create({
+              data: {
+                tenantId: tenant.id,
+                bookingId: booking.id,
+                scheduledPaymentId: scheduledPayment.id,
+                amount: m.amount,
+                method: 'CASH', // Defaulting for POS, can be configured later
+                recordedBy: 'POS Terminal',
+                notes: 'Deposit paid at booking',
+              }
+            });
+          }
         }
+
+        await syncScheduledPaymentAllocations(tx, booking.id);
       }
 
       return { booking, event };

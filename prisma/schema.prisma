@@ -193,6 +193,7 @@ model Booking {
   space               Space                @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   event               Event?
   eventServices       EventService[]
+  paymentPlans        PaymentPlan[]
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
 
@@ -509,10 +510,31 @@ model Guest {
   @@map("guests")
 }
 
+/// A version of a booking's payment schedule. Only one plan per booking is ever `active` — the
+/// one the allocation engine currently applies transactions against. Editing the schedule creates
+/// a new version rather than mutating rows in place, so old plans stay as permanent history
+/// (never deleted) — "a plan change writes a new version and re-applies history."
+model PaymentPlan {
+  id        String   @id @default(cuid())
+  bookingId String
+  version   Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  booking           Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  scheduledPayments ScheduledPayment[]
+
+  @@unique([bookingId, version])
+  @@index([bookingId])
+  @@index([active])
+  @@map("payment_plans")
+}
+
 model ScheduledPayment {
   id          String        @id @default(cuid())
   tenantId    String
   bookingId   String
+  planId      String
   name        String
   amount      Decimal       @db.Decimal(12, 2)
   /// Cached/derived — recalculated from the payment allocation engine (src/lib/payment-allocation.ts)
@@ -530,9 +552,12 @@ model ScheduledPayment {
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking      Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  plan         PaymentPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
   transactions PaymentTransaction[]
+  allocations  PaymentAllocation[]
 
   @@index([bookingId])
+  @@index([planId])
   @@map("scheduled_payments")
 }
 
@@ -549,12 +574,33 @@ model PaymentTransaction {
   date               DateTime      @default(now())
   createdAt          DateTime      @default(now())
 
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking          Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  scheduledPayment ScheduledPayment? @relation(fields: [scheduledPaymentId], references: [id], onDelete: SetNull)
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking          Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  scheduledPayment ScheduledPayment?   @relation(fields: [scheduledPaymentId], references: [id], onDelete: SetNull)
+  allocations      PaymentAllocation[]
 
   @@index([bookingId])
   @@map("payment_transactions")
+}
+
+/// Persisted breakdown of how much of a `PaymentTransaction` was applied to a given
+/// `ScheduledPayment` row. Recomputed (deleted and rewritten) by
+/// `syncScheduledPaymentAllocations` every time a payment is recorded/removed or the plan
+/// changes — never hand-edited, since `PaymentTransaction` itself stays immutable and the
+/// cascade-allocation algorithm is the single source of truth for how money is split.
+model PaymentAllocation {
+  id                 String   @id @default(cuid())
+  transactionId      String
+  scheduledPaymentId String
+  amount             Decimal  @db.Decimal(12, 2)
+  createdAt          DateTime @default(now())
+
+  transaction      PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  scheduledPayment ScheduledPayment   @relation(fields: [scheduledPaymentId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([scheduledPaymentId])
+  @@map("payment_allocations")
 }
 
 model Expense {

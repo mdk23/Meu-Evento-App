@@ -30,7 +30,7 @@ export class ClientRepository {
           bookings: {
             select: {
               scheduledPayments: {
-                where: { status: 'PAID' },
+                where: { status: 'PAID', plan: { active: true } },
                 select: { amount: true },
               },
             },

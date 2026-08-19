@@ -304,7 +304,9 @@
   flex-shrink: 0;
   position: sticky;
   top: 0;
-  z-index: 1;
+  /* Above `.aurelia-content` (also z-index: 1) so the collapse toggle, which pokes out past the
+     sidebar's right edge, isn't painted over by the content pane sitting later in DOM order. */
+  z-index: 2;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -314,6 +316,18 @@
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   border-right: 1px solid var(--rule);
+  transition: width var(--t-fast);
+}
+.sidebar.is-collapsed {
+  width: 84px;
+}
+.sidebar.is-collapsed .brand {
+  justify-content: center;
+}
+.nav-item.is-collapsed {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 .brand {
   display: flex;

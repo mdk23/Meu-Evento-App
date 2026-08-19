@@ -70,9 +70,9 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className={`sidebar relative transition-all duration-300 ${isCollapsed ? 'w-20' : ''}`}>
+    <aside className={`sidebar relative${isCollapsed ? ' is-collapsed' : ''}`}>
       <Link href="/">
-        <div className={`brand cursor-pointer ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className="brand cursor-pointer">
           <Building2 className="brand-mark" style={{ color: 'var(--accent)' }} />
           {!isCollapsed && (
             <div>
@@ -94,7 +94,7 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`nav-item relative group ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-0' : ''}`}
+                  className={`nav-item relative group${isActive ? ' active' : ''}${isCollapsed ? ' is-collapsed' : ''}`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   {!isCollapsed && <span>{item.label}</span>}

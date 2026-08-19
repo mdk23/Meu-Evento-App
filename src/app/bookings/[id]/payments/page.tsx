@@ -24,7 +24,7 @@ export default async function BookingPaymentsPage({ params }: { params: Promise<
   }
 
   const scheduledPayments = await prisma.scheduledPayment.findMany({
-    where: { bookingId: id },
+    where: { bookingId: id, plan: { active: true } },
     orderBy: { dueDate: 'asc' },
     include: { transactions: true }
   });

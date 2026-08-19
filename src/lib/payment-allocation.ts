@@ -1,5 +1,5 @@
 import { Prisma, PaymentStatus } from '@prisma/client';
-import { toMoney, sumMoney, subtractMoneyFloor0, isMoneyGreaterThanOrEqual, isMoneyPositive } from './money';
+import { toMoney, addMoney, subtractMoneyFloor0, isMoneyGreaterThan, isMoneyGreaterThanOrEqual, isMoneyPositive } from './money';
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -15,7 +15,10 @@ export interface ScheduledPaymentInput {
 }
 
 export interface TransactionInput {
+  id: string;
   amount: MoneyLike;
+  date: Date;
+  createdAt: Date;
 }
 
 export interface AllocatedSchedule {
@@ -25,10 +28,19 @@ export interface AllocatedSchedule {
   status: PaymentStatus;
 }
 
+/** One transaction's contribution to one schedule — the persisted shape of `PaymentAllocation`. */
+export interface AllocationLine {
+  transactionId: string;
+  scheduledPaymentId: string;
+  amount: Prisma.Decimal;
+}
+
 export interface AllocationResult {
   schedules: AllocatedSchedule[];
   /** Money received beyond what every active schedule needed — never silently absorbed. */
   overpaymentAmount: Prisma.Decimal;
+  /** Transaction-to-schedule breakdown, in cascade order — what gets persisted as `PaymentAllocation` rows. */
+  allocationLines: AllocationLine[];
 }
 
 /** Default allocation order: dueDate asc, then orderNumber asc (nulls sort last), then createdAt asc. */
@@ -38,6 +50,13 @@ function compareSchedules(a: ScheduledPaymentInput, b: ScheduledPaymentInput): n
   const aOrder = a.orderNumber ?? Number.MAX_SAFE_INTEGER;
   const bOrder = b.orderNumber ?? Number.MAX_SAFE_INTEGER;
   if (aOrder !== bOrder) return aOrder - bOrder;
+  return a.createdAt.getTime() - b.createdAt.getTime();
+}
+
+/** Transactions apply in the order they actually happened: date asc, then createdAt asc as a tie-breaker. */
+function compareTransactions(a: TransactionInput, b: TransactionInput): number {
+  const dateDiff = a.date.getTime() - b.date.getTime();
+  if (dateDiff !== 0) return dateDiff;
   return a.createdAt.getTime() - b.createdAt.getTime();
 }
 
@@ -76,31 +95,51 @@ export function deriveScheduleStatus(params: {
  * time (record a payment, delete one, or edit the plan) without ever touching transaction history.
  * `CANCELLED` schedules never receive an allocation. Anything left over after every active schedule
  * is fully covered is reported as `overpaymentAmount`, not silently dropped.
+ *
+ * Transactions are cascaded one at a time, in the order they actually happened, rather than summed
+ * into one lump — this produces the exact same per-schedule totals as summing-then-cascading would
+ * (order doesn't change a waterfall's final state), but it additionally yields `allocationLines`:
+ * the transaction-level breakdown persisted as `PaymentAllocation` rows.
  */
 export function allocatePayments(
   scheduledPayments: ScheduledPaymentInput[],
   transactions: TransactionInput[],
   now: Date = new Date()
 ): AllocationResult {
-  const totalReceived = sumMoney(transactions.map((t) => t.amount));
-
   const activeSchedules = scheduledPayments
     .filter((s) => s.status !== PaymentStatus.CANCELLED)
     .slice()
     .sort(compareSchedules);
 
-  let remaining = totalReceived;
-  const allocatedById = new Map<string, Prisma.Decimal>();
+  const orderedTransactions = transactions.slice().sort(compareTransactions);
 
+  const remainingCapacity = new Map<string, Prisma.Decimal>();
+  const allocatedById = new Map<string, Prisma.Decimal>();
   for (const schedule of activeSchedules) {
-    const expected = toMoney(schedule.amount);
-    const rawApply = remaining.greaterThan(expected) ? expected : remaining;
-    const applied = rawApply.isNegative() ? toMoney(0) : rawApply;
-    allocatedById.set(schedule.id, applied);
-    remaining = remaining.minus(applied);
+    remainingCapacity.set(schedule.id, toMoney(schedule.amount));
+    allocatedById.set(schedule.id, toMoney(0));
   }
 
-  const overpaymentAmount = remaining.isNegative() ? toMoney(0) : remaining;
+  const allocationLines: AllocationLine[] = [];
+  let overpaymentAmount = toMoney(0);
+
+  for (const txn of orderedTransactions) {
+    let remaining = toMoney(txn.amount);
+
+    for (const schedule of activeSchedules) {
+      if (!isMoneyPositive(remaining)) break;
+      const cap = remainingCapacity.get(schedule.id)!;
+      if (!isMoneyPositive(cap)) continue;
+
+      const applied = isMoneyGreaterThan(remaining, cap) ? cap : remaining;
+      allocationLines.push({ transactionId: txn.id, scheduledPaymentId: schedule.id, amount: applied });
+      allocatedById.set(schedule.id, addMoney(allocatedById.get(schedule.id), applied));
+      remainingCapacity.set(schedule.id, subtractMoneyFloor0(cap, applied));
+      remaining = subtractMoneyFloor0(remaining, applied);
+    }
+
+    overpaymentAmount = addMoney(overpaymentAmount, remaining);
+  }
 
   const schedules: AllocatedSchedule[] = scheduledPayments.map((s) => {
     if (s.status === PaymentStatus.CANCELLED) {
@@ -119,25 +158,31 @@ export function allocatePayments(
     return { id: s.id, allocatedAmount, remainingAmount, status };
   });
 
-  return { schedules, overpaymentAmount };
+  return { schedules, overpaymentAmount, allocationLines };
 }
 
 /**
  * The one DB-touching entry point into this module — everything above is pure. Recalculates
- * `allocatePayments` from a booking's current `ScheduledPayment` rows + every `PaymentTransaction`,
- * then writes the result back onto each schedule's `paidAmount`/`status` as a cache (never
- * authoritative — see the doc comments on those columns in schema.prisma). Call this after any
- * write that changes either side of the equation: recording a payment, deleting one, or editing
- * the plan. Must run inside the same `$transaction` as that write so the cache never observes a
- * half-committed state.
+ * `allocatePayments` from the booking's *active* `PaymentPlan`'s `ScheduledPayment` rows + every
+ * `PaymentTransaction` on the booking, then:
+ *   1. writes the result back onto each schedule's `paidAmount`/`status` as a cache (never
+ *      authoritative — see the doc comments on those columns in schema.prisma), and
+ *   2. rewrites `PaymentAllocation` (delete-then-recreate for this plan's schedules) so the
+ *      transaction-to-schedule breakdown is queryable without recomputing it every read.
+ * Call this after any write that changes either side of the equation: recording a payment,
+ * deleting one, or creating a new plan version. Must run inside the same `$transaction` as that
+ * write so neither cache ever observes a half-committed state.
  */
 export async function syncScheduledPaymentAllocations(tx: TransactionClient, bookingId: string): Promise<void> {
+  const activePlan = await tx.paymentPlan.findFirst({ where: { bookingId, active: true } });
+  if (!activePlan) return;
+
   const [scheduledPayments, transactions] = await Promise.all([
-    tx.scheduledPayment.findMany({ where: { bookingId } }),
-    tx.paymentTransaction.findMany({ where: { bookingId }, select: { amount: true } }),
+    tx.scheduledPayment.findMany({ where: { planId: activePlan.id } }),
+    tx.paymentTransaction.findMany({ where: { bookingId }, select: { id: true, amount: true, date: true, createdAt: true } }),
   ]);
 
-  const { schedules } = allocatePayments(scheduledPayments, transactions);
+  const { schedules, allocationLines } = allocatePayments(scheduledPayments, transactions);
 
   for (const schedule of schedules) {
     const current = scheduledPayments.find((s) => s.id === schedule.id);
@@ -146,6 +191,18 @@ export async function syncScheduledPaymentAllocations(tx: TransactionClient, boo
     await tx.scheduledPayment.update({
       where: { id: schedule.id },
       data: { paidAmount: schedule.allocatedAmount, status: schedule.status },
+    });
+  }
+
+  const scheduleIds = scheduledPayments.map((s) => s.id);
+  await tx.paymentAllocation.deleteMany({ where: { scheduledPaymentId: { in: scheduleIds } } });
+  if (allocationLines.length > 0) {
+    await tx.paymentAllocation.createMany({
+      data: allocationLines.map((line) => ({
+        transactionId: line.transactionId,
+        scheduledPaymentId: line.scheduledPaymentId,
+        amount: line.amount,
+      })),
     });
   }
 }

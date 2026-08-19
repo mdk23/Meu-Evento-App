@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { isMoneyPositive } from '@/lib/money';
 import { validatePaymentPlan } from '@/lib/payment-plan';
 import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
@@ -42,50 +41,35 @@ export async function PUT(
     }
 
     await prismaTransaction.$transaction(async (tx) => {
-      // Get existing schedules
-      const existingSchedules = await tx.scheduledPayment.findMany({
-        where: { bookingId: id }
+      // A plan change writes a new version rather than editing rows in place — the old plan and
+      // its ScheduledPayment rows stay exactly as they were, permanent history, never deleted or
+      // mutated. `syncScheduledPaymentAllocations` below then re-applies every existing
+      // PaymentTransaction against the new version's schedule from scratch, which is what
+      // correctly cascades a fully- or partially-paid milestone's money into whatever the new
+      // plan says should absorb it — no "can this row be deleted" guard is needed anymore,
+      // because nothing is ever deleted.
+      const currentPlan = await tx.paymentPlan.findFirst({
+        where: { bookingId: id, active: true },
       });
-
-      const incomingIds = schedules.filter((s) => s.id).map((s) => s.id);
-      
-      // Prevent deleting schedules that have payments
-      const schedulesToDelete = existingSchedules.filter(es => !incomingIds.includes(es.id));
-      for (const s of schedulesToDelete) {
-        if (isMoneyPositive(s.paidAmount)) {
-          throw new Error(`Cannot delete schedule "${s.name}" because it has been partially or fully paid.`);
-        }
-        await tx.scheduledPayment.delete({ where: { id: s.id } });
+      if (currentPlan) {
+        await tx.paymentPlan.update({ where: { id: currentPlan.id }, data: { active: false } });
       }
 
-      // Upsert schedules. Status/paidAmount are deliberately not set here — they're recalculated
-      // for the whole plan by syncScheduledPaymentAllocations below, against every existing
-      // PaymentTransaction. Shrinking a milestone below its current cached `paidAmount` is
-      // intentionally allowed: paidAmount is a derived cache, not a per-milestone credit ledger —
-      // the excess correctly cascades into the next milestone (or overpayment) on recalculation,
-      // exactly what "the business changes the plan after a payment" is supposed to do. Nothing
-      // about the money received changes; only where it's currently allocated does.
+      const newPlan = await tx.paymentPlan.create({
+        data: { bookingId: id, version: (currentPlan?.version ?? 0) + 1, active: true },
+      });
+
       for (const s of schedules) {
-        if (s.id) {
-          await tx.scheduledPayment.update({
-            where: { id: s.id },
-            data: {
-              name: s.name,
-              amount: parseFloat(String(s.amount)),
-              dueDate: new Date(s.dueDate),
-            }
-          });
-        } else {
-          await tx.scheduledPayment.create({
-            data: {
-              tenantId: booking.tenantId,
-              bookingId: id,
-              name: s.name,
-              amount: parseFloat(String(s.amount)),
-              dueDate: new Date(s.dueDate),
-            }
-          });
-        }
+        await tx.scheduledPayment.create({
+          data: {
+            tenantId: booking.tenantId,
+            bookingId: id,
+            planId: newPlan.id,
+            name: s.name,
+            amount: parseFloat(String(s.amount)),
+            dueDate: new Date(s.dueDate),
+          },
+        });
       }
 
       await syncScheduledPaymentAllocations(tx, id);

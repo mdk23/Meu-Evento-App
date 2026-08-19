@@ -269,7 +269,7 @@ export async function PATCH(
             },
           },
           eventServices: { include: { service: true, supplier: true } },
-          scheduledPayments: true,
+          scheduledPayments: { where: { plan: { active: true } } },
         },
       });
     }, { timeout: 15000, maxWait: 10000 });

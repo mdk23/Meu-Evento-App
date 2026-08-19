@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, prismaTransaction } from '@/lib/prisma';
 import { ExpenseStatus, PaymentStatus } from '@prisma/client';
 import { serializeDecimals, subtractMoneyFloor0, sumMoney, toDisplayNumber } from '@/lib/money';
 import { calculateRevenue, calculateInternalCost, calculateSupplierCost } from '@/lib/finance';
+import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 
 export async function GET() {
   try {
     const scheduledPayments = await prisma.scheduledPayment.findMany({
+      where: { plan: { active: true } },
       orderBy: { createdAt: 'desc' },
       include: {
         booking: {
@@ -77,15 +79,27 @@ export async function POST(request: Request) {
       if (!bookingId || !amount) {
         return NextResponse.json({ error: 'Booking and Amount are required for invoice' }, { status: 400 });
       }
-      const scheduledPayment = await prisma.scheduledPayment.create({
-        data: {
-          tenantId: tenant.id,
-          bookingId,
-          name: 'Manual Invoice',
-          amount: parseFloat(amount),
-          status: 'PENDING',
-          dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
+      const scheduledPayment = await prismaTransaction.$transaction(async (tx) => {
+        // A manually-added invoice joins whatever plan is currently active — creating one (v1)
+        // if this booking has never had a payment plan at all.
+        let plan = await tx.paymentPlan.findFirst({ where: { bookingId, active: true } });
+        if (!plan) {
+          plan = await tx.paymentPlan.create({ data: { bookingId, version: 1, active: true } });
+        }
+
+        const created = await tx.scheduledPayment.create({
+          data: {
+            tenantId: tenant.id,
+            bookingId,
+            planId: plan.id,
+            name: 'Manual Invoice',
+            amount: parseFloat(amount),
+            dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        await syncScheduledPaymentAllocations(tx, bookingId);
+        return created;
       });
       return NextResponse.json(serializeDecimals({ success: true, invoice: scheduledPayment }), { status: 201 });
     }
