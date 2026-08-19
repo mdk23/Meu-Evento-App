@@ -25,6 +25,9 @@ export default async function EditBookingPage({
           }
         }
       },
+      eventServices: {
+        include: { service: true }
+      },
       scheduledPayments: true,
     }
   });
@@ -69,7 +72,7 @@ export default async function EditBookingPage({
     include: { scheduledPayment: true }
   });
 
-  const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.event?.eventServices.map((service) => service.sellingPrice) || []));
+  const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.eventServices.map((service) => service.sellingPrice)));
   const totalScheduledAmount = toDisplayNumber(sumMoney(initialBookingData.scheduledPayments.map((sp) => sp.amount)));
 
   const serializedBooking = serializeDecimals({

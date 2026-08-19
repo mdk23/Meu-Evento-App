@@ -22,7 +22,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
 
   if (detail.loading || !detail.data || !detail.data.event) {
     return (
-      <div className="flex-1 flex items-center justify-center text-violet-400">
+      <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--accent)' }}>
         <Loader2 className="w-10 h-10 animate-spin" />
       </div>
     );

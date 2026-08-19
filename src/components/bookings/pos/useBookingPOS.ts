@@ -120,8 +120,8 @@ export function useBookingPOS({
 
   // 3. POS Cart State (Selected items)
   const [selectedItems, setSelectedItems] = useState<CartItem[]>(() => {
-    if (initialBookingData?.event?.eventServices) {
-      return initialBookingData.event.eventServices.map((es) => {
+    if (initialBookingData?.eventServices) {
+      return initialBookingData.eventServices.map((es) => {
         const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : 1;
         const unitPrice = es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0);
         return {

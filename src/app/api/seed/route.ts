@@ -229,6 +229,7 @@ export async function POST() {
     // Add EventServices for Event 1
     await prisma.eventService.create({
       data: {
+        bookingId: booking1.id,
         eventId: event1.id,
         serviceId: serviceVenue.id,
         providerType: ExecutionType.INTERNAL,
@@ -241,6 +242,7 @@ export async function POST() {
 
     const eventServiceCatering = await prisma.eventService.create({
       data: {
+        bookingId: booking1.id,
         eventId: event1.id,
         serviceId: serviceCatering.id,
         providerType: ExecutionType.INTERNAL,
@@ -288,6 +290,7 @@ export async function POST() {
 
     const eventServiceDecoration = await prisma.eventService.create({
       data: {
+        bookingId: booking1.id,
         eventId: event1.id,
         serviceId: serviceDecoration.id,
         providerType: ExecutionType.INTERNAL,
@@ -344,6 +347,7 @@ export async function POST() {
 
     await prisma.eventService.create({
       data: {
+        bookingId: booking1.id,
         eventId: event1.id,
         serviceId: servicePhoto.id,
         providerType: ExecutionType.EXTERNAL,
@@ -415,6 +419,7 @@ export async function POST() {
 
     await prisma.eventService.create({
       data: {
+        bookingId: booking2.id,
         eventId: event2.id,
         serviceId: serviceVenue.id,
         providerType: ExecutionType.INTERNAL,
@@ -426,6 +431,7 @@ export async function POST() {
 
     await prisma.eventService.create({
       data: {
+        bookingId: booking2.id,
         eventId: event2.id,
         serviceId: serviceDJ.id,
         providerType: ExecutionType.EXTERNAL,

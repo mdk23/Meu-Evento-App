@@ -19,7 +19,7 @@ export async function POST(
       where: { id: eventServiceId },
       include: { event: true },
     });
-    if (!eventService || eventService.eventId !== eventId) {
+    if (!eventService || !eventService.event || eventService.eventId !== eventId) {
       return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
 

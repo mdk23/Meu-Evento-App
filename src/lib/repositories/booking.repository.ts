@@ -24,14 +24,14 @@ const BOOKING_LIST_SELECT = {
     select: {
       id: true,
       name: true,
-      eventServices: {
-        select: {
-          id: true,
-          sellingPrice: true,
-          providerType: true,
-          service: { select: { id: true, name: true, category: true } },
-        },
-      },
+    },
+  },
+  eventServices: {
+    select: {
+      id: true,
+      sellingPrice: true,
+      providerType: true,
+      service: { select: { id: true, name: true, category: true } },
     },
   },
   scheduledPayments: {
@@ -72,7 +72,7 @@ function mapBookingRow(b: BookingListRow): BookingListDTO {
   // Revenue source of truth (Phase 9): SUM(EventService.sellingPrice) - discount, not a
   // schedule-vs-contracted MAX() hack — the payment plan is already validated to sum to
   // this exact figure at creation/edit time (see src/lib/payment-plan.ts).
-  const totalContractAmount = calculateRevenue(b.event?.eventServices || [], b.discount);
+  const totalContractAmount = calculateRevenue(b.eventServices || [], b.discount);
 
   // The deposit is the earliest-due milestone — that's how the payment plan generator
   // (src/lib/payment-plan.ts) always orders a booking's schedule.

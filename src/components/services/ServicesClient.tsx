@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Briefcase,
@@ -12,6 +13,7 @@ import {
   Trash2,
   Save,
   Settings2,
+  Boxes,
 } from 'lucide-react';
 import { ServiceCardDTO } from '@/types/dtos';
 import { FieldSchemaField, FieldType, parseFieldSchema } from '@/components/events/detail/types';
@@ -230,6 +232,9 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
       <Topbar crumb="Services Catalog" note="Commercial offerings with Internal vs External routing.">
+        <Link href="/services/packages" className="btn sm">
+          <Boxes className="w-3.5 h-3.5" /> Packages
+        </Link>
         <button onClick={openAddModal} className="btn primary sm">
           <Plus className="w-3.5 h-3.5" /> Add Catalog Service
         </button>

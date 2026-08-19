@@ -16,39 +16,46 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center space-y-6">
-        <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto text-red-400">
+    <div className="aurelia-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div className="card" style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 'var(--radius)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto',
+            background: 'color-mix(in srgb, var(--bad) 12%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--bad) 30%, transparent)',
+            color: 'var(--bad)',
+          }}
+        >
           <AlertTriangle className="w-8 h-8" />
         </div>
 
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold tracking-tight">Something went wrong</h2>
-          <p className="text-sm text-zinc-400">
+        <div className="stack" style={{ gap: 8, marginTop: 20 }}>
+          <h2 className="h-md">Something went wrong</h2>
+          <p className="mini dim">
             A server error occurred while loading this page. This is usually caused by database connectivity issues or missing environment configuration.
           </p>
         </div>
 
         {error.message && (
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-left">
-            <p className="text-xs font-mono text-red-400/90 break-all leading-relaxed">
+          <div style={{ marginTop: 20, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)', textAlign: 'left' }}>
+            <p className="mini num" style={{ color: 'var(--bad)', wordBreak: 'break-all' }}>
               {error.message}
             </p>
           </div>
         )}
 
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            onClick={() => reset()}
-            className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-          >
+        <div className="row" style={{ gap: 12, marginTop: 20 }}>
+          <button onClick={() => reset()} className="btn primary" style={{ flex: 1, justifyContent: 'center' }}>
             <RefreshCw className="w-4 h-4" /> Try Again
           </button>
 
-          <Link
-            href="/"
-            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-zinc-700"
-          >
+          <Link href="/" className="btn" style={{ flex: 1, justifyContent: 'center' }}>
             <Home className="w-4 h-4" /> Dashboard
           </Link>
         </div>

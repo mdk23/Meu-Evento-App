@@ -250,63 +250,65 @@ export default function ServiceWorkOrderModal({
             )}
           </div>
 
-          <div className="stack" style={{ gap: 10 }}>
-            <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
-              <Package className="w-4 h-4" style={{ color: accentVar }} /> Reserved Inventory
-            </h4>
-            <div className="row">
-              <select
-                value={selectedInventoryId}
-                onChange={(e) => setSelectedInventoryId(e.target.value)}
-                className="input"
-                style={{ flex: 1 }}
-              >
-                <option value="">-- Select Inventory Item --</option>
-                {inventoryItems.map((i) => (
-                  <option key={i.id} value={i.id}>{i.name} ({i.quantity} in stock)</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={1}
-                value={reserveQuantity}
-                onChange={(e) => setReserveQuantity(e.target.value)}
-                className="input"
-                style={{ width: 80 }}
-              />
-              <button
-                type="button"
-                onClick={onReserveInventory}
-                disabled={!selectedInventoryId}
-                className="btn ghost sm"
-              >
-                + Reserve
-              </button>
-            </div>
-
-            {reservedInventory.length > 0 && (
-              <div
-                className="stack"
-                style={{ gap: 8, maxHeight: 128, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
-              >
-                {reservedInventory.map((r) => (
-                  <div key={r.id} className="between" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
-                    <span className="mini" style={{ color: 'var(--ink)' }}>
-                      {r.itemNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>× {r.quantity}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveReservedInventory(r.id)}
-                      className="icon-btn"
-                      style={{ width: 28, height: 28, flexShrink: 0 }}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+          {isInternal && (
+            <div className="stack" style={{ gap: 10 }}>
+              <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
+                <Package className="w-4 h-4" style={{ color: accentVar }} /> Reserved Inventory
+              </h4>
+              <div className="row">
+                <select
+                  value={selectedInventoryId}
+                  onChange={(e) => setSelectedInventoryId(e.target.value)}
+                  className="input"
+                  style={{ flex: 1 }}
+                >
+                  <option value="">-- Select Inventory Item --</option>
+                  {inventoryItems.map((i) => (
+                    <option key={i.id} value={i.id}>{i.name} ({i.quantity} in stock)</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  value={reserveQuantity}
+                  onChange={(e) => setReserveQuantity(e.target.value)}
+                  className="input"
+                  style={{ width: 80 }}
+                />
+                <button
+                  type="button"
+                  onClick={onReserveInventory}
+                  disabled={!selectedInventoryId}
+                  className="btn ghost sm"
+                >
+                  + Reserve
+                </button>
               </div>
-            )}
-          </div>
+
+              {reservedInventory.length > 0 && (
+                <div
+                  className="stack"
+                  style={{ gap: 8, maxHeight: 128, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
+                >
+                  {reservedInventory.map((r) => (
+                    <div key={r.id} className="between" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                      <span className="mini" style={{ color: 'var(--ink)' }}>
+                        {r.itemNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>× {r.quantity}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveReservedInventory(r.id)}
+                        className="icon-btn"
+                        style={{ width: 28, height: 28, flexShrink: 0 }}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {!isInternal && (
             <div className="stack" style={{ gap: 16, paddingTop: 20, borderTop: '1px solid var(--rule)' }}>

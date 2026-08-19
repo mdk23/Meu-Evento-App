@@ -67,7 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} ${jost.variable} ${cinzel.variable} ${lora.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} ${jost.variable} ${cinzel.variable} ${lora.variable} h-full antialiased`}
       // The bootstrap script below sets data-theme before React hydrates, specifically so the
       // saved theme applies with no flash — that's an intentional, expected mismatch against the
       // server-rendered markup (which never sets this attribute), not a real hydration bug.
@@ -76,7 +76,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
-      <body className="min-h-full flex flex-col bg-zinc-950">
+      <body className="min-h-full flex flex-col">
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

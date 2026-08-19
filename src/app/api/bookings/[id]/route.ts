@@ -135,19 +135,9 @@ export async function PATCH(
         });
       }
 
-      const updatedBooking = await tx.booking.update({
-        where: { id },
-        data: updateData,
-        include: {
-          client: true,
-          event: {
-            include: {
-              eventServices: { include: { service: true, supplier: true } },
-            },
-          },
-          scheduledPayments: true,
-        },
-      });
+      // Re-fetched with full includes after every sync below settles — this call only needs to
+      // persist the field-level changes prepared above.
+      await tx.booking.update({ where: { id }, data: updateData });
 
       // Payment status is never set directly here — it's owned entirely by the payment allocation
       // engine (src/lib/payment-allocation.ts), recalculated from real PaymentTransaction rows via
@@ -193,58 +183,64 @@ export async function PATCH(
             },
           });
         }
+      }
 
-        // Sync event services if provided (Full POS Edit)
-        if (isEdit && selectedServices && Array.isArray(selectedServices)) {
-          // Delete old services
-          await tx.eventService.deleteMany({
-            where: { eventId: existingBooking.event.id }
-          });
+      // Sync service lines if provided (Full POS Edit) — keyed off `bookingId`, which is always
+      // set regardless of whether this booking has an Event, so this applies equally to SPACE and
+      // EVENT bookings (a SPACE booking's lines are commercial-only: no `eventId`).
+      if (isEdit && selectedServices && Array.isArray(selectedServices)) {
+        // Delete old services
+        await tx.eventService.deleteMany({
+          where: { bookingId: existingBooking.id }
+        });
 
-          const tenantId = existingBooking.tenantId || (await tx.tenant.findFirst())?.id;
+        const tenantId = existingBooking.tenantId || (await tx.tenant.findFirst())?.id;
 
-          for (const item of selectedServices) {
-            let catalogServiceId = item.serviceId;
+        for (const item of selectedServices) {
+          let catalogServiceId = item.serviceId;
 
-            if (!catalogServiceId && tenantId) {
-              const existingService = await tx.service.findFirst({
-                where: { name: item.name, tenantId },
-              });
-              if (existingService) {
-                catalogServiceId = existingService.id;
-              } else {
-                const newService = await tx.service.create({
-                  data: {
-                    tenantId,
-                    name: item.name,
-                    category: item.category || 'GERAL',
-                    defaultExecutionType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
-                    priceType: item.priceType || 'FIXED',
-                    defaultPrice: item.price || 0,
-                  },
-                });
-                catalogServiceId = newService.id;
-              }
-            }
-
-            if (catalogServiceId) {
-              await tx.eventService.create({
+          if (!catalogServiceId && tenantId) {
+            const existingService = await tx.service.findFirst({
+              where: { name: item.name, tenantId },
+            });
+            if (existingService) {
+              catalogServiceId = existingService.id;
+            } else {
+              const newService = await tx.service.create({
                 data: {
-                  eventId: existingBooking.event.id,
-                  serviceId: catalogServiceId,
-                  serviceNameSnapshot: item.name || null,
-                  providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
-                  sellingPrice: item.totalPrice || item.price || 0,
-                  cost: item.cost || ((item.totalPrice || item.price || 0) * 0.4),
-                  status: 'PLANNING',
+                  tenantId,
+                  name: item.name,
+                  category: item.category || 'GERAL',
+                  defaultExecutionType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+                  priceType: item.priceType || 'FIXED',
+                  defaultPrice: item.price || 0,
                 },
               });
+              catalogServiceId = newService.id;
             }
           }
 
-          // The services above were just wiped and recreated at fresh PLANNING status, so the
-          // event's derived status must be recalculated from that reality — this intentionally
-          // supersedes any eventStatus override passed in this same request.
+          if (catalogServiceId) {
+            await tx.eventService.create({
+              data: {
+                bookingId: existingBooking.id,
+                eventId: existingBooking.event?.id ?? null,
+                serviceId: catalogServiceId,
+                serviceNameSnapshot: item.name || null,
+                providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+                sellingPrice: item.totalPrice || item.price || 0,
+                cost: item.cost || ((item.totalPrice || item.price || 0) * 0.4),
+                status: 'PLANNING',
+              },
+            });
+          }
+        }
+
+        // The services above were just wiped and recreated at fresh PLANNING status, so the
+        // event's derived status must be recalculated from that reality — this intentionally
+        // supersedes any eventStatus override passed in this same request. No-op for a SPACE
+        // booking, which has no Event to recalculate.
+        if (existingBooking.event) {
           const freshServices = await tx.eventService.findMany({
             where: { eventId: existingBooking.event.id },
             select: { sellingPrice: true, status: true },
@@ -261,24 +257,21 @@ export async function PATCH(
       // beyond the invoice-status/payment-action handling above.
 
       // `updatedBooking` above was read before the event status/service-sync logic ran, so its
-      // nested `event` (status, eventServices) can be stale — re-fetch once everything has settled
-      // so the response actually reflects what was just written.
-      if (existingBooking.event) {
-        return tx.booking.findUniqueOrThrow({
-          where: { id },
-          include: {
-            client: true,
-            event: {
-              include: {
-                eventServices: { include: { service: true, supplier: true } },
-              },
+      // `eventServices` (and nested `event.eventServices`) can be stale — re-fetch once everything
+      // has settled so the response actually reflects what was just written.
+      return tx.booking.findUniqueOrThrow({
+        where: { id },
+        include: {
+          client: true,
+          event: {
+            include: {
+              eventServices: { include: { service: true, supplier: true } },
             },
-            scheduledPayments: true,
           },
-        });
-      }
-
-      return updatedBooking;
+          eventServices: { include: { service: true, supplier: true } },
+          scheduledPayments: true,
+        },
+      });
     }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json(serializeDecimals({ success: true, booking: updatedBooking }));

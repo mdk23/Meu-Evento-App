@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { assertInventoryAvailable, fullDaySpan, InventoryConflictError } from '@/lib/resource-conflict';
+import {
+  assertInternalProvider,
+  assertInventoryAvailable,
+  fullDaySpan,
+  ExternalProviderReservationError,
+  InventoryConflictError,
+} from '@/lib/resource-conflict';
 
 export async function POST(
   request: Request,
@@ -20,9 +26,10 @@ export async function POST(
       where: { id: eventServiceId },
       include: { event: true },
     });
-    if (!eventService || eventService.eventId !== eventId) {
+    if (!eventService || !eventService.event || eventService.eventId !== eventId) {
       return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
+    assertInternalProvider(eventService.providerType, eventService.serviceNameSnapshot || undefined);
 
     const item = await prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } });
     if (!item) {
@@ -52,6 +59,9 @@ export async function POST(
   } catch (error: unknown) {
     if (error instanceof InventoryConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof ExternalProviderReservationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to reserve inventory for work order:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

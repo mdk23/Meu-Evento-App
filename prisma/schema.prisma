@@ -15,6 +15,15 @@ enum BookingType {
   SPACE_AND_SERVICES
 }
 
+/// Which workspace a booking belongs to. SPACE = venue-rental only, no Event exists yet.
+/// EVENT = the booking runs a full occasion. Distinct from `BookingType`, which is advisory
+/// line-composition metadata; `kind` is the structural switch the Space/Event workspace split
+/// is built on.
+enum BookingKind {
+  SPACE
+  EVENT
+}
+
 enum BookingStatus {
   RESERVED
   CONFIRMED
@@ -106,6 +115,7 @@ model Tenant {
   clients             Client[]
   bookings            Booking[]
   services            Service[]
+  servicePackages     ServicePackage[]
   suppliers           Supplier[]
   inventoryItems      InventoryItem[]
   staff               Staff[]
@@ -159,6 +169,9 @@ model Booking {
   clientId           String
   spaceId            String
   bookingType        BookingType   @default(SPACE_AND_SERVICES)
+  /// Structural workspace switch — see `BookingKind` doc comment. Defaults to EVENT because,
+  /// historically, every booking got an Event unconditionally; SPACE bookings are a new concept.
+  kind               BookingKind   @default(EVENT)
   eventDate          DateTime
   /// Real reservation window for the space, used for overlap-conflict checking.
   /// `eventDate` stays in sync (same calendar day as `startAt`) for existing day-level UI/queries.
@@ -179,6 +192,7 @@ model Booking {
   client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
   space               Space                @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   event               Event?
+  eventServices       EventService[]
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
 
@@ -186,6 +200,7 @@ model Booking {
   @@index([clientId])
   @@index([spaceId])
   @@index([status])
+  @@index([kind])
   @@index([eventDate])
   @@index([startAt, endAt])
   @@map("bookings")
@@ -252,8 +267,9 @@ model Service {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  eventServices EventService[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  eventServices   EventService[]
+  packageServices PackageService[]
 
   @@index([tenantId])
   @@index([category])
@@ -261,9 +277,60 @@ model Service {
   @@map("services")
 }
 
+/// Which workspace a bundle is offered in — Space packages are room-only bundles (e.g. the venue
+/// + furniture), Event packages bundle a full occasion's services (catering, decor, etc.).
+enum PackageScope {
+  SPACE
+  EVENT
+}
+
+/// A named bundle of catalog services. Applying one to a booking explodes it into individual
+/// EventService lines at each service's normal price — the bundle itself carries no price of its
+/// own, so applied lines stay fully editable afterward (spec: "apply packages, edit price/
+/// quantity/cost per line").
+model ServicePackage {
+  id          String       @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  scope       PackageScope
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  services PackageService[]
+
+  @@index([tenantId])
+  @@index([scope])
+  @@index([active])
+  @@map("service_packages")
+}
+
+model PackageService {
+  id        String @id @default(cuid())
+  packageId String
+  serviceId String
+  /// Display/apply order within the package.
+  order     Int    @default(0)
+
+  package ServicePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service Service        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([packageId, serviceId])
+  @@index([packageId])
+  @@index([serviceId])
+  @@map("package_services")
+}
+
 model EventService {
   id           String          @id @default(cuid())
-  eventId      String
+  /// The commercial owner of this line — always set. A space-only booking's lines have no
+  /// `eventId`; that's how a booking can exist with commercial service lines and no Event.
+  bookingId    String
+  /// Null for a SPACE booking's lines — commercial-only, no operational Event workspace exists
+  /// for them. Set for every EVENT booking's lines.
+  eventId      String?
   serviceId    String
   providerType ExecutionType   @default(INTERNAL)
   sellingPrice Decimal         @default(0) @db.Decimal(12, 2)
@@ -286,7 +353,8 @@ model EventService {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  booking  Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  event    Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   service  Service   @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
@@ -295,6 +363,7 @@ model EventService {
   inventoryReservations InventoryReservation[]
   expenses              Expense[]
 
+  @@index([bookingId])
   @@index([eventId])
   @@index([serviceId])
   @@index([supplierId])

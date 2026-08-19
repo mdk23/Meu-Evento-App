@@ -81,11 +81,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Service catalog item not found' }, { status: 404 });
     }
 
+    const event = await prisma.event.findUnique({ where: { id: eventId }, select: { bookingId: true } });
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
     const resolvedProviderType = providerType || catalogService.defaultExecutionType;
     const parsedCost = parseFloat(cost || 0);
 
     const newEventService = await prisma.eventService.create({
       data: {
+        bookingId: event.bookingId,
         eventId,
         serviceId,
         serviceNameSnapshot: catalogService.name,

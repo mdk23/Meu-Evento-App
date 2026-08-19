@@ -80,7 +80,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         </Topbar>
 
         {/* RESOURCE TAB NAV */}
-        <div className="bg-zinc-950 border-b border-zinc-900 px-8 flex gap-6 shrink-0">
+        <div className="tabs" style={{ padding: '0 34px' }}>
           {[
             { id: 'space', label: 'Main Space', icon: Building2 },
             { id: 'inventory', label: 'Inventory Items', icon: Package },
@@ -93,13 +93,10 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`py-3 text-xs font-bold flex items-center gap-2 border-b-2 transition-all ${
-                  isActive
-                    ? 'border-violet-500 text-white'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-300'
-                }`}
+                className={`tab${isActive ? ' active' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-violet-400' : 'text-zinc-500'}`} />
+                <Icon className="w-4 h-4" />
                 {t.label}
               </button>
             );
@@ -107,51 +104,47 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         </div>
 
         {/* WORKSPACE */}
-        <div className="flex-1 overflow-auto p-8">
-          
+        <div className="flex-1 overflow-auto page">
+
           {/* TAB 1: SPACE */}
           {activeTab === 'space' && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl max-w-2xl space-y-6">
-              <div className="flex justify-between items-start">
+            <div className="card plain stack" style={{ maxWidth: 640 }}>
+              <div className="between" style={{ alignItems: 'flex-start' }}>
                 <div>
-                  <h3 className="text-white font-bold text-xl">{space?.name || 'Royal Events Main Space'}</h3>
-                  <p className="text-xs text-zinc-500 mt-1">{space?.address || '100 Grand Boulevard, Maputo'}</p>
+                  <h3 className="h-md">{space?.name || 'Royal Events Main Space'}</h3>
+                  <p className="mini dim" style={{ marginTop: 4 }}>{space?.address || '100 Grand Boulevard, Maputo'}</p>
                 </div>
-                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold">
-                  Single Space Configured
-                </span>
+                <span className="badge b-ok">Single Space Configured</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 bg-zinc-950 p-4 rounded-xl border border-zinc-850">
+              <div className="grid g2" style={{ padding: 16, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
                 <div>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase block">Max Capacity</span>
-                  <span className="text-2xl font-black text-white">{space?.capacity || 500} Guests</span>
+                  <span className="label">Max Capacity</span>
+                  <div className="val" style={{ fontSize: 24 }}>{space?.capacity || 500} Guests</div>
                 </div>
                 <div>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase block">Venue Type</span>
-                  <span className="text-base font-bold text-violet-400">Indoor Hall & Terrace</span>
+                  <span className="label">Venue Type</span>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)', marginTop: 8 }}>Indoor Hall & Terrace</div>
                 </div>
               </div>
 
-              <p className="text-xs text-zinc-400">{space?.description}</p>
+              <p className="mini dim">{space?.description}</p>
             </div>
           )}
 
           {/* TAB 2: INVENTORY */}
           {activeTab === 'inventory' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inventory.map((item) => (
-                <div key={item.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] bg-zinc-800 text-zinc-400 font-bold px-2 py-0.5 rounded-md">
-                      {item.category}
-                    </span>
-                    <span className="text-xs text-emerald-400 font-bold">In Stock</span>
+            <div className="grid g3">
+              {inventory.map((item, i) => (
+                <div key={item.id} className={`card plain f-in d${(i % 4) + 1} stack`}>
+                  <div className="between">
+                    <span className="badge b-mute">{item.category}</span>
+                    <span className="badge b-ok">In Stock</span>
                   </div>
-                  <h3 className="text-white font-bold text-lg">{item.name}</h3>
-                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-850 flex justify-between items-center text-xs">
-                    <span className="text-zinc-500">Available Quantity</span>
-                    <strong className="text-white text-base font-black">{item.quantity} pcs</strong>
+                  <h3 className="h-sm">{item.name}</h3>
+                  <div className="between mini" style={{ padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+                    <span className="dim">Available Quantity</span>
+                    <strong className="num" style={{ fontSize: 15, color: 'var(--ink)' }}>{item.quantity} pcs</strong>
                   </div>
                 </div>
               ))}
@@ -160,16 +153,16 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
 
           {/* TAB 3: STAFF */}
           {activeTab === 'staff' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {staff.map((st) => (
-                <div key={st.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="grid g3">
+              {staff.map((st, i) => (
+                <div key={st.id} className={`card plain f-in d${(i % 4) + 1} stack`}>
                   <div>
-                    <h3 className="text-white font-bold text-lg">{st.name}</h3>
-                    <p className="text-xs text-violet-400 font-bold mt-0.5">{st.role}</p>
+                    <h3 className="h-sm">{st.name}</h3>
+                    <p className="mini" style={{ color: 'var(--accent)', marginTop: 2, fontWeight: 600 }}>{st.role}</p>
                   </div>
-                  <div className="text-xs text-zinc-500 space-y-1 pt-2 border-t border-zinc-850">
-                    <p>Email: <strong className="text-zinc-300">{st.email || 'N/A'}</strong></p>
-                    <p>Phone: <strong className="text-zinc-300">{st.phone || 'N/A'}</strong></p>
+                  <div className="mini dim stack" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
+                    <p>Email: <strong style={{ color: 'var(--ink)' }}>{st.email || 'N/A'}</strong></p>
+                    <p>Phone: <strong style={{ color: 'var(--ink)' }}>{st.phone || 'N/A'}</strong></p>
                   </div>
                 </div>
               ))}
@@ -178,19 +171,17 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
 
           {/* TAB 4: SUPPLIERS */}
           {activeTab === 'suppliers' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {suppliers.map((sup) => (
-                <div key={sup.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md font-bold">
-                      {sup.category}
-                    </span>
-                    <span className="text-xs text-zinc-500 font-bold">Partner</span>
+            <div className="grid g3">
+              {suppliers.map((sup, i) => (
+                <div key={sup.id} className={`card plain f-in d${(i % 4) + 1} stack`}>
+                  <div className="between">
+                    <span className="badge b-info">{sup.category}</span>
+                    <span className="badge b-mute">Partner</span>
                   </div>
-                  <h3 className="text-white font-bold text-lg">{sup.name}</h3>
-                  <div className="text-xs text-zinc-500 space-y-1 pt-2 border-t border-zinc-850">
-                    <p>Email: <strong className="text-zinc-300">{sup.email || 'N/A'}</strong></p>
-                    <p>Phone: <strong className="text-zinc-300">{sup.phone || 'N/A'}</strong></p>
+                  <h3 className="h-sm">{sup.name}</h3>
+                  <div className="mini dim stack" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
+                    <p>Email: <strong style={{ color: 'var(--ink)' }}>{sup.email || 'N/A'}</strong></p>
+                    <p>Phone: <strong style={{ color: 'var(--ink)' }}>{sup.phone || 'N/A'}</strong></p>
                   </div>
                 </div>
               ))}
@@ -202,143 +193,77 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
 
       {/* CREATE RESOURCE MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-6">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
-              <h3 className="text-white font-bold text-base flex items-center gap-2">
-                <Plus className="w-5 h-5 text-violet-400" /> Add {activeTab.toUpperCase()}
+        <div className="modal-scrim">
+          <div className="modal">
+            <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
+              <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Plus className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Add {activeTab.toUpperCase()}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white">
-                <X className="w-5 h-5" />
+              <button onClick={() => setIsModalOpen(false)} className="icon-btn">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateResource} className="space-y-4">
+            <form onSubmit={handleCreateResource} className="stack" style={{ marginTop: 20 }}>
               {activeTab === 'space' ? (
                 <>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Space Name</label>
-                    <input
-                      required
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="Royal Events Main Space"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Space Name</label>
+                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="Royal Events Main Space" className="input" />
                   </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Max Guest Capacity</label>
-                    <input
-                      type="number"
-                      value={capacity}
-                      onChange={e => setCapacity(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Max Guest Capacity</label>
+                    <input type="number" value={capacity} onChange={e => setCapacity(e.target.value)} className="input" />
                   </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Address</label>
-                    <input
-                      value={address}
-                      onChange={e => setAddress(e.target.value)}
-                      placeholder="100 Grand Boulevard..."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Address</label>
+                    <input value={address} onChange={e => setAddress(e.target.value)} placeholder="100 Grand Boulevard..." className="input" />
                   </div>
                 </>
               ) : activeTab === 'inventory' ? (
                 <>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Item Name</label>
-                    <input
-                      required
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="e.g. Banquet Chairs"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Item Name</label>
+                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Banquet Chairs" className="input" />
                   </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Category</label>
-                    <input
-                      required
-                      value={category}
-                      onChange={e => setCategory(e.target.value)}
-                      placeholder="e.g. Furniture, Kitchen, Audio Visual"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Category</label>
+                    <input required value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Furniture, Kitchen, Audio Visual" className="input" />
                   </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Quantity</label>
-                    <input
-                      type="number"
-                      required
-                      value={quantity}
-                      onChange={e => setQuantity(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Quantity</label>
+                    <input type="number" required value={quantity} onChange={e => setQuantity(e.target.value)} className="input" />
                   </div>
                 </>
               ) : activeTab === 'staff' ? (
                 <>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Staff Name</label>
-                    <input
-                      required
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="e.g. Marco Rossi"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Staff Name</label>
+                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Marco Rossi" className="input" />
                   </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Role / Position</label>
-                    <input
-                      required
-                      value={role}
-                      onChange={e => setRole(e.target.value)}
-                      placeholder="e.g. Executive Chef, Decoration Lead"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Role / Position</label>
+                    <input required value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Executive Chef, Decoration Lead" className="input" />
                   </div>
                 </>
               ) : (
                 <>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Supplier Company Name</label>
-                    <input
-                      required
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="e.g. Deluxe Cinema Studios"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Supplier Company Name</label>
+                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Deluxe Cinema Studios" className="input" />
                   </div>
-                  <div>
-                    <label className="text-xs text-zinc-400 font-bold block mb-1">Category</label>
-                    <input
-                      required
-                      value={category}
-                      onChange={e => setCategory(e.target.value)}
-                      placeholder="e.g. Media, DJ, Security"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-violet-500"
-                    />
+                  <div className="field">
+                    <label className="label">Category</label>
+                    <input required value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Media, DJ, Security" className="input" />
                   </div>
                 </>
               )}
 
-              <div className="flex gap-3 justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold"
-                >
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 12 }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn ghost">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold flex items-center gap-2"
-                >
+                <button type="submit" disabled={submitting} className="btn primary">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Resource'}
                 </button>
               </div>

@@ -53,11 +53,12 @@ export type BookingSummary = Prisma.BookingGetPayload<{
   select: { id: true; eventDate: true; startAt: true; endAt: true; spaceId: true; status: true; client: { select: { name: true } } };
 }>;
 
-/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. */
+/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `eventServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. */
 export type BookingPOSInitialData = DecimalToNumber<Prisma.BookingGetPayload<{
   include: {
     client: true;
     event: { include: { eventServices: { include: { service: true } } } };
+    eventServices: { include: { service: true } };
     scheduledPayments: true;
   };
 }>> & {

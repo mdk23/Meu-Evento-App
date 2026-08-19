@@ -126,6 +126,22 @@ export interface ServiceCardDTO {
   fieldSchema: unknown;
 }
 
+export interface PackageCardDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  scope: 'SPACE' | 'EVENT';
+  active: boolean;
+  services: Array<{
+    serviceId: string;
+    name: string;
+    category: string;
+    defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
+    priceType: string;
+    defaultPrice: number;
+  }>;
+}
+
 export interface FinanceSummaryDTO {
   /** Contracted revenue: SUM(EventService.sellingPrice) - discount — the source of truth, not cash received. */
   totalRevenue: number;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
-import { BookingStatus, BookingType, EventStatus, ExecutionType } from '@prisma/client';
+import { BookingStatus, BookingType, BookingKind, EventStatus, ExecutionType } from '@prisma/client';
 import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
 import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       clientId,
       newClient,
       bookingType,
+      kind,
       eventDate,
       startAt,
       endAt,
@@ -114,6 +115,10 @@ export async function POST(request: Request) {
       assertCapacityForConfirmation(parsedGuestCount, space.capacity, capacityOverrideReason);
     }
 
+    // Defaults to EVENT so every existing caller (which never sends `kind`) keeps today's exact
+    // behavior — a linked Event is created automatically. SPACE bookings are opt-in.
+    const resolvedKind: BookingKind = kind === 'SPACE' ? BookingKind.SPACE : BookingKind.EVENT;
+
     const discountVal = parseFloat(discount || '0');
     const totalAmountVal = parseFloat(totalAmount || '0');
     const milestoneList: MilestoneDraft[] = Array.isArray(milestones) ? milestones : [];
@@ -153,6 +158,7 @@ export async function POST(request: Request) {
           clientId: targetClientId,
           spaceId: space.id,
           bookingType: bookingType || BookingType.SPACE_AND_SERVICES,
+          kind: resolvedKind,
           eventDate: parsedDate,
           startAt: parsedStartAt,
           endAt: parsedEndAt,
@@ -165,17 +171,21 @@ export async function POST(request: Request) {
         },
       });
 
-      // 2. Automatically create linked Execution Event
-      const event = await tx.event.create({
-        data: {
-          bookingId: booking.id,
-          name: title || `${client.name} Event`,
-          date: parsedDate,
-          guestCount: parsedGuestCount,
-          status: EventStatus.PLANNING,
-          notes: formattedNotes,
-        },
-      });
+      // 2. A SPACE booking is commercial-only — no Event exists for it, by design (that's how a
+      // booking can exist with service lines and no operational/event workspace). Only EVENT
+      // bookings automatically get a linked Execution Event.
+      const event = resolvedKind === BookingKind.EVENT
+        ? await tx.event.create({
+            data: {
+              bookingId: booking.id,
+              name: title || `${client.name} Event`,
+              date: parsedDate,
+              guestCount: parsedGuestCount,
+              status: EventStatus.PLANNING,
+              notes: formattedNotes,
+            },
+          })
+        : null;
 
       // 3. Attach selected services / items to the Event
       if (Array.isArray(selectedServices) && selectedServices.length > 0) {
@@ -208,7 +218,8 @@ export async function POST(request: Request) {
 
           await tx.eventService.create({
             data: {
-              eventId: event.id,
+              bookingId: booking.id,
+              eventId: event?.id ?? null,
               serviceId: catalogServiceId,
               serviceNameSnapshot: item.name || null,
               providerType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,

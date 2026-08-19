@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { ExecutionType, Prisma } from '@prisma/client';
 
 /** Default reservation span for staff/inventory when no explicit time range is given — the whole calendar day of the event. */
 export function fullDaySpan(date: Date): { startAt: Date; endAt: Date } {
@@ -20,6 +20,27 @@ export class InventoryConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'InventoryConflictError';
+  }
+}
+
+export class ExternalProviderReservationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ExternalProviderReservationError';
+  }
+}
+
+/**
+ * Only INTERNAL service lines may hold internal inventory — an EXTERNAL supplier's work order has
+ * no claim on the venue's own stock, since the supplier brings their own. Must be called before
+ * any `InventoryReservation` write, not just gated in the UI, so this rule can't be bypassed by
+ * calling the API directly.
+ */
+export function assertInternalProvider(providerType: ExecutionType, serviceName?: string): void {
+  if (providerType !== ExecutionType.INTERNAL) {
+    throw new ExternalProviderReservationError(
+      `${serviceName || 'This service'} is EXTERNAL — only INTERNAL service lines can reserve venue inventory.`
+    );
   }
 }
 
