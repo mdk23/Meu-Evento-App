@@ -11,12 +11,14 @@ import Topbar from '@/components/aurelia/Topbar';
 interface PackagesClientProps {
   initialPackages: PackageCardDTO[];
   initialServices: ServiceCardDTO[];
+  /** Deep-linked from the Space/Event workspace nav via `?scope=` — defaults to showing everything. */
+  initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
 }
 
-export default function PackagesClient({ initialPackages, initialServices }: PackagesClientProps) {
+export default function PackagesClient({ initialPackages, initialServices, initialScopeFilter = 'ALL' }: PackagesClientProps) {
   const router = useRouter();
 
-  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SPACE' | 'EVENT'>('ALL');
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SPACE' | 'EVENT'>(initialScopeFilter);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageCardDTO | null>(null);
 

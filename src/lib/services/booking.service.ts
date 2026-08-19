@@ -6,6 +6,8 @@ export class BookingService {
     return BookingRepository.getBookingList(params);
   }
 
+
+
   static async getBookingsForCalendar(): Promise<CalendarBookingDTO[]> {
     return BookingRepository.getAllBookingsForCalendar();
   }

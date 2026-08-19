@@ -11,6 +11,7 @@ const BOOKING_LIST_SELECT = {
   id: true,
   clientId: true,
   bookingType: true,
+  kind: true,
   eventDate: true,
   guestCount: true,
   status: true,
@@ -97,6 +98,7 @@ function mapBookingRow(b: BookingListRow): BookingListDTO {
     guestCount: b.guestCount,
     status: b.status,
     bookingType: b.bookingType,
+    kind: b.kind,
     notes: b.notes,
     hasEvent: !!b.event,
     totalScheduledAmount: toDisplayNumber(scheduledPaymentsSum),
@@ -114,19 +116,24 @@ export interface GetBookingListParams {
   page?: number;
   pageSize?: number;
   status?: string;
+  kind?: string;
 }
 
 export class BookingRepository {
-  static async getBookingList({ page, pageSize, status }: GetBookingListParams = {}): Promise<BookingListPageDTO> {
+  static async getBookingList({ page, pageSize, status, kind }: GetBookingListParams = {}): Promise<BookingListPageDTO> {
     const { page: resolvedPage, pageSize: resolvedPageSize, skip, take } = resolvePagination({ page, pageSize });
 
-    const where: Prisma.BookingWhereInput =
-      status && status !== 'ALL' && Object.values(BookingStatus).includes(status as BookingStatus)
+    const where: Prisma.BookingWhereInput = {
+      ...(status && status !== 'ALL' && Object.values(BookingStatus).includes(status as BookingStatus)
         ? { status: status as BookingStatus }
-        : {};
+        : {}),
+      ...(kind === 'SPACE' || kind === 'EVENT' ? { kind } : {}),
+    };
 
-    // Tab badge counts must reflect every status regardless of the current filter/page, so this
-    // is a separate unfiltered groupBy — same pattern as dashboard.repository.ts's status breakdowns.
+    // Tab badge counts must reflect every status regardless of the current *status* filter/page, so
+    // this is a separate groupBy ignoring `status` — same pattern as dashboard.repository.ts's status
+    // breakdowns. It still respects `kind`, though: when scoped to a workspace (Space or Event
+    // bookings only), the counts should describe that scope, not the whole tenant.
     const [bookings, total, statusGrouped] = await Promise.all([
       prisma.booking.findMany({
         where,
@@ -136,7 +143,11 @@ export class BookingRepository {
         select: BOOKING_LIST_SELECT,
       }),
       prisma.booking.count({ where }),
-      prisma.booking.groupBy({ by: ['status'], _count: { status: true } }),
+      prisma.booking.groupBy({
+        by: ['status'],
+        _count: { status: true },
+        where: kind === 'SPACE' || kind === 'EVENT' ? { kind } : {},
+      }),
     ]);
 
     const statusCounts: Record<string, number> = {};

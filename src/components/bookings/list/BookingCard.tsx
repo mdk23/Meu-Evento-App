@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Loader2, Calendar, Users, Trash2, CreditCard, Edit3, ChevronRight } from 'lucide-react';
+import { Loader2, Calendar, Users, Trash2, CreditCard, Edit3, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { BookingListDTO } from '@/types/dtos';
 
 interface BookingCardProps {
@@ -10,6 +10,7 @@ interface BookingCardProps {
     bookingId: string,
     updates: { status?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }
   ) => void;
+  onCrossover: (bookingId: string, direction: 'PROMOTE' | 'DEMOTE') => void;
   onDeletePrompt: (bookingId: string, clientName: string) => void;
 }
 
@@ -21,7 +22,7 @@ const STATUS_BADGE: Record<string, string> = {
   WAITING_LIST: 'b-mute',
 };
 
-export default function BookingCard({ booking: b, isDeleting, updating, onUpdateStatus, onDeletePrompt }: BookingCardProps) {
+export default function BookingCard({ booking: b, isDeleting, updating, onUpdateStatus, onCrossover, onDeletePrompt }: BookingCardProps) {
   const contractAmt = b.totalContractAmount || 0;
   const paidAmt = b.paidAmount || 0;
   const isFullyPaid = contractAmt > 0 && paidAmt >= contractAmt;
@@ -34,7 +35,10 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
     <div className="card plain flex flex-col justify-between" style={{ gap: 16 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="flex justify-between items-start">
-          <span className="badge b-accent">{b.bookingType?.replace('_', ' ') || 'SPACE AND SERVICES'}</span>
+          <div className="flex items-center gap-2">
+            <span className="badge b-accent">{b.bookingType?.replace('_', ' ') || 'SPACE AND SERVICES'}</span>
+            <span className={`badge ${b.kind === 'EVENT' ? 'b-info' : 'b-mute'}`}>{b.kind}</span>
+          </div>
           <span className={`badge ${statusBadge}`}>{b.status || 'RESERVED'}</span>
         </div>
 
@@ -115,6 +119,26 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
               title="Complete Booking & Closure"
             >
               Complete Closure
+            </button>
+          )}
+
+          {b.kind === 'SPACE' ? (
+            <button
+              disabled={updating}
+              onClick={() => onCrossover(b.id, 'PROMOTE')}
+              className="btn ghost sm"
+              title="Promote to a full Event — contract, payments and reserved stock carry across untouched"
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" /> Promote to Event
+            </button>
+          ) : (
+            <button
+              disabled={updating}
+              onClick={() => onCrossover(b.id, 'DEMOTE')}
+              className="btn ghost sm"
+              title="Demote to a Space booking — the Event record is kept, not deleted"
+            >
+              <ArrowDownLeft className="w-3.5 h-3.5" /> Demote to Space
             </button>
           )}
 

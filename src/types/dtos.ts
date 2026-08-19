@@ -52,6 +52,8 @@ export interface BookingListDTO {
   guestCount: number;
   status: string;
   bookingType: string;
+  /** SPACE = commercial-only, no Event workspace; EVENT = has one. See promote/demote. */
+  kind: 'SPACE' | 'EVENT';
   notes?: string | null;
   hasEvent: boolean;
   totalScheduledAmount: number;
@@ -124,6 +126,13 @@ export interface ServiceCardDTO {
   priceType: string;
   defaultPrice: number;
   fieldSchema: unknown;
+}
+
+export interface WorkspaceSummaryDTO {
+  bookingCount: number;
+  upcomingCount: number;
+  contractedValue: number;
+  nextDates: Array<{ id: string; clientName: string; eventDate: string }>;
 }
 
 export interface PackageCardDTO {

@@ -224,7 +224,10 @@ export async function PATCH(
             await tx.eventService.create({
               data: {
                 bookingId: existingBooking.id,
-                eventId: existingBooking.event?.id ?? null,
+                // Not just `existingBooking.event?.id` — a demoted booking keeps its Event record
+                // (kept, not deleted) while `kind` flips to SPACE, so event-existence alone no
+                // longer implies "this booking is currently in the Event workspace."
+                eventId: existingBooking.kind === 'EVENT' && existingBooking.event ? existingBooking.event.id : null,
                 serviceId: catalogServiceId,
                 serviceNameSnapshot: item.name || null,
                 providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',

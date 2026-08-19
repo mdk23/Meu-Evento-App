@@ -4,11 +4,24 @@ import { ServiceService } from '@/lib/services/service.service';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PackagesPage() {
+interface PackagesPageProps {
+  searchParams: Promise<{ scope?: string }>;
+}
+
+export default async function PackagesPage({ searchParams }: PackagesPageProps) {
+  const params = await searchParams;
+  const scope = params.scope?.toUpperCase();
+
   const [packages, services] = await Promise.all([
     PackageCatalogService.getCatalog(),
     ServiceService.getCatalog(),
   ]);
 
-  return <PackagesClient initialPackages={packages} initialServices={services} />;
+  return (
+    <PackagesClient
+      initialPackages={packages}
+      initialServices={services}
+      initialScopeFilter={scope === 'SPACE' || scope === 'EVENT' ? scope : 'ALL'}
+    />
+  );
 }

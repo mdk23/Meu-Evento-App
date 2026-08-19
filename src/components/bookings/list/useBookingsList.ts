@@ -37,6 +37,32 @@ export function useBookingsList(bookings: BookingListDTO[]) {
     }
   };
 
+  const handleCrossover = async (bookingId: string, direction: 'PROMOTE' | 'DEMOTE') => {
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/${direction === 'PROMOTE' ? 'promote' : 'demote'}`, {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        toast.success(
+          direction === 'PROMOTE'
+            ? 'Booking promoted to the Event workspace.'
+            : 'Booking demoted to Space — its Event record was kept, not deleted.'
+        );
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to change booking workspace.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Connection error.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const executeDeleteBooking = async (bookingId: string) => {
     setDeletingId(bookingId);
     try {
@@ -77,6 +103,7 @@ export function useBookingsList(bookings: BookingListDTO[]) {
     deletingId,
     bookings,
     handleUpdateStatus,
+    handleCrossover,
     handleDeletePrompt,
   };
 }

@@ -2,32 +2,41 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  BookmarkCheck, 
-  Sparkles, 
-  Users, 
-  Briefcase, 
-  TrendingUp, 
-  Boxes, 
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import {
+  LayoutDashboard,
+  CalendarDays,
+  BookmarkCheck,
+  Sparkles,
+  Users,
+  Briefcase,
+  TrendingUp,
+  Boxes,
   Settings,
   Building2,
   ChevronLeft,
   ChevronRight,
   Clock
 } from 'lucide-react';
+import { getActiveWorkspace, setActiveWorkspace, Workspace } from '@/lib/workspace';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Starts null so server-rendered markup doesn't guess a workspace the client hasn't read from
+  // localStorage yet — same reasoning as ThemeSwitch. Defaults to EVENT once hydrated, since that's
+  // the workspace every booking belonged to before Space bookings existed.
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
     if (saved === 'true') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsCollapsed(true);
     }
+    setWorkspace(getActiveWorkspace() ?? 'EVENT');
   }, []);
 
   const toggleCollapse = () => {
@@ -36,33 +45,52 @@ export function Sidebar() {
     localStorage.setItem('sidebar-collapsed', String(nextState));
   };
 
+  const switchWorkspace = (next: Workspace) => {
+    setActiveWorkspace(next);
+    setWorkspace(next);
+    router.push(next === 'SPACE' ? '/bookings?kind=SPACE' : '/events');
+  };
+
+  /** A link with a query string (e.g. `?kind=SPACE`) is only "active" when every one of its
+   * params matches the current URL — otherwise the generic `/bookings` link would also light up
+   * while viewing the Space-filtered list, and vice versa. */
+  const isItemActive = (href: string): boolean => {
+    const [hrefPath, hrefQuery] = href.split('?');
+    const pathMatches = pathname === hrefPath || (hrefPath !== '/' && pathname.startsWith(hrefPath));
+    if (!pathMatches) return false;
+    if (!hrefQuery) return searchParams.toString() === '';
+    const hrefParams = new URLSearchParams(hrefQuery);
+    for (const [key, value] of hrefParams.entries()) {
+      if (searchParams.get(key) !== value) return false;
+    }
+    return true;
+  };
+
+  const spaceNavItems = [
+    { label: 'Space Bookings', href: '/bookings?kind=SPACE', icon: BookmarkCheck },
+    { label: 'Space Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
+  ];
+
+  const eventNavItems = [
+    { label: 'Events', href: '/events', icon: Sparkles },
+    { label: 'Event Packages', href: '/services/packages?scope=EVENT', icon: Boxes },
+  ];
+
   const navGroups = [
     {
-      label: 'Overview',
+      label: workspace === 'SPACE' ? 'Space Workspace' : 'Event Workspace',
+      items: workspace === 'SPACE' ? spaceNavItems : eventNavItems,
+    },
+    {
+      label: 'Shared',
       items: [
-        { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+        { label: 'Overview', href: '/overview', icon: LayoutDashboard },
         { label: 'Calendar', href: '/calendar', icon: CalendarDays },
-      ],
-    },
-    {
-      label: 'Bookings',
-      items: [
-        { label: 'Bookings', href: '/bookings', icon: BookmarkCheck },
+        { label: 'All Bookings', href: '/bookings', icon: BookmarkCheck },
         { label: 'Waiting List', href: '/bookings?status=WAITING_LIST', icon: Clock },
-        { label: 'Events', href: '/events', icon: Sparkles },
-      ],
-    },
-    {
-      label: 'Relationships',
-      items: [
         { label: 'Clients', href: '/clients', icon: Users },
         { label: 'Services', href: '/services', icon: Briefcase },
         { label: 'Resources', href: '/resources', icon: Boxes },
-      ],
-    },
-    {
-      label: 'Business',
-      items: [
         { label: 'Finance', href: '/finance', icon: TrendingUp },
         { label: 'Settings', href: '/settings', icon: Settings },
       ],
@@ -83,13 +111,32 @@ export function Sidebar() {
         </div>
       </Link>
 
+      {!isCollapsed && workspace && (
+        <div className="row" style={{ gap: 4, padding: '0 8px' }}>
+          <button
+            onClick={() => switchWorkspace('SPACE')}
+            className={`pill${workspace === 'SPACE' ? ' active' : ''}`}
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            Space
+          </button>
+          <button
+            onClick={() => switchWorkspace('EVENT')}
+            className={`pill${workspace === 'EVENT' ? ' active' : ''}`}
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            Event
+          </button>
+        </div>
+      )}
+
       <nav className="flex-1 space-y-1 overflow-y-auto">
         {navGroups.map((group) => (
           <div key={group.label}>
             {!isCollapsed && <div className="nav-sec label">{group.label}</div>}
             {group.items.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+              const isActive = isItemActive(item.href);
               return (
                 <Link
                   key={item.href}

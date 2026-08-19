@@ -3,22 +3,27 @@
 import React, { useState } from 'react';
 import { BookingPOSTerminalProps } from './pos/types';
 import { useBookingPOS } from './pos/useBookingPOS';
-import POSTerminalHeader from './pos/POSTerminalHeader';
+import POSTerminalHeader, { POSTab } from './pos/POSTerminalHeader';
 import ClientCalendarSection from './pos/ClientCalendarSection';
 import CatalogServicesSection from './pos/CatalogServicesSection';
 import POSExtractSummarySection from './pos/POSExtractSummarySection';
+import BookingOverviewTab from './pos/BookingOverviewTab';
+import BookingContractTab from './pos/BookingContractTab';
+import BookingHandoverTab from './pos/BookingHandoverTab';
 
 export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
   const pos = useBookingPOS(props);
-  const [activeTab, setActiveTab] = useState<'details' | 'payments'>('details');
+  const isEdit = !!props.initialBookingData;
+  const [activeTab, setActiveTab] = useState<POSTab>(isEdit ? 'overview' : 'details');
 
   return (
     <div className="aurelia-shell flex-1 flex flex-col h-full w-full font-sans overflow-hidden">
       {/* TOP HEADER BAR */}
-      <POSTerminalHeader 
-        onReset={pos.resetForm} 
-        isEdit={!!props.initialBookingData} 
+      <POSTerminalHeader
+        onReset={pos.resetForm}
+        isEdit={isEdit}
         bookingId={props.initialBookingData?.id}
+        bookingKind={props.initialBookingData?.kind}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         hasPaymentsTab={!!props.paymentsTabComponent}
@@ -113,6 +118,22 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
           <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'payments' ? 'block' : 'hidden'}`}>
             {props.paymentsTabComponent}
           </main>
+        )}
+
+        {/* OVERVIEW / CONTRACT / HAND-OVER-OR-EVENT TABS — read-only, only meaningful once a
+            booking already exists (a brand-new booking has nothing yet to summarize). */}
+        {props.initialBookingData && (
+          <>
+            <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'overview' ? 'block' : 'hidden'}`}>
+              <BookingOverviewTab booking={props.initialBookingData} spaces={props.initialSpaces || []} />
+            </main>
+            <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'contract' ? 'block' : 'hidden'}`}>
+              <BookingContractTab booking={props.initialBookingData} />
+            </main>
+            <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'handover' ? 'block' : 'hidden'}`}>
+              <BookingHandoverTab booking={props.initialBookingData} />
+            </main>
+          </>
         )}
       </div>
     </div>

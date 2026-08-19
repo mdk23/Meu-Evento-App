@@ -1,18 +1,21 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, TrendingUp, FileText, CreditCard } from 'lucide-react';
+import { ArrowLeft, Plus, TrendingUp, LayoutGrid, FileText, ScrollText, ArrowRightLeft, CreditCard } from 'lucide-react';
 import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
+
+export type POSTab = 'overview' | 'details' | 'contract' | 'handover' | 'payments';
 
 interface POSTerminalHeaderProps {
   onReset: () => void;
   isEdit?: boolean;
   bookingId?: string;
-  activeTab?: 'details' | 'payments';
-  setActiveTab?: (tab: 'details' | 'payments') => void;
+  bookingKind?: 'SPACE' | 'EVENT';
+  activeTab?: POSTab;
+  setActiveTab?: (tab: POSTab) => void;
   hasPaymentsTab?: boolean;
 }
 
-export default function POSTerminalHeader({ onReset, isEdit, bookingId, activeTab, setActiveTab, hasPaymentsTab }: POSTerminalHeaderProps) {
+export default function POSTerminalHeader({ onReset, isEdit, bookingKind, activeTab, setActiveTab, hasPaymentsTab }: POSTerminalHeaderProps) {
   return (
     <header className="topbar">
       <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -28,8 +31,19 @@ export default function POSTerminalHeader({ onReset, isEdit, bookingId, activeTa
           <p className="mini dim">Aurelia • Commercial Booking Terminal</p>
         </div>
 
-        {hasPaymentsTab && setActiveTab && (
+        {/* The full tab set only makes sense once a booking already exists — a brand-new booking
+            has no Overview/Contract/Hand-over to show yet, so creation stays a single "Details" form. */}
+        {isEdit && setActiveTab && (
           <div className="tabs" style={{ border: 'none', margin: 0 }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Overview
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('details')}
@@ -41,12 +55,32 @@ export default function POSTerminalHeader({ onReset, isEdit, bookingId, activeTa
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('payments')}
-              className={`tab ${activeTab === 'payments' ? 'active' : ''}`}
+              onClick={() => setActiveTab('contract')}
+              className={`tab ${activeTab === 'contract' ? 'active' : ''}`}
               style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
-              <CreditCard className="w-3.5 h-3.5" />
-              Financials
+              <ScrollText className="w-3.5 h-3.5" />
+              Contract
+            </button>
+            {hasPaymentsTab && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('payments')}
+                className={`tab ${activeTab === 'payments' ? 'active' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                Financials
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setActiveTab('handover')}
+              className={`tab ${activeTab === 'handover' ? 'active' : ''}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              {bookingKind === 'EVENT' ? 'Event' : 'Hand-over'}
             </button>
           </div>
         )}

@@ -12,10 +12,11 @@ interface BookingsGridProps {
     bookingId: string,
     updates: { status?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }
   ) => void;
+  onCrossover: (bookingId: string, direction: 'PROMOTE' | 'DEMOTE') => void;
   onDeletePrompt: (bookingId: string, clientName: string) => void;
 }
 
-export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, onUpdateStatus, onDeletePrompt }: BookingsGridProps) {
+export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, onUpdateStatus, onCrossover, onDeletePrompt }: BookingsGridProps) {
   if (isEmpty) {
     return (
       <div className="empty">
@@ -40,6 +41,7 @@ export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, 
           isDeleting={deletingId === b.id}
           updating={updating}
           onUpdateStatus={onUpdateStatus}
+          onCrossover={onCrossover}
           onDeletePrompt={onDeletePrompt}
         />
       ))}

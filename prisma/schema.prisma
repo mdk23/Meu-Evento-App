@@ -122,6 +122,7 @@ model Tenant {
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
   expenses            Expense[]
+  auditLogs           AuditLog[]
 
   @@map("tenants")
 }
@@ -247,6 +248,28 @@ model EventStatusOverride {
 
   @@index([eventId])
   @@map("event_status_overrides")
+}
+
+/// General-purpose audit trail — currently used for Booking kind cross-over (promote/demote), the
+/// first place a "who did what, when, and why" record was needed outside the narrower
+/// `EventStatusOverride`. `entity`/`entityId` are a loose polymorphic reference (e.g.
+/// `entity: "Booking"`) rather than a typed relation, so this can log against any model without a
+/// schema change every time a new auditable action is added.
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  entity    String
+  entityId  String
+  action    String
+  detail    String?
+  actor     String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
 }
 
 model Service {
