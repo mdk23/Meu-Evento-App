@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Users, Plus, Loader2, Mail, Phone, X, Edit3, Trash2, Save, Building2 } from 'lucide-react';
+import { Users, Plus, Loader2, Mail, Phone, Edit3, Trash2, Building2 } from 'lucide-react';
 import { ClientCardDTO, ClientListPageDTO } from '@/types/dtos';
 import PaginationControls from '../shared/PaginationControls';
 import Topbar from '@/components/aurelia/Topbar';
+import ClientFormModal, { ClientFormValues } from './ClientFormModal';
 
 interface ClientsClientProps {
   data: ClientListPageDTO;
@@ -20,50 +21,28 @@ export default function ClientsClient({ data }: ClientsClientProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientCardDTO | null>(null);
 
-  // Form Fields State
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [notes, setNotes] = useState('');
-
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const openAddModal = () => {
-    setName('');
-    setEmail('');
-    setPhone('');
-    setCompanyName('');
-    setNotes('');
-    setIsAddModalOpen(true);
-  };
+  const openAddModal = () => setIsAddModalOpen(true);
+  const openEditModal = (client: ClientCardDTO) => setEditingClient(client);
 
-  const openEditModal = (client: ClientCardDTO) => {
-    setEditingClient(client);
-    setName(client.name || '');
-    setEmail(client.email || '');
-    setPhone(client.phone || '');
-    setCompanyName(client.companyName || '');
-    setNotes(client.notes || '');
+  const closeModal = () => {
+    setIsAddModalOpen(false);
+    setEditingClient(null);
   };
 
   // Create Client Handler
-  const handleCreateClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      toast.error('Client name is required.');
-      return;
-    }
+  const handleCreateClient = async (values: ClientFormValues) => {
     setSubmitting(true);
     try {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, companyName, notes }),
+        body: JSON.stringify(values),
       });
       if (res.ok) {
-        toast.success(`Client "${name}" added successfully!`);
+        toast.success(`Client "${values.name}" added successfully!`);
         setIsAddModalOpen(false);
         router.refresh();
       } else {
@@ -79,19 +58,14 @@ export default function ClientsClient({ data }: ClientsClientProps) {
   };
 
   // Update Client Handler
-  const handleUpdateClient = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateClient = async (values: ClientFormValues) => {
     if (!editingClient) return;
-    if (!name.trim()) {
-      toast.error('Client name is required.');
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/clients/${editingClient.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, companyName, notes }),
+        body: JSON.stringify(values),
       });
       if (res.ok) {
         toast.success(`Client details updated!`);
@@ -228,95 +202,21 @@ export default function ClientsClient({ data }: ClientsClientProps) {
       </div>
 
       {/* CREATE & EDIT CLIENT DIALOG */}
-      {(isAddModalOpen || editingClient) && (
-        <div className="modal-scrim">
-          <div className="modal">
-            <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
-              <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Users className="w-5 h-5" style={{ color: 'var(--accent)' }} />
-                {isAddModalOpen ? 'Add New Client' : 'Edit Client Profile'}
-              </h3>
-              <button
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setEditingClient(null);
-                }}
-                className="icon-btn"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={isAddModalOpen ? handleCreateClient : handleUpdateClient} className="stack" style={{ marginTop: 20 }}>
-              <div className="field">
-                <label className="label">Full Name</label>
-                <input
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Sofia Albuquerque"
-                  className="input"
-                />
-              </div>
-
-              <div className="field">
-                <label className="label">Company / Corporate Entity (Optional)</label>
-                <input
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Standard Bank"
-                  className="input"
-                />
-              </div>
-
-              <div className="grid g2">
-                <div className="field">
-                  <label className="label">Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@domain.com"
-                    className="input"
-                  />
-                </div>
-
-                <div className="field">
-                  <label className="label">Phone Contact</label>
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+258 84..."
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              <div className="field">
-                <label className="label">CRM Notes & Preferences</label>
-                <textarea
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Preferences, allergy details, contract patterns..."
-                  className="input"
-                />
-              </div>
-
-              <button type="submit" disabled={submitting} className="btn primary" style={{ justifyContent: 'center' }}>
-                {submitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    {isAddModalOpen ? 'Create Client Profile' : 'Save CRM Profile'}
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <ClientFormModal
+        isOpen={isAddModalOpen || !!editingClient}
+        onClose={closeModal}
+        title={isAddModalOpen ? 'Add New Client' : 'Edit Client Profile'}
+        submitLabel={isAddModalOpen ? 'Create Client Profile' : 'Save CRM Profile'}
+        initialValues={editingClient ? {
+          name: editingClient.name || '',
+          email: editingClient.email || '',
+          phone: editingClient.phone || '',
+          companyName: editingClient.companyName || '',
+          notes: editingClient.notes || '',
+        } : undefined}
+        submitting={submitting}
+        onSubmit={isAddModalOpen ? handleCreateClient : handleUpdateClient}
+      />
     </main>
   );
 }

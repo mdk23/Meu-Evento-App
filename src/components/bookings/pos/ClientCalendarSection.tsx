@@ -1,9 +1,9 @@
 import React from 'react';
-import { Users, Calendar as CalendarIcon, Clock, AlertTriangle } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, Clock, AlertTriangle, UserPlus } from 'lucide-react';
 import { Client, BookingSummary } from './types';
 
 interface ClientCalendarSectionProps {
-  initialClients: Client[];
+  clients: Client[];
   selectedClientId: string;
   setSelectedClientId: (id: string) => void;
   clientName: string;
@@ -12,6 +12,7 @@ interface ClientCalendarSectionProps {
   setClientPhone: (phone: string) => void;
   clientEmail: string;
   setClientEmail: (email: string) => void;
+  onOpenNewClientModal: () => void;
   eventTitle: string;
   setEventTitle: (title: string) => void;
   eventType: string;
@@ -43,7 +44,7 @@ interface ClientCalendarSectionProps {
 }
 
 export default function ClientCalendarSection({
-  initialClients,
+  clients,
   selectedClientId,
   setSelectedClientId,
   clientName,
@@ -52,6 +53,7 @@ export default function ClientCalendarSection({
   setClientPhone,
   clientEmail,
   setClientEmail,
+  onOpenNewClientModal,
   eventTitle,
   setEventTitle,
   eventType,
@@ -106,20 +108,23 @@ export default function ClientCalendarSection({
           value={selectedClientId}
           onChange={(e) => {
             const val = e.target.value;
+            if (val === 'NEW') {
+              setSelectedClientId('NEW');
+              onOpenNewClientModal();
+              return;
+            }
             setSelectedClientId(val);
-            if (val !== 'NEW') {
-              const existing = initialClients.find(c => c.id === val);
-              if (existing) {
-                setClientName(existing.name);
-                setClientPhone(existing.phone || '');
-                setClientEmail(existing.email || '');
-              }
+            const existing = clients.find(c => c.id === val);
+            if (existing) {
+              setClientName(existing.name);
+              setClientPhone(existing.phone || '');
+              setClientEmail(existing.email || '');
             }
           }}
           className="input"
         >
           <option value="NEW">+ Register New Client</option>
-          {initialClients.map(c => (
+          {clients.map(c => (
             <option key={c.id} value={c.id}>
               {c.name} ({c.phone || c.email || 'No contact info'})
             </option>
@@ -129,40 +134,51 @@ export default function ClientCalendarSection({
 
       {/* CLIENT FORM INPUTS */}
       <div className="stack" style={{ gap: 12, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label className="label">Client Name</label>
-          <input
-            type="text"
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="e.g. Sophia Miller"
-            className="input"
-          />
-        </div>
+        {selectedClientId !== 'NEW' ? (
+          <>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label className="label">Client Name</label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="e.g. Sophia Miller"
+                className="input"
+              />
+            </div>
 
-        <div className="grid g2">
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label className="label">Phone</label>
-            <input
-              type="text"
-              value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
-              placeholder="+258 84 123 4567"
-              className="input"
-            />
-          </div>
+            <div className="grid g2">
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">Phone</label>
+                <input
+                  type="text"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="+258 84 123 4567"
+                  className="input"
+                />
+              </div>
 
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              value={clientEmail}
-              onChange={(e) => setClientEmail(e.target.value)}
-              placeholder="sophia@email.com"
-              className="input"
-            />
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="sophia@email.com"
+                  className="input"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="stack" style={{ gap: 10, alignItems: 'center', textAlign: 'center', padding: '4px 0 8px' }}>
+            <p className="mini dim">No client selected yet.</p>
+            <button type="button" onClick={onOpenNewClientModal} className="btn sm">
+              <UserPlus className="w-3.5 h-3.5" /> Register New Client
+            </button>
           </div>
-        </div>
+        )}
 
         <div className="field" style={{ marginBottom: 0 }}>
           <label className="label">Event Title</label>

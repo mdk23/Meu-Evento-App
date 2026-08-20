@@ -10,6 +10,7 @@ import POSExtractSummarySection from './pos/POSExtractSummarySection';
 import BookingOverviewTab from './pos/BookingOverviewTab';
 import BookingContractTab from './pos/BookingContractTab';
 import BookingHandoverTab from './pos/BookingHandoverTab';
+import ClientFormModal from '@/components/clients/ClientFormModal';
 
 export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
   const pos = useBookingPOS(props);
@@ -38,7 +39,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
         >
           {/* COLUMN 1: CLIENT & CALENDAR */}
           <ClientCalendarSection
-            initialClients={props.initialClients || []}
+            clients={pos.clientsList}
             selectedClientId={pos.selectedClientId}
             setSelectedClientId={pos.setSelectedClientId}
             clientName={pos.clientName}
@@ -47,6 +48,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             setClientPhone={pos.setClientPhone}
             clientEmail={pos.clientEmail}
             setClientEmail={pos.setClientEmail}
+            onOpenNewClientModal={pos.openNewClientModal}
             eventTitle={pos.eventTitle}
             setEventTitle={pos.setEventTitle}
             eventType={pos.eventType}
@@ -143,6 +145,15 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
           </>
         )}
       </div>
+
+      <ClientFormModal
+        isOpen={pos.isNewClientModalOpen}
+        onClose={pos.closeNewClientModal}
+        title="Register New Client"
+        submitLabel="Save & Select"
+        submitting={pos.creatingClient}
+        onSubmit={pos.handleCreateClient}
+      />
     </div>
   );
 }

@@ -31,6 +31,52 @@ export function useBookingPOS({
   const [clientPhone, setClientPhone] = useState(initialBookingData?.client?.phone || '');
   const [clientEmail, setClientEmail] = useState(initialBookingData?.client?.email || '');
 
+  // Local copy of the client directory — a client created via the "New Client" modal needs to be
+  // selectable immediately, without a full page reload re-fetching `initialClients` from the server.
+  const [clientsList, setClientsList] = useState<Client[]>(initialClients);
+
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [creatingClient, setCreatingClient] = useState(false);
+
+  const openNewClientModal = () => setIsNewClientModalOpen(true);
+  const closeNewClientModal = () => setIsNewClientModalOpen(false);
+
+  // Same form as the Client Directory's Add/Edit modal (`ClientFormModal`) — the values shape
+  // matches its `ClientFormValues`, just created here instead of imported to avoid a cross-feature
+  // type-only dependency for one interface.
+  const handleCreateClient = async (values: { name: string; email: string; phone: string; companyName: string; notes: string }) => {
+    if (!values.name.trim()) {
+      toast.error('Client name is required.');
+      return;
+    }
+    setCreatingClient(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to create client.');
+        return;
+      }
+      const created: Client = data.client;
+      setClientsList(prev => [...prev, created]);
+      setSelectedClientId(created.id);
+      setClientName(created.name);
+      setClientPhone(created.phone || '');
+      setClientEmail(created.email || '');
+      setIsNewClientModalOpen(false);
+      toast.success(`Client "${created.name}" created and selected.`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Connection error.');
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
   const [eventTitle, setEventTitle] = useState(initialBookingData?.event?.name || initialBookingData?.title || '');
   const [eventType, setEventType] = useState(initialBookingData?.bookingType || '');
   const [guestCount, setGuestCount] = useState<number>(initialBookingData?.guestCount || 1);
@@ -475,6 +521,12 @@ export function useBookingPOS({
     setClientPhone,
     clientEmail,
     setClientEmail,
+    clientsList,
+    isNewClientModalOpen,
+    openNewClientModal,
+    closeNewClientModal,
+    creatingClient,
+    handleCreateClient,
     eventTitle,
     setEventTitle,
     eventType,
