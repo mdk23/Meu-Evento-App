@@ -66,45 +66,46 @@ export default function POSExtractSummarySection({
           <span className="badge b-accent" style={{ flexShrink: 0 }}>{selectedItems.length} item(s)</span>
         </div>
 
-        {/* CART ITEMS LIST */}
-        <div className="flex-1 overflow-y-auto stack" style={{ gap: 10, paddingRight: 4, minHeight: 0 }}>
-          {selectedItems.length === 0 ? (
-            <div className="empty" style={{ padding: '28px 16px' }}>
-              <ShoppingBag className="w-8 h-8 mx-auto mb-2" style={{ opacity: 0.3 }} />
-              <p className="mini dim">No services selected yet.</p>
-            </div>
-          ) : (
-            selectedItems.map((item) => (
-              <div
-                key={item.id}
-                className="between"
-                style={{ alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span className="badge b-mute" style={{ marginBottom: 4 }}>
-                    {item.category === 'SPACE' ? 'Venue' : 'Event'} • {item.providerName}
-                  </span>
-                  <h4 style={{ fontSize: 13, fontWeight: 600 }} className="truncate">{item.name}</h4>
-                  <p className="mini dim num" style={{ marginTop: 2 }}>
-                    {item.price.toLocaleString()} MT × {item.quantity} {item.priceType === 'PER_GUEST' ? 'guests' : 'units'}
-                  </p>
-                </div>
-
-                <div className="row" style={{ gap: 8, flexShrink: 0 }}>
-                  <span className="num" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
-                    {item.totalPrice.toLocaleString()} MT
-                  </span>
-                  <button type="button" onClick={() => removeItemFromCart(item.id)} className="icon-btn" style={{ width: 28, height: 28, color: 'var(--bad)' }} title="Remove item">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+        {/* CART ITEMS + SUMMARY BLOCKS — one shared scroll region, so on short viewports the Payment
+            Terms section scrolls into view instead of being clipped below the fold (previously the
+            cart list alone owned the scrollbar while everything below it assumed it always fit). */}
+        <div className="flex-1 overflow-y-auto stack" style={{ gap: 20, paddingRight: 4, minHeight: 0 }}>
+          <div className="stack" style={{ gap: 10 }}>
+            {selectedItems.length === 0 ? (
+              <div className="empty" style={{ padding: '28px 16px' }}>
+                <ShoppingBag className="w-8 h-8 mx-auto mb-2" style={{ opacity: 0.3 }} />
+                <p className="mini dim">No services selected yet.</p>
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              selectedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="between"
+                  style={{ alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="badge b-mute" style={{ marginBottom: 4 }}>
+                      {item.category === 'SPACE' ? 'Venue' : 'Event'} • {item.providerName}
+                    </span>
+                    <h4 style={{ fontSize: 13, fontWeight: 600 }} className="truncate">{item.name}</h4>
+                    <p className="mini dim num" style={{ marginTop: 2 }}>
+                      {item.price.toLocaleString()} MT × {item.quantity} {item.priceType === 'PER_GUEST' ? 'guests' : 'units'}
+                    </p>
+                  </div>
 
-        {/* BOTTOM FIXED SUMMARY BLOCKS */}
-        <div className="stack" style={{ gap: 20, flexShrink: 0, paddingBottom: 8 }}>
+                  <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+                    <span className="num" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+                      {item.totalPrice.toLocaleString()} MT
+                    </span>
+                    <button type="button" onClick={() => removeItemFromCart(item.id)} className="icon-btn" style={{ width: 28, height: 28, color: 'var(--bad)' }} title="Remove item">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
           {/* BREAKDOWN SUMMARY BOX */}
           <div className="stack" style={{ gap: 10, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
             <div className="between mini">

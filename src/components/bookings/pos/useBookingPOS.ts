@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Client, ServiceItem, SpaceItem, CartItem, BookingPOSTerminalProps } from './types';
+import { Client, ServiceItem, SpaceItem, CartItem, CatalogPackage, BookingPOSTerminalProps } from './types';
 import { defaultSpaces, defaultCatalogServices } from './constants';
 import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
 import { isOverCapacity } from '@/lib/capacity';
@@ -20,6 +20,7 @@ export function useBookingPOS({
   initialSpaces = [],
   initialBookings = [],
   initialBookingData = null,
+  initialPackages = [],
   initialDate,
 }: BookingPOSTerminalProps) {
   const router = useRouter();
@@ -176,6 +177,54 @@ export function useBookingPOS({
       setSelectedItems(prev => [...prev, newItem]);
       toast.success(`Service "${service.name}" added!`);
     }
+  };
+
+  // Packages the user has explicitly clicked "Add Package" on — separate from cart content, because
+  // two packages can share a service (e.g. a "basic" package whose one service is also part of a
+  // "deluxe" one). Deriving "Added" purely from "are all this package's services in the cart" made
+  // the smaller package light up as Added the moment the bigger one was applied, even though it was
+  // never clicked — this tracks the actual click instead. `isPackageApplied` below still re-verifies
+  // against live cart content, so removing a shared line un-marks every package it belonged to.
+  const [appliedPackageIds, setAppliedPackageIds] = useState<Set<string>>(new Set());
+
+  const isPackageApplied = (pkg: CatalogPackage) =>
+    appliedPackageIds.has(pkg.id) && pkg.services.every(s => selectedItems.some(i => i.serviceId === s.serviceId));
+
+  // Apply a package: expands into its ordinary catalog services in one action, resolved against
+  // `catalogServices` (not the raw package data) so a package-added line is indistinguishable from
+  // one added individually — same category/price/provider resolution, editable the same way
+  // afterward. Idempotent — a service already in the cart is left untouched, never duplicated.
+  const applyPackage = (pkg: CatalogPackage) => {
+    setAppliedPackageIds(prev => new Set(prev).add(pkg.id));
+
+    const existingServiceIds = new Set(selectedItems.map(i => i.serviceId));
+    const toAdd = pkg.services
+      .map(s => catalogServices.find(cs => cs.id === s.serviceId))
+      .filter((cs): cs is ServiceItem => !!cs && !existingServiceIds.has(cs.id));
+
+    if (toAdd.length === 0) {
+      toast.info(`All services from "${pkg.name}" are already in the cart.`);
+      return;
+    }
+
+    const newItems: CartItem[] = toAdd.map((service) => {
+      const qty = service.priceType === 'PER_GUEST' ? guestCount : 1;
+      return {
+        id: `cart-${service.id}-${Date.now()}-${Math.random()}`,
+        serviceId: service.id,
+        name: service.name,
+        category: service.category,
+        providerType: service.providerType,
+        providerName: service.providerName || (service.providerType === 'INTERNAL' ? 'Internal Venue' : 'External Supplier'),
+        priceType: service.priceType,
+        price: service.price,
+        quantity: qty,
+        totalPrice: service.price * qty,
+      };
+    });
+
+    setSelectedItems(prev => [...prev, ...newItems]);
+    toast.success(`Added ${newItems.length} service${newItems.length === 1 ? '' : 's'} from "${pkg.name}".`);
   };
 
   // Update item quantity on guest count changes
@@ -454,6 +503,7 @@ export function useBookingPOS({
     spacesList,
     catalogServices,
     spaceServices,
+    packages: initialPackages,
     searchTerm,
     setSearchTerm,
     categoryFilter,
@@ -493,6 +543,8 @@ export function useBookingPOS({
 
     handleSelectSpace,
     toggleCatalogService,
+    applyPackage,
+    isPackageApplied,
     removeItemFromCart,
     handleSubmitPOS,
     resetForm,

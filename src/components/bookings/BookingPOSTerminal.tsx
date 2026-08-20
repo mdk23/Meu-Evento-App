@@ -89,6 +89,9 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             filteredCatalog={pos.filteredCatalog}
             selectedItems={pos.selectedItems}
             toggleCatalogService={pos.toggleCatalogService}
+            packages={pos.packages}
+            onApplyPackage={pos.applyPackage}
+            isPackageApplied={pos.isPackageApplied}
           />
 
           {/* COLUMN 3: POS CASH EXTRACT & SUMMARY */}

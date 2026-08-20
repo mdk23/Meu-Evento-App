@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import BookingPOSTerminal from '@/components/bookings/BookingPOSTerminal';
 import { serializeDecimals } from '@/lib/money';
+import { PackageCatalogService } from '@/lib/services/package.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
       client: { select: { name: true } },
     },
   });
+  const packages = (await PackageCatalogService.getCatalog()).filter((p) => p.active);
 
   return (
     <BookingPOSTerminal
@@ -43,6 +45,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
       initialServices={serializeDecimals(services)}
       initialSpaces={spaces}
       initialBookings={bookings}
+      initialPackages={packages}
       initialDate={initialDate}
     />
   );

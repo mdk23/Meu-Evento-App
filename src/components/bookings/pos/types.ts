@@ -40,6 +40,9 @@ export interface CartItem {
 import React from 'react';
 import { Prisma } from '@prisma/client';
 import { DecimalToNumber } from '@/lib/money';
+import { PackageCardDTO } from '@/types/dtos';
+
+export type CatalogPackage = PackageCardDTO;
 
 // `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
 // `serializeDecimals` converts every one to a plain number before this data reaches the client.
@@ -72,6 +75,8 @@ export interface BookingPOSTerminalProps {
   initialSpaces?: CatalogSpace[];
   initialBookings?: BookingSummary[];
   initialBookingData?: BookingPOSInitialData | null;
+  /** Active packages only — applying one adds its bundled services to the cart in one action. */
+  initialPackages?: CatalogPackage[];
   paymentsTabComponent?: React.ReactNode;
   /** Pre-selects the event date (`YYYY-MM-DD`) for a brand-new booking — e.g. arriving from the
    * calendar's day view. Ignored when `initialBookingData` is set (editing an existing booking). */

@@ -3,6 +3,7 @@ import BookingPOSTerminal from '@/components/bookings/BookingPOSTerminal';
 import BookingPaymentsClient from '@/components/bookings/payments/BookingPaymentsClient';
 import { notFound } from 'next/navigation';
 import { serializeDecimals, sumMoney, toDisplayNumber } from '@/lib/money';
+import { PackageCatalogService } from '@/lib/services/package.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,8 @@ export default async function EditBookingPage({
     include: { scheduledPayment: true }
   });
 
+  const packages = (await PackageCatalogService.getCatalog()).filter((p) => p.active);
+
   const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.eventServices.map((service) => service.sellingPrice)));
   const totalScheduledAmount = toDisplayNumber(sumMoney(initialBookingData.scheduledPayments.map((sp) => sp.amount)));
 
@@ -104,6 +107,7 @@ export default async function EditBookingPage({
       initialSpaces={spaces}
       initialBookings={bookings}
       initialBookingData={serializeDecimals(initialBookingData)}
+      initialPackages={packages}
       paymentsTabComponent={
         <BookingPaymentsClient
           booking={serializedBooking}
