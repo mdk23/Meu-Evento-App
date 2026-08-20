@@ -11,7 +11,7 @@ export class WorkspaceRepository {
   static async getWorkspaceSummary(kind: BookingKind): Promise<WorkspaceSummaryDTO> {
     const now = new Date();
 
-    const [bookingCount, upcomingCount, eventServices, discountAgg, nextBookings] = await Promise.all([
+    const [bookingCount, upcomingCount, eventServices, discountAgg] = await Promise.all([
       prisma.booking.count({ where: { kind } }),
       prisma.booking.count({
         where: { kind, startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
@@ -23,23 +23,12 @@ export class WorkspaceRepository {
         select: { sellingPrice: true },
       }),
       prisma.booking.aggregate({ where: { kind }, _sum: { discount: true } }),
-      prisma.booking.findMany({
-        where: { kind, startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
-        orderBy: { startAt: 'asc' },
-        take: 3,
-        select: { id: true, eventDate: true, client: { select: { name: true } } },
-      }),
     ]);
 
     return {
       bookingCount,
       upcomingCount,
       contractedValue: toDisplayNumber(calculateRevenue(eventServices, discountAgg._sum.discount)),
-      nextDates: nextBookings.map((b) => ({
-        id: b.id,
-        clientName: b.client?.name || 'N/A',
-        eventDate: b.eventDate.toISOString(),
-      })),
     };
   }
 }

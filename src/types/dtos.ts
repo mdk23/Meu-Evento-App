@@ -32,6 +32,34 @@ export interface DashboardDTO {
   supplierStatusSummary: Record<string, number>;
 }
 
+export interface SpaceDashboardDTO {
+  kpis: {
+    /** Contracted revenue: SUM(EventService.sellingPrice) - discount for SPACE-kind bookings only. */
+    revenue: number;
+    totalCollected: number;
+    pendingAmount: number;
+    totalBookings: number;
+    upcomingCount: number;
+    overdueCount: number;
+  };
+  todaysBookings: Array<{
+    id: string;
+    clientName: string;
+    guestCount: number;
+    status: string;
+    startAt: string;
+    endAt: string;
+  }>;
+  upcomingBookings: Array<{
+    id: string;
+    clientName: string;
+    guestCount: number;
+    eventDate: string;
+    status: string;
+  }>;
+  space: { name: string; capacity: number; address: string | null } | null;
+}
+
 export interface BookingListPageDTO {
   items: BookingListDTO[];
   total: number;
@@ -132,7 +160,6 @@ export interface WorkspaceSummaryDTO {
   bookingCount: number;
   upcomingCount: number;
   contractedValue: number;
-  nextDates: Array<{ id: string; clientName: string; eventDate: string }>;
 }
 
 export interface PackageCardDTO {

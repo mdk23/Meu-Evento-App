@@ -32,7 +32,10 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
 
       <div className="flex-1 relative w-full h-full overflow-hidden">
         {/* MAIN 3-COLUMN WORKSPACE (DETAILS TAB) */}
-        <main className={`absolute inset-0 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto lg:overflow-hidden w-full ${activeTab === 'details' ? 'block' : 'hidden'}`}>
+        <main
+          className="absolute inset-0 p-6 grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto lg:overflow-hidden w-full"
+          style={{ display: activeTab === 'details' ? 'grid' : 'none' }}
+        >
           {/* COLUMN 1: CLIENT & CALENDAR */}
           <ClientCalendarSection
             initialClients={props.initialClients || []}

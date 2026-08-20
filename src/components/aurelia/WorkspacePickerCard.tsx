@@ -1,68 +1,87 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, Sparkles, ArrowRight } from 'lucide-react';
+import { Home, Star } from 'lucide-react';
 import { setActiveWorkspace, Workspace } from '@/lib/workspace';
 import { WorkspaceSummaryDTO } from '@/types/dtos';
+
+export interface WorkspacePickerPill {
+  label: string;
+  href: string;
+}
 
 interface WorkspacePickerCardProps {
   kind: Workspace;
   title: string;
+  subtitle: string;
   description: string;
   href: string;
+  primaryStatLabel: string;
+  midStatLabel: string;
   summary: WorkspaceSummaryDTO;
+  pills: WorkspacePickerPill[];
 }
 
-export default function WorkspacePickerCard({ kind, title, description, href, summary }: WorkspacePickerCardProps) {
-  const Icon = kind === 'SPACE' ? Building2 : Sparkles;
+export default function WorkspacePickerCard({
+  kind,
+  title,
+  subtitle,
+  description,
+  href,
+  primaryStatLabel,
+  midStatLabel,
+  summary,
+  pills,
+}: WorkspacePickerCardProps) {
+  const Icon = kind === 'SPACE' ? Home : Star;
 
   return (
-    <Link
-      href={href}
-      onClick={() => setActiveWorkspace(kind)}
-      className="card f-in"
-      style={{ display: 'block', padding: 32, textDecoration: 'none' }}
-    >
-      <div className="row" style={{ gap: 14, marginBottom: 24 }}>
-        <div className="avatar" style={{ width: 48, height: 48 }}>
-          <Icon className="w-5 h-5" />
+    <div className="card f-in" style={{ padding: 32 }}>
+      <Link href={href} onClick={() => setActiveWorkspace(kind)} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+        <div className="row" style={{ gap: 14, marginBottom: 20 }}>
+          <div className="avatar" style={{ width: 48, height: 48 }}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="h-md">{title}</h2>
+            <p className="mini dim">{subtitle}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="h-md">{title}</h2>
-          <p className="mini dim">{description}</p>
-        </div>
-      </div>
 
-      <div className="grid g3" style={{ marginBottom: 24 }}>
-        <div>
-          <span className="label">Bookings</span>
-          <div className="val" style={{ fontSize: 24 }}>{summary.bookingCount}</div>
-        </div>
-        <div>
-          <span className="label">Upcoming</span>
-          <div className="val" style={{ fontSize: 24 }}>{summary.upcomingCount}</div>
-        </div>
-        <div>
-          <span className="label">Contracted</span>
-          <div className="val" style={{ fontSize: 24 }}>{summary.contractedValue.toLocaleString()} MT</div>
-        </div>
-      </div>
+        <p className="mini dim" style={{ lineHeight: 1.6, marginBottom: 24 }}>
+          {description}
+        </p>
 
-      {summary.nextDates.length > 0 && (
-        <div className="stack" style={{ gap: 6, marginBottom: 24, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
-          <span className="label">Next dates held</span>
-          {summary.nextDates.map((d) => (
-            <div key={d.id} className="between mini dim">
-              <span>{d.clientName}</span>
-              <span className="num">{new Date(d.eventDate).toLocaleDateString()}</span>
-            </div>
-          ))}
+        <div className="stack" style={{ gap: 0 }}>
+          <div className="between" style={{ padding: '10px 0', borderBottom: '1px solid var(--rule)' }}>
+            <span className="mini dim">{primaryStatLabel}</span>
+            <span className="mini num" style={{ fontWeight: 700, color: 'var(--ink)' }}>{summary.bookingCount}</span>
+          </div>
+          <div className="between" style={{ padding: '10px 0', borderBottom: '1px solid var(--rule)' }}>
+            <span className="mini dim">{midStatLabel}</span>
+            <span className="mini num" style={{ fontWeight: 700, color: 'var(--ink)' }}>{summary.upcomingCount}</span>
+          </div>
+          <div className="between" style={{ padding: '14px 0 0' }}>
+            <span className="mini dim">Contracted</span>
+            <span className="val num" style={{ fontSize: 20 }}>{summary.contractedValue.toLocaleString('pt-MZ')} MT</span>
+          </div>
         </div>
-      )}
+      </Link>
 
-      <div className="btn primary" style={{ width: '100%', justifyContent: 'center' }}>
-        Enter {title} Workspace <ArrowRight className="w-3.5 h-3.5" />
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 24 }}>
+        {pills.map((pill) => (
+          <Link
+            key={pill.href}
+            href={pill.href}
+            onClick={() => setActiveWorkspace(kind)}
+            className="pill"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none' }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
+            <span className="label" style={{ color: 'inherit' }}>{pill.label}</span>
+          </Link>
+        ))}
       </div>
-    </Link>
+    </div>
   );
 }

@@ -84,7 +84,7 @@ export function Sidebar() {
     {
       label: 'Shared',
       items: [
-        { label: 'Overview', href: '/overview', icon: LayoutDashboard },
+        { label: 'Overview', href: workspace === 'SPACE' ? '/overview?kind=SPACE' : '/overview?kind=EVENT', icon: LayoutDashboard },
         { label: 'Calendar', href: '/calendar', icon: CalendarDays },
         { label: 'All Bookings', href: '/bookings', icon: BookmarkCheck },
         { label: 'Waiting List', href: '/bookings?status=WAITING_LIST', icon: Clock },

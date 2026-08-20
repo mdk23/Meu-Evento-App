@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Boxes, Plus, Loader2, X, Edit3, Trash2, Save, Briefcase } from 'lucide-react';
 import { PackageCardDTO, ServiceCardDTO } from '@/types/dtos';
-import Topbar from '@/components/aurelia/Topbar';
+import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
+
+const MT = (n: number) => n.toLocaleString('pt-MZ');
 
 interface PackagesClientProps {
   initialPackages: PackageCardDTO[];
@@ -33,7 +35,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   const openAddModal = () => {
     setName('');
     setDescription('');
-    setScope('SPACE');
+    setScope(initialScopeFilter === 'EVENT' ? 'EVENT' : 'SPACE');
     setSelectedServiceIds([]);
     setIsAddModalOpen(true);
   };
@@ -159,93 +161,125 @@ export default function PackagesClient({ initialPackages, initialServices, initi
 
   const packageTotal = (pkg: PackageCardDTO) => pkg.services.reduce((sum, s) => sum + s.defaultPrice, 0);
 
+  // Arriving via the workspace sidebar (`?scope=SPACE`/`?scope=EVENT`) already puts you inside one
+  // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
+  // the workspace you're in" rule. The tabs (and the ability to switch scopeFilter at all) only
+  // exist on the generic, unscoped `/services/packages` entry point.
+  const isScoped = initialScopeFilter !== 'ALL';
+  const pageTitle = scopeFilter === 'SPACE' ? 'Space packages' : scopeFilter === 'EVENT' ? 'Event packages' : 'All packages';
+
   return (
-    <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-      <Topbar crumb="Service Packages" note="Bundled offerings for Space and Event bookings.">
-        <Link href="/services" className="btn sm">
-          <Briefcase className="w-3.5 h-3.5" /> Catalog
-        </Link>
-        <button onClick={openAddModal} className="btn primary sm">
-          <Plus className="w-3.5 h-3.5" /> Add Package
-        </button>
-      </Topbar>
-
-      {/* SCOPE FILTER TABS */}
-      <div className="tabs" style={{ margin: '24px 32px 0' }}>
-        {(['ALL', 'SPACE', 'EVENT'] as const).map((filterOpt) => {
-          const count = filterOpt === 'ALL'
-            ? initialPackages.length
-            : initialPackages.filter((p) => p.scope === filterOpt).length;
-
-          return (
-            <button
-              key={filterOpt}
-              onClick={() => setScopeFilter(filterOpt)}
-              className={`tab ${scopeFilter === filterOpt ? 'active' : ''}`}
-              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-            >
-              <span>
-                {filterOpt === 'ALL' && 'All Packages'}
-                {filterOpt === 'SPACE' && 'Space Packages'}
-                {filterOpt === 'EVENT' && 'Event Packages'}
-              </span>
-              <span className="badge b-mute">{count}</span>
-            </button>
-          );
-        })}
+    <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-y-auto">
+      <div className="between" style={{ padding: '32px 40px 0', alignItems: 'flex-start', flexShrink: 0 }}>
+        <div>
+          <h1 className="h-lg">{pageTitle}</h1>
+          <p className="serif-note" style={{ marginTop: 8, maxWidth: 560 }}>
+            A package is a shortcut, not a second system. Applying one expands into ordinary services you
+            can then change individually.
+          </p>
+        </div>
+        <div className="row" style={{ gap: 10, flexShrink: 0 }}>
+          <Link href="/services" className="btn sm">
+            <Briefcase className="w-3.5 h-3.5" /> Catalog
+          </Link>
+          <ThemeSwitch />
+          <button onClick={openAddModal} className="btn primary">
+            <Plus className="w-4 h-4" /> New package
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto page" style={{ paddingTop: 22 }}>
+      {/* SCOPE FILTER TABS — unscoped entry point only */}
+      {!isScoped && (
+        <div className="tabs" style={{ margin: '24px 40px 0' }}>
+          {(['ALL', 'SPACE', 'EVENT'] as const).map((filterOpt) => {
+            const count = filterOpt === 'ALL'
+              ? initialPackages.length
+              : initialPackages.filter((p) => p.scope === filterOpt).length;
+
+            return (
+              <button
+                key={filterOpt}
+                onClick={() => setScopeFilter(filterOpt)}
+                className={`tab ${scopeFilter === filterOpt ? 'active' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <span>
+                  {filterOpt === 'ALL' && 'All Packages'}
+                  {filterOpt === 'SPACE' && 'Space Packages'}
+                  {filterOpt === 'EVENT' && 'Event Packages'}
+                </span>
+                <span className="badge b-mute">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex-1 page" style={{ paddingTop: isScoped ? 28 : 22 }}>
         {filteredPackages.length === 0 ? (
           <div className="empty">
             <Boxes className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3 }} />
             <h3 className="h-sm">No Packages Found</h3>
             <p className="mini dim" style={{ marginTop: 4, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
-              No bundles match the selected filter. Click &ldquo;Add Package&rdquo; to create one.
+              No bundles match the selected filter. Click &ldquo;New package&rdquo; to create one.
             </p>
           </div>
         ) : (
-          <div className="grid g3">
+          <div className="grid g2">
             {filteredPackages.map((pkg, i) => {
               const isDeleting = deletingId === pkg.id;
+              const serviceCount = pkg.services.length;
               return (
-                <div key={pkg.id} className={`card plain f-in d${(i % 4) + 1} stack`}>
-                  <div className="between">
-                    <span className={`badge ${pkg.scope === 'SPACE' ? 'b-accent' : 'b-info'}`}>
-                      {pkg.scope === 'SPACE' ? 'Space Package' : 'Event Package'}
-                    </span>
-                    <span className="num" style={{ fontWeight: 700, color: 'var(--accent)' }}>
-                      {packageTotal(pkg).toLocaleString()} MT
-                    </span>
+                <div key={pkg.id} className={`card plain f-in d${(i % 4) + 1} stack`} style={{ padding: 28, gap: 18 }}>
+                  <div className="between" style={{ alignItems: 'flex-start' }}>
+                    <div>
+                      {!isScoped && (
+                        <span className={`badge ${pkg.scope === 'SPACE' ? 'b-accent' : 'b-info'}`} style={{ marginBottom: 8 }}>
+                          {pkg.scope === 'SPACE' ? 'Space' : 'Event'}
+                        </span>
+                      )}
+                      <h3 className="h-md">{pkg.name}</h3>
+                      <p className="mini dim" style={{ marginTop: 2 }}>{serviceCount} service{serviceCount === 1 ? '' : 's'}</p>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <span className="val num" style={{ fontSize: 19 }}>{MT(packageTotal(pkg))} MT</span>
+                      <span className="mini dim"> from</span>
+                    </div>
                   </div>
 
-                  <div>
-                    <h3 className="h-sm">{pkg.name}</h3>
-                    {pkg.description && <p className="mini dim" style={{ marginTop: 4 }}>{pkg.description}</p>}
-                  </div>
+                  {pkg.description && <p className="mini dim" style={{ lineHeight: 1.6 }}>{pkg.description}</p>}
 
-                  <div className="stack" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
+                  <div className="stack" style={{ gap: 0 }}>
                     {pkg.services.map((s) => (
-                      <div key={s.serviceId} className="between mini dim">
-                        <span>{s.name}</span>
-                        <span className="num">{s.defaultPrice.toLocaleString()} MT</span>
+                      <div key={s.serviceId} className="between" style={{ padding: '10px 0', borderBottom: '1px solid var(--rule)' }}>
+                        <span className="mini">{s.name}</span>
+                        <div className="row" style={{ gap: 10, flexShrink: 0 }}>
+                          <span className={`badge ${s.defaultExecutionType === 'INTERNAL' ? 'b-accent' : 'b-info'}`}>
+                            {s.defaultExecutionType}
+                          </span>
+                          <span className="mini num">{MT(s.defaultPrice)} MT</span>
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="between" style={{ paddingTop: 12, borderTop: '1px solid var(--rule)' }}>
-                    <button onClick={() => openEditModal(pkg)} className="btn ghost sm">
-                      <Edit3 className="w-3.5 h-3.5" /> Edit
-                    </button>
-                    <button
-                      disabled={isDeleting}
-                      onClick={() => handleDeletePrompt(pkg.id, pkg.name)}
-                      className="icon-btn"
-                      style={{ width: 30, height: 30, color: 'var(--bad)' }}
-                      title="Archive Package"
-                    >
-                      {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    </button>
+                  <div className="between" style={{ paddingTop: 4 }}>
+                    <span className="mini dim">Providers here are defaults.</span>
+                    <div className="row" style={{ gap: 8 }}>
+                      <button onClick={() => openEditModal(pkg)} className="btn sm">
+                        <Edit3 className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button
+                        disabled={isDeleting}
+                        onClick={() => handleDeletePrompt(pkg.id, pkg.name)}
+                        className="icon-btn"
+                        style={{ width: 30, height: 30, color: 'var(--bad)' }}
+                        title="Archive Package"
+                      >
+                        {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -319,7 +353,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                       />
                       <span className="mini" style={{ flex: 1, color: 'var(--ink)' }}>{s.name}</span>
                       <span className="mini dim">{s.category}</span>
-                      <span className="mini num" style={{ width: 80, textAlign: 'right' }}>{s.defaultPrice.toLocaleString()} MT</span>
+                      <span className="mini num" style={{ width: 80, textAlign: 'right' }}>{MT(s.defaultPrice)} MT</span>
                     </label>
                   ))}
                 </div>

@@ -1,51 +1,99 @@
 import React from 'react';
-import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 import { WorkspaceRepository } from '@/lib/repositories/workspace.repository';
 import WorkspacePickerCard from '@/components/aurelia/WorkspacePickerCard';
+import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WorkspacePickerPage() {
-  const [space, event] = await Promise.all([
+  const [space, event, tenant] = await Promise.all([
     WorkspaceRepository.getWorkspaceSummary('SPACE'),
     WorkspaceRepository.getWorkspaceSummary('EVENT'),
+    prisma.tenant.findFirst({ include: { space: true } }),
   ]);
 
+  const spaceName = tenant?.space?.name || 'Main Space';
+  const city = tenant?.space?.address?.split(',').pop()?.trim() || tenant?.name || 'Aurelia';
+
   return (
-    <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
+    <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-y-auto">
+      <header className="between" style={{ padding: '28px 40px 0', flexShrink: 0 }}>
+        <div className="row" style={{ gap: 14 }}>
+          <svg width="38" height="38" viewBox="0 0 38 38" style={{ flexShrink: 0, color: 'var(--accent)' }} aria-hidden="true">
+            <circle cx="19" cy="19" r="16.5" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+            <circle cx="19" cy="19" r="10.5" fill="none" stroke="currentColor" strokeWidth="1" />
+            <circle cx="19" cy="19" r="2" fill="currentColor" />
+            <line x1="19" y1="0.5" x2="19" y2="5" stroke="currentColor" strokeWidth="1" />
+            <line x1="19" y1="33" x2="19" y2="37.5" stroke="currentColor" strokeWidth="1" />
+            <line x1="0.5" y1="19" x2="5" y2="19" stroke="currentColor" strokeWidth="1" />
+            <line x1="33" y1="19" x2="37.5" y2="19" stroke="currentColor" strokeWidth="1" />
+          </svg>
+          <div>
+            <div className="h-sm" style={{ letterSpacing: '0.16em', fontSize: 17 }}>AURELIA</div>
+            <p className="label" style={{ marginTop: 2 }}>{spaceName} &middot; {city}</p>
+          </div>
+        </div>
+
+        <div className="row" style={{ gap: 20 }}>
+          <ThemeSwitch />
+          {/* No auth wired up yet ("forget the login for now") — presentational only. */}
+          <button type="button" className="mini dim" style={{ background: 'none', border: 'none', cursor: 'default' }}>
+            Sign out
+          </button>
+        </div>
+      </header>
+
       <div
-        className="flex-1 overflow-y-auto page"
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}
+        className="flex-1"
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <p className="label">Aurelia</p>
-          <h1 className="h-xl">Choose your workspace</h1>
-          <p className="serif-note" style={{ marginTop: 8 }}>
-            Renting the room, or running the occasion — this is the only &ldquo;type&rdquo; decision in the app;
-            everything downstream follows from it.
+        <div style={{ textAlign: 'center', marginBottom: 44, maxWidth: 640 }}>
+          <h1 className="h-xl">Where are you working today?</h1>
+          <p className="serif-note" style={{ marginTop: 12 }}>
+            Two workspaces over one catalogue. Renting the room and running an occasion are different jobs, so
+            they are different screens.
           </p>
         </div>
 
-        <div className="grid g2" style={{ maxWidth: 920, width: '100%', gap: 24 }}>
+        <div className="grid g2" style={{ maxWidth: 980, width: '100%', gap: 24 }}>
           <WorkspacePickerCard
             kind="SPACE"
             title="Space"
-            description="You rent out Pavilhão Aurora."
+            subtitle={spaceName}
+            description="The client rents the room. We hand over a space — with our furniture, climate and cleaning if they want them. No operational plan needed."
             href="/bookings?kind=SPACE"
+            primaryStatLabel="Space bookings"
+            midStatLabel="Dates held ahead"
             summary={space}
+            pills={[
+              { label: 'Space Details', href: '/resources' },
+              { label: 'Bookings', href: '/bookings?kind=SPACE' },
+              { label: 'Space Packages', href: '/services/packages?scope=SPACE' },
+              { label: 'Space Services', href: '/services' },
+            ]}
           />
           <WorkspacePickerCard
             kind="EVENT"
             title="Event"
-            description="You run the occasion, here or elsewhere."
+            subtitle="Here, or anywhere else"
+            description="We organise the occasion — services, suppliers, staff, guests and the loading list. The venue may be ours or someone else's."
             href="/events"
+            primaryStatLabel="Events"
+            midStatLabel="Upcoming"
             summary={event}
+            pills={[
+              { label: 'Event Details', href: '/events' },
+              { label: 'Event Services', href: '/services' },
+              { label: 'Event Packages', href: '/services/packages?scope=EVENT' },
+            ]}
           />
         </div>
 
-        <Link href="/overview" className="mini dim" style={{ marginTop: 28 }}>
-          Or view the cross-workspace Business Overview →
-        </Link>
+        <p className="mini dim" style={{ marginTop: 36, textAlign: 'center', maxWidth: 520 }}>
+          The service catalogue, packages, resources and finance are shared. You can switch workspace at any
+          time from the sidebar.
+        </p>
       </div>
     </main>
   );
