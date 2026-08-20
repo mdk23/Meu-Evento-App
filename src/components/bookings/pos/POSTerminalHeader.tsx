@@ -2,6 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, TrendingUp, LayoutGrid, FileText, ScrollText, ArrowRightLeft, CreditCard } from 'lucide-react';
 import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
+import LifecycleSpine from '@/components/aurelia/LifecycleSpine';
+import { deriveLifecycleStages } from '@/lib/booking-lifecycle';
+import { BookingPOSInitialData } from './types';
 
 export type POSTab = 'overview' | 'details' | 'contract' | 'handover' | 'payments';
 
@@ -10,13 +13,25 @@ interface POSTerminalHeaderProps {
   isEdit?: boolean;
   bookingId?: string;
   bookingKind?: 'SPACE' | 'EVENT';
+  booking?: BookingPOSInitialData | null;
   activeTab?: POSTab;
   setActiveTab?: (tab: POSTab) => void;
   hasPaymentsTab?: boolean;
 }
 
-export default function POSTerminalHeader({ onReset, isEdit, bookingKind, activeTab, setActiveTab, hasPaymentsTab }: POSTerminalHeaderProps) {
+export default function POSTerminalHeader({ onReset, isEdit, booking, bookingKind, activeTab, setActiveTab, hasPaymentsTab }: POSTerminalHeaderProps) {
+  const stages = booking
+    ? deriveLifecycleStages({
+        bookingStatus: booking.status,
+        kind: booking.kind,
+        scheduledPayments: booking.scheduledPayments,
+        eventServices: booking.eventServices,
+        eventStatus: booking.event?.status ?? null,
+      })
+    : null;
+
   return (
+    <>
     <header className="topbar">
       <div className="crumb" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <Link href="/bookings" className="icon-btn" title="Back to Bookings">
@@ -100,5 +115,11 @@ export default function POSTerminalHeader({ onReset, isEdit, bookingKind, active
         <ThemeSwitch />
       </div>
     </header>
+    {stages && (
+      <div style={{ borderBottom: '1px solid var(--rule)', background: 'var(--veil)' }}>
+        <LifecycleSpine stages={stages} />
+      </div>
+    )}
+    </>
   );
 }

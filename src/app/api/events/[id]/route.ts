@@ -14,6 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           include: {
             client: true,
             scheduledPayments: { where: { plan: { active: true } } },
+            paymentTransactions: { orderBy: { date: 'desc' }, include: { scheduledPayment: true } },
           },
         },
         eventServices: {

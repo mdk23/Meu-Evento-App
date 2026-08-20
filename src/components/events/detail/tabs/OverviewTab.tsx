@@ -40,7 +40,7 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
     .reduce((sum, es) => sum + es.sellingPrice, 0);
   const progressPercent = totalActiveValue > 0 ? Math.round((completedValue / totalActiveValue) * 100) : 0;
 
-  // Contract value — same definition as FinanceTab: SUM(EventService.sellingPrice) - discount.
+  // Contract value — same definition as ExecutionTab: SUM(EventService.sellingPrice) - discount.
   const serviceRevenue = event.eventServices.reduce((sum, es) => sum + es.sellingPrice, 0);
   const contractValue = Math.max(0, serviceRevenue - (event.booking?.discount || 0));
   const scheduledPayments = event.booking?.scheduledPayments || [];
@@ -264,7 +264,7 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
             </div>
             {onNavigateTab && (
               <button
-                onClick={() => onNavigateTab('finance')}
+                onClick={() => onNavigateTab('payments')}
                 className="mini"
                 style={{ color: 'var(--accent)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, paddingTop: 4 }}
               >

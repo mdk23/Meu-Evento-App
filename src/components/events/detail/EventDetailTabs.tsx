@@ -1,13 +1,15 @@
-import { Sparkles, Briefcase, Users, CheckSquare, TrendingUp, FileText } from 'lucide-react';
+import { Sparkles, Briefcase, CheckSquare, Users, Package, Truck, CreditCard, Gauge } from 'lucide-react';
 import { TabId } from './types';
 
 const TABS: { id: TabId; label: string; icon: typeof Sparkles }[] = [
   { id: 'overview', label: 'Overview', icon: Sparkles },
   { id: 'services', label: 'Services', icon: Briefcase },
-  { id: 'guests', label: 'Guests', icon: Users },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-  { id: 'finance', label: 'Finance', icon: TrendingUp },
-  { id: 'documents', label: 'Documents', icon: FileText },
+  { id: 'guests', label: 'Guests', icon: Users },
+  { id: 'resources', label: 'Resources', icon: Package },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck },
+  { id: 'payments', label: 'Payments', icon: CreditCard },
+  { id: 'execution', label: 'Execution', icon: Gauge },
 ];
 
 interface EventDetailTabsProps {

@@ -7,7 +7,7 @@ export type SerializedService = DecimalToNumber<Service>;
 
 export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
   include: {
-    booking: { include: { client: true; scheduledPayments: true } };
+    booking: { include: { client: true; scheduledPayments: true; paymentTransactions: { include: { scheduledPayment: true } } } };
     eventServices: {
       include: {
         service: true;
@@ -63,4 +63,4 @@ export function parseFieldSchema(raw: unknown): FieldSchemaField[] {
   );
 }
 
-export type TabId = 'overview' | 'services' | 'guests' | 'tasks' | 'finance' | 'documents';
+export type TabId = 'overview' | 'services' | 'tasks' | 'guests' | 'resources' | 'suppliers' | 'payments' | 'execution';

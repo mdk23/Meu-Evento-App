@@ -8,8 +8,10 @@ import OverviewTab from './tabs/OverviewTab';
 import ServicesTab from './tabs/ServicesTab';
 import GuestsTab from './tabs/GuestsTab';
 import TasksTab from './tabs/TasksTab';
-import FinanceTab from './tabs/FinanceTab';
-import DocumentsTab from './tabs/DocumentsTab';
+import ResourcesTab from './tabs/ResourcesTab';
+import SuppliersTab from './tabs/SuppliersTab';
+import PaymentsTab from './tabs/PaymentsTab';
+import ExecutionTab from './tabs/ExecutionTab';
 import ServiceWorkOrderModal from './ServiceWorkOrderModal';
 import AddServiceModal from './AddServiceModal';
 
@@ -36,13 +38,20 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
         <EventDetailHeader event={event} />
         <EventDetailTabs activeTab={detail.activeTab} onTabChange={detail.setActiveTab} />
 
-        <div className="flex-1 overflow-auto page">
+        <div className={`flex-1 overflow-auto${detail.activeTab === 'payments' ? '' : ' page'}`}>
           {detail.activeTab === 'overview' && <OverviewTab event={event} space={space} onNavigateTab={detail.setActiveTab} />}
           {detail.activeTab === 'services' && (
             <ServicesTab
               eventServices={event.eventServices}
               onOpenWorkOrder={detail.openServiceWorkOrder}
               onOpenAddService={() => detail.setIsAddServiceOpen(true)}
+            />
+          )}
+          {detail.activeTab === 'tasks' && (
+            <TasksTab
+              eventServices={event.eventServices}
+              onToggleTask={detail.toggleTaskCompletedGlobal}
+              onOpenWorkOrder={detail.openServiceWorkOrder}
             />
           )}
           {detail.activeTab === 'guests' && (
@@ -58,22 +67,25 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
               onAddGuest={detail.handleAddGuest}
             />
           )}
-          {detail.activeTab === 'tasks' && (
-            <TasksTab
+          {detail.activeTab === 'resources' && (
+            <ResourcesTab eventServices={event.eventServices} onOpenWorkOrder={detail.openServiceWorkOrder} />
+          )}
+          {detail.activeTab === 'suppliers' && (
+            <SuppliersTab
               eventServices={event.eventServices}
-              onToggleTask={detail.toggleTaskCompletedGlobal}
+              expenses={event.expenses}
               onOpenWorkOrder={detail.openServiceWorkOrder}
             />
           )}
-          {detail.activeTab === 'finance' && (
-            <FinanceTab
-              scheduledPayments={event.booking.scheduledPayments}
-              expenses={event.expenses}
+          {detail.activeTab === 'payments' && <PaymentsTab event={event} />}
+          {detail.activeTab === 'execution' && (
+            <ExecutionTab
               eventServices={event.eventServices}
+              expenses={event.expenses}
               discount={event.booking.discount || 0}
+              onOpenWorkOrder={detail.openServiceWorkOrder}
             />
           )}
-          {detail.activeTab === 'documents' && <DocumentsTab event={event} />}
         </div>
       </main>
 

@@ -24,6 +24,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
         isEdit={isEdit}
         bookingId={props.initialBookingData?.id}
         bookingKind={props.initialBookingData?.kind}
+        booking={props.initialBookingData}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         hasPaymentsTab={!!props.paymentsTabComponent}
