@@ -109,6 +109,39 @@ enum ServiceSource {
   PACKAGE
 }
 
+/// How a `ServiceInventoryRequirement`'s `quantity` scales when resolved onto an actual booking.
+enum QuantityType {
+  FIXED
+  PER_GUEST
+  PER_UNIT
+}
+
+/// Lifecycle of an `InventoryReservation`'s commitment. Only HELD/CONFIRMED/CONSUMED count as active
+/// commitments against availability — RELEASED/RETURNED/CANCELLED free the stock back up.
+enum ReservationStatus {
+  HELD
+  CONFIRMED
+  RELEASED
+  CONSUMED
+  RETURNED
+  CANCELLED
+}
+
+/// The inventory movement ledger's event types — "what physically happened," independent of a
+/// reservation's commitment status. Never rewritten to hide history; corrections are new rows.
+enum InventoryTransactionType {
+  PURCHASE
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RESERVE
+  RELEASE
+  ALLOCATE
+  USE
+  RETURN
+  DAMAGE
+  LOSS
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -125,6 +158,7 @@ model Tenant {
   packages            Package[]
   suppliers           Supplier[]
   inventoryItems      InventoryItem[]
+  inventoryCategories InventoryCategory[]
   staff               Staff[]
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
@@ -172,39 +206,40 @@ model Client {
 }
 
 model Booking {
-  id                 String        @id @default(cuid())
-  tenantId           String
-  clientId           String
-  spaceId            String
-  bookingType        BookingType   @default(SPACE_AND_SERVICES)
+  id                     String         @id @default(cuid())
+  tenantId               String
+  clientId               String
+  spaceId                String
+  bookingType            BookingType    @default(SPACE_AND_SERVICES)
   /// Structural workspace switch — see `BookingContext` doc comment. Defaults to EVENT because,
   /// historically, every booking got an Event unconditionally; SPACE bookings are a new concept.
-  context            BookingContext @default(EVENT)
-  eventDate          DateTime
+  context                BookingContext @default(EVENT)
+  eventDate              DateTime
   /// Real reservation window for the space, used for overlap-conflict checking.
   /// `eventDate` stays in sync (same calendar day as `startAt`) for existing day-level UI/queries.
-  startAt            DateTime
-  endAt              DateTime
-  guestCount         Int           @default(0)
-  status             BookingStatus @default(RESERVED)
-  notes              String?
-  depositDueDate     DateTime?
-  discount           Decimal?      @default(0) @db.Decimal(12, 2)
+  startAt                DateTime
+  endAt                  DateTime
+  guestCount             Int            @default(0)
+  status                 BookingStatus  @default(RESERVED)
+  notes                  String?
+  depositDueDate         DateTime?
+  discount               Decimal?       @default(0) @db.Decimal(12, 2)
   /// Required to confirm a booking whose guestCount exceeds the space's capacity — otherwise
   /// confirmation is blocked. Null when capacity was never exceeded or never overridden.
   capacityOverrideReason String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  space               Space                @relation(fields: [spaceId], references: [id], onDelete: Restrict)
-  event               Event?
-  bookingServices     BookingService[]
-  bookingPackages     BookingPackage[]
-  paymentPlans        PaymentPlan[]
-  scheduledPayments   ScheduledPayment[]
-  paymentTransactions PaymentTransaction[]
+  tenant               Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client               Client                              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  space                Space                               @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+  event                Event?
+  bookingServices      BookingService[]
+  bookingPackages      BookingPackage[]
+  resourceRequirements BookingServiceResourceRequirement[]
+  paymentPlans         PaymentPlan[]
+  scheduledPayments    ScheduledPayment[]
+  paymentTransactions  PaymentTransaction[]
 
   @@index([tenantId])
   @@index([clientId])
@@ -232,6 +267,7 @@ model Event {
   guests                Guest[]
   expenses              Expense[]
   inventoryReservations InventoryReservation[]
+  inventoryTransactions InventoryTransaction[]
   statusOverrides       EventStatusOverride[]
 
   @@index([bookingId])
@@ -281,34 +317,35 @@ model AuditLog {
 }
 
 model Service {
-  id             String        @id @default(cuid())
-  tenantId       String
-  name           String
-  category       String
+  id                  String        @id @default(cuid())
+  tenantId            String
+  name                String
+  category            String
   /// Which workspace(s) this service can be selected from — see `ServiceScope` doc comment.
   /// Defaults to `BOTH` on every pre-existing row (this field didn't exist before Phase 12e), which
   /// preserves the exact "visible everywhere" behavior every service had before scoping existed;
   /// re-scoping real catalog rows to SPACE-only or EVENT-only is a deliberate follow-up the catalog
   /// owner does via the Services page, not something inferred automatically from name/category.
-  scope          ServiceScope  @default(BOTH)
+  scope               ServiceScope  @default(BOTH)
   /// The provider type this service defaults to when added to a booking. Purely a suggested
   /// starting point — `BookingService.providerType` is the real per-booking decision and can differ.
   defaultProviderType ExecutionType @default(INTERNAL)
-  priceType      String        @default("FIXED")
-  defaultPrice   Decimal       @default(0) @db.Decimal(12, 2)
+  priceType           String        @default("FIXED")
+  defaultPrice        Decimal       @default(0) @db.Decimal(12, 2)
   /// Defines the dynamic operational fields this service's work orders should collect —
   /// an array of `{ key, type, label?, options? }`. `BookingService.customFields` then stores
   /// only the values, keyed by `key`. Supported `type`s: text, textarea, number, select,
   /// multiselect, date, datetime, boolean.
-  fieldSchema    Json?
-  active         Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  fieldSchema         Json?
+  active              Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  bookingServices    BookingService[]
-  packageItems       PackageItem[]
-  bookingPackageItems BookingPackageItem[]
+  tenant                Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookingServices       BookingService[]
+  packageItems          PackageItem[]
+  bookingPackageItems   BookingPackageItem[]
+  inventoryRequirements ServiceInventoryRequirement[]
 
   @@index([tenantId])
   @@index([category])
@@ -364,14 +401,14 @@ model Package {
 }
 
 model PackageItem {
-  id        String  @id @default(cuid())
-  packageId String
-  serviceId String
+  id            String   @id @default(cuid())
+  packageId     String
+  serviceId     String
   /// Display/apply order within the package.
-  order     Int     @default(0)
+  order         Int      @default(0)
   /// How many units of this service the package bundles by default (e.g. "300 chairs") — editable
   /// per line after the package is applied to a booking, same as everything else about that line.
-  quantity  Decimal @default(1) @db.Decimal(12, 2)
+  quantity      Decimal  @default(1) @db.Decimal(12, 2)
   /// Overrides the service's catalog `defaultPrice` for this package only, when set. Null means
   /// "use whatever the service normally costs" — most package lines leave this unset.
   priceOverride Decimal? @db.Decimal(12, 2)
@@ -386,35 +423,35 @@ model PackageItem {
 }
 
 model BookingService {
-  id           String          @id @default(cuid())
+  id               String          @id @default(cuid())
   /// The commercial owner of this line — always set. A space-only booking's lines have no
   /// `eventId`; that's how a booking can exist with commercial service lines and no Event.
-  bookingId    String
+  bookingId        String
   /// Null for a SPACE booking's lines — commercial-only, no operational Event workspace exists
   /// for them. Set for every EVENT booking's lines.
-  eventId      String?
-  serviceId    String
-  providerType ExecutionType   @default(INTERNAL)
+  eventId          String?
+  serviceId        String
+  providerType     ExecutionType   @default(INTERNAL)
   /// How many units of the service this line represents (e.g. 10 for "10 Extra Tables") — kept in
   /// sync with `sellingPrice = unitPrice * quantity` at write time. Persisting this (rather than only
   /// the total) is what lets a fixed-price multi-unit line survive an edit-reload with its original
   /// quantity intact, instead of collapsing to a bare total with no way to recover how it was composed.
-  quantity     Decimal         @default(1) @db.Decimal(12, 2)
+  quantity         Decimal         @default(1) @db.Decimal(12, 2)
   /// Per-unit price at the time this line was added — `sellingPrice` is the authoritative total,
   /// this is what composed it. Backfilled from `sellingPrice` for every pre-existing row (all of
   /// which were implicitly quantity 1).
-  unitPrice    Decimal         @default(0) @db.Decimal(12, 2)
+  unitPrice        Decimal         @default(0) @db.Decimal(12, 2)
   /// Whether this line was added directly from the catalog or exploded out of an applied Package.
   /// Purely provenance — a `PACKAGE`-sourced line is exactly as editable as a `DIRECT` one afterward.
-  source          ServiceSource @default(DIRECT)
+  source           ServiceSource   @default(DIRECT)
   /// Which package application produced this line, when `source = PACKAGE`. Null for `DIRECT` lines.
   /// Losing this link (e.g. the snapshot row being removed) never deletes the line itself — see
   /// `BookingPackage`'s `onDelete: SetNull` below.
   bookingPackageId String?
-  sellingPrice Decimal         @default(0) @db.Decimal(12, 2)
-  cost         Decimal         @default(0) @db.Decimal(12, 2)
-  status       WorkOrderStatus @default(PLANNING)
-  notes        String?
+  sellingPrice     Decimal         @default(0) @db.Decimal(12, 2)
+  cost             Decimal         @default(0) @db.Decimal(12, 2)
+  status           WorkOrderStatus @default(PLANNING)
+  notes            String?
 
   /// Snapshot of `Service.name` at the time this work order was created — protects historical
   /// records from showing the wrong name if the catalog service is later renamed or deactivated.
@@ -440,6 +477,8 @@ model BookingService {
   serviceTasks          BookingServiceTask[]
   staffAssignments      BookingServiceStaff[]
   inventoryReservations InventoryReservation[]
+  resourceRequirements  BookingServiceResourceRequirement[]
+  inventoryTransactions InventoryTransaction[]
   expenses              Expense[]
 
   @@index([bookingId])
@@ -465,9 +504,9 @@ model BookingPackage {
   nameSnapshot String
   createdAt    DateTime @default(now())
 
-  booking Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  package Package              @relation(fields: [packageId], references: [id], onDelete: Restrict)
-  items   BookingPackageItem[]
+  booking         Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  package         Package              @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  items           BookingPackageItem[]
   bookingServices BookingService[]
 
   @@index([bookingId])
@@ -476,15 +515,15 @@ model BookingPackage {
 }
 
 model BookingPackageItem {
-  id               String  @id @default(cuid())
+  id               String   @id @default(cuid())
   bookingPackageId String
   serviceId        String?
   /// Snapshot of `Service.name` at application time — same protection as
   /// `BookingService.serviceNameSnapshot`, independent of whether the catalog service still exists.
   serviceName      String
-  quantity         Decimal @db.Decimal(12, 2)
-  unitPrice        Decimal @db.Decimal(12, 2)
-  totalPrice       Decimal @db.Decimal(12, 2)
+  quantity         Decimal  @db.Decimal(12, 2)
+  unitPrice        Decimal  @db.Decimal(12, 2)
+  totalPrice       Decimal  @db.Decimal(12, 2)
   createdAt        DateTime @default(now())
 
   bookingPackage BookingPackage @relation(fields: [bookingPackageId], references: [id], onDelete: Cascade)
@@ -533,26 +572,43 @@ model BookingServiceStaff {
 }
 
 model InventoryReservation {
-  id               String   @id @default(cuid())
-  eventId          String
-  bookingServiceId String
-  inventoryItemId  String
-  quantity         Int
-  startAt          DateTime
-  endAt            DateTime
-  createdAt        DateTime @default(now())
+  id                                  String            @id @default(cuid())
+  eventId                             String
+  bookingServiceId                    String
+  inventoryItemId                     String
+  /// Decimal, not Int — matches every other operational quantity in the inventory model, since the
+  /// business may eventually reserve fractional units (kg, litres, metres, hours).
+  quantity                            Decimal           @db.Decimal(12, 2)
+  startAt                             DateTime
+  endAt                               DateTime
+  /// Commitment lifecycle — only HELD/CONFIRMED/CONSUMED count toward availability. Defaults to HELD,
+  /// matching every reservation's implicit state before this field existed.
+  status                              ReservationStatus @default(HELD)
+  /// Which BookingServiceResourceRequirement row this reservation fulfills, when it was created through
+  /// that flow rather than the older direct work-order reservation route. Nullable — every reservation
+  /// created before this phase, and any created outside the requirement flow, leaves this null.
+  bookingServiceResourceRequirementId String?
+  createdAt                           DateTime          @default(now())
 
   /// Snapshot of `InventoryItem.name` at reservation time — protects historical records if the
   /// item is later renamed or deactivated.
   itemNameSnapshot String
 
-  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  bookingService BookingService @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
-  inventoryItem  InventoryItem  @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  event                Event                               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingService       BookingService                      @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
+  inventoryItem        InventoryItem                       @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  resourceRequirement  BookingServiceResourceRequirement?  @relation(fields: [bookingServiceResourceRequirementId], references: [id], onDelete: SetNull)
+  /// Every BookingServiceResourceRequirement (typically on a different, later-added service) that reuses
+  /// this reservation's already-committed stock instead of creating a duplicate one — see
+  /// `assertReuseQuantityAvailable` for the guard that keeps their combined reuse within `quantity`.
+  reusedByRequirements BookingServiceResourceRequirement[] @relation("ReusedReservation")
+  transactions         InventoryTransaction[]
 
   @@index([bookingServiceId])
   @@index([inventoryItemId])
   @@index([startAt, endAt])
+  @@index([status])
+  @@index([bookingServiceResourceRequirementId])
   @@map("inventory_reservations")
 }
 
@@ -576,22 +632,168 @@ model Supplier {
   @@map("suppliers")
 }
 
-model InventoryItem {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  quantity  Int      @default(0)
-  category  String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+/// Groups InventoryItem variants (e.g. "Chair" groups Gold Chiavari / White Tiffany / Black Folding) —
+/// what a category-based ServiceInventoryRequirement matches against, replacing the old free-text
+/// `InventoryItem.category` string with a real FK so a rename/typo can't silently break compatibility
+/// matching.
+model InventoryCategory {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  reservations InventoryReservation[]
+  tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items        InventoryItem[]
+  requirements ServiceInventoryRequirement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("inventory_categories")
+}
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  /// Renamed from `quantity` — this is the master physical stock count, kept Int since venue
+  /// furniture/equipment is whole-unit; every *flow* quantity elsewhere (requirements, reservations,
+  /// transactions) is Decimal to allow fractional operational units later.
+  totalQuantity Int      @default(0)
+  categoryId    String
+  sku           String?
+  unit          String   @default("unit")
+  description   String?
+  /// Common variant characteristics as real, queryable/filterable/displayable columns — not buried in
+  /// JSON. Each is nullable since not every category uses every field (an AC unit has no color).
+  color         String?
+  material      String?
+  model         String?
+  size          String?
+  shape         String?
+  /// Extension-only overflow for category-specific or future attributes that don't earn their own
+  /// column — never the primary home for color/material/model/size/shape above.
+  attributes    Json?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant              Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category            InventoryCategory                   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reservations        InventoryReservation[]
+  serviceRequirements ServiceInventoryRequirement[]
+  bookingRequirements BookingServiceResourceRequirement[]
+  transactions        InventoryTransaction[]
 
   @@index([tenantId])
   @@index([active])
+  @@index([categoryId])
   @@map("inventory_items")
+}
+
+/// Catalog template — "this Service normally requires X." Never reserves inventory by itself (§16); it
+/// only informs what a `BookingServiceResourceRequirement` gets seeded with once a later phase wires up
+/// the auto-seed write path. Either hard-links one specific `InventoryItem`, or names a `category` so any
+/// item within it qualifies (e.g. "needs 100 Chairs," not "needs 100 Gold Chiavari Chairs specifically") —
+/// the concrete variant is chosen per booking, never baked into the catalog.
+model ServiceInventoryRequirement {
+  id              String       @id @default(cuid())
+  tenantId        String
+  serviceId       String
+  inventoryItemId String?
+  categoryId      String?
+  quantity        Decimal      @db.Decimal(12, 2)
+  quantityType    QuantityType @default(FIXED)
+  optional        Boolean      @default(false)
+  notes           String?
+  sortOrder       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  service            Service                             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  inventoryItem      InventoryItem?                      @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  category           InventoryCategory?                  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  /// Every per-booking requirement row seeded from this template across every booking it's been applied to.
+  seededRequirements BookingServiceResourceRequirement[]
+
+  @@index([serviceId])
+  @@index([inventoryItemId])
+  @@index([categoryId])
+  @@map("service_inventory_requirements")
+}
+
+/// Per-booking snapshot/override of a resource need — "this booking actually requires X," independent of
+/// whatever the Service template says today (§29-30: editing the template never retroactively changes an
+/// existing booking). `inventoryItemId` is the resolved/chosen variant; null while a category-based
+/// requirement hasn't had a specific item picked yet. `providedQuantity`/`reuseReservationId` let this
+/// requirement be satisfied (fully or partially) by a reservation another service on the same booking
+/// already holds, instead of double-reserving the same physical stock — `additionalQuantity` is always
+/// `requiredQuantity - providedQuantity`, computed on read, never stored.
+model BookingServiceResourceRequirement {
+  id                  String       @id @default(cuid())
+  tenantId            String
+  bookingId           String
+  bookingServiceId    String
+  inventoryItemId     String?
+  /// Set once inventoryItemId is resolved; null while a category-based requirement is unresolved.
+  itemNameSnapshot    String?
+  requiredQuantity    Decimal      @db.Decimal(12, 2)
+  providedQuantity    Decimal      @default(0) @db.Decimal(12, 2)
+  quantityType        QuantityType @default(FIXED)
+  /// Which ServiceInventoryRequirement this was seeded from; null if added ad hoc directly on the booking.
+  sourceRequirementId String?
+  /// An existing InventoryReservation being reused instead of creating a fresh one for this requirement.
+  reuseReservationId  String?
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  booking                Booking                      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingService         BookingService               @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
+  inventoryItem          InventoryItem?               @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  sourceRequirement      ServiceInventoryRequirement? @relation(fields: [sourceRequirementId], references: [id], onDelete: SetNull)
+  reuseReservation       InventoryReservation?        @relation("ReusedReservation", fields: [reuseReservationId], references: [id], onDelete: SetNull)
+  /// Reservation(s) created specifically to fulfill this requirement (as opposed to `reuseReservation`,
+  /// which points the other way — at a reservation created for a *different* requirement being reused here).
+  fulfillingReservations InventoryReservation[]
+
+  @@index([bookingId])
+  @@index([bookingServiceId])
+  @@index([inventoryItemId])
+  @@index([sourceRequirementId])
+  @@index([reuseReservationId])
+  @@map("booking_service_resource_requirements")
+}
+
+/// The inventory movement ledger — "what physically happened," independent of a reservation's commitment
+/// status (§32). Never rewritten to hide history; a correction is a new row, not an edit.
+model InventoryTransaction {
+  id               String                   @id @default(cuid())
+  tenantId         String
+  inventoryItemId  String
+  eventId          String?
+  bookingServiceId String?
+  reservationId    String?
+  type             InventoryTransactionType
+  quantity         Decimal                  @db.Decimal(12, 2)
+  reference        String?
+  notes            String?
+  createdBy        String
+  createdAt        DateTime                 @default(now())
+
+  inventoryItem  InventoryItem         @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  event          Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  bookingService BookingService?       @relation(fields: [bookingServiceId], references: [id], onDelete: SetNull)
+  reservation    InventoryReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([inventoryItemId])
+  @@index([eventId])
+  @@index([bookingServiceId])
+  @@index([reservationId])
+  @@map("inventory_transactions")
 }
 
 model Staff {

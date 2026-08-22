@@ -106,18 +106,23 @@ export async function POST() {
       },
     });
 
-    // 6. Create Inventory Items
+    // 6. Create Inventory Categories + Items
+    const [categoryFurniture, categoryAudioVisual, categoryKitchen] = await Promise.all([
+      prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Furniture' } }),
+      prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Audio Visual' } }),
+      prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Kitchen' } }),
+    ]);
     const itemChairs = await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Banquet Chairs', quantity: 500, category: 'Furniture' },
+      data: { tenantId: tenant.id, name: 'Banquet Chairs', totalQuantity: 500, categoryId: categoryFurniture.id },
     });
     const itemTables = await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Round Tables (8-Seater)', quantity: 60, category: 'Furniture' },
+      data: { tenantId: tenant.id, name: 'Round Tables (8-Seater)', totalQuantity: 60, categoryId: categoryFurniture.id },
     });
     await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Stage Intelligent Lights', quantity: 12, category: 'Audio Visual' },
+      data: { tenantId: tenant.id, name: 'Stage Intelligent Lights', totalQuantity: 12, categoryId: categoryAudioVisual.id },
     });
     const itemChafingDishes = await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Stainless Chafing Dishes', quantity: 24, category: 'Kitchen' },
+      data: { tenantId: tenant.id, name: 'Stainless Chafing Dishes', totalQuantity: 24, categoryId: categoryKitchen.id },
     });
 
     // 7. Create Services Catalog

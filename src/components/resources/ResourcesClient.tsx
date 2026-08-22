@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 import Topbar from '@/components/aurelia/Topbar';
 
 type ResourceSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
-type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; quantity: true; category: true } }>;
+type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; category: { select: { name: true } } } }>;
 type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
 type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
 
@@ -138,13 +138,13 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
               {inventory.map((item, i) => (
                 <div key={item.id} className={`card plain f-in d${(i % 4) + 1} stack`}>
                   <div className="between">
-                    <span className="badge b-mute">{item.category}</span>
+                    <span className="badge b-mute">{item.category.name}</span>
                     <span className="badge b-ok">In Stock</span>
                   </div>
                   <h3 className="h-sm">{item.name}</h3>
                   <div className="between mini" style={{ padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
                     <span className="dim">Available Quantity</span>
-                    <strong className="num" style={{ fontSize: 15, color: 'var(--ink)' }}>{item.quantity} pcs</strong>
+                    <strong className="num" style={{ fontSize: 15, color: 'var(--ink)' }}>{item.totalQuantity} pcs</strong>
                   </div>
                 </div>
               ))}

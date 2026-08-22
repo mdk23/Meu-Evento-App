@@ -6,7 +6,7 @@ export async function GET() {
     const tenant = await prisma.tenant.findFirst({
       include: {
         space: true,
-        inventoryItems: { orderBy: { name: 'asc' } },
+        inventoryItems: { orderBy: { name: 'asc' }, include: { category: true } },
         staff: { orderBy: { name: 'asc' } },
         suppliers: { orderBy: { name: 'asc' } },
       },
@@ -14,7 +14,7 @@ export async function GET() {
 
     return NextResponse.json({
       space: tenant?.space,
-      inventoryItems: tenant?.inventoryItems || [],
+      inventoryItems: (tenant?.inventoryItems || []).map((item) => ({ ...item, category: item.category.name })),
       staff: tenant?.staff || [],
       suppliers: tenant?.suppliers || [],
     });
@@ -61,12 +61,18 @@ export async function POST(request: Request) {
     }
 
     if (resourceType === 'INVENTORY') {
+      const categoryName = data.category || 'General Equipment';
+      const category = await prisma.inventoryCategory.upsert({
+        where: { tenantId_name: { tenantId: tenant.id, name: categoryName } },
+        update: {},
+        create: { tenantId: tenant.id, name: categoryName },
+      });
       const item = await prisma.inventoryItem.create({
         data: {
           tenantId: tenant.id,
           name: data.name,
-          quantity: parseInt(data.quantity || '0', 10),
-          category: data.category || 'General Equipment',
+          totalQuantity: parseInt(data.quantity || '0', 10),
+          categoryId: category.id,
         },
       });
       return NextResponse.json({ success: true, item }, { status: 201 });

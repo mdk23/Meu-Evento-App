@@ -264,7 +264,7 @@ export default function ServiceWorkOrderModal({
                 >
                   <option value="">-- Select Inventory Item --</option>
                   {inventoryItems.map((i) => (
-                    <option key={i.id} value={i.id}>{i.name} ({i.quantity} in stock)</option>
+                    <option key={i.id} value={i.id}>{i.name} ({i.totalQuantity} in stock)</option>
                   ))}
                 </select>
                 <input

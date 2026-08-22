@@ -8,7 +8,7 @@ export class ResourceRepository {
       }),
       prisma.inventoryItem.findMany({
         orderBy: { name: 'asc' },
-        select: { id: true, name: true, quantity: true, category: true },
+        select: { id: true, name: true, totalQuantity: true, category: { select: { name: true } } },
       }),
       prisma.staff.findMany({
         orderBy: { name: 'asc' },
