@@ -62,15 +62,15 @@ export default async function WorkspacePickerPage() {
             title="Space"
             subtitle={spaceName}
             description="The client rents the room. We hand over a space — with our furniture, climate and cleaning if they want them. No operational plan needed."
-            href="/bookings?kind=SPACE"
+            href="/bookings?context=SPACE"
             primaryStatLabel="Space bookings"
             midStatLabel="Dates held ahead"
             summary={space}
             pills={[
               { label: 'Space Details', href: '/resources' },
-              { label: 'Bookings', href: '/bookings?kind=SPACE' },
+              { label: 'Bookings', href: '/bookings?context=SPACE' },
               { label: 'Space Packages', href: '/services/packages?scope=SPACE' },
-              { label: 'Space Services', href: '/services' },
+              { label: 'Space Services', href: '/services?scope=SPACE' },
             ]}
           />
           <WorkspacePickerCard
@@ -84,7 +84,7 @@ export default async function WorkspacePickerPage() {
             summary={event}
             pills={[
               { label: 'Event Details', href: '/events' },
-              { label: 'Event Services', href: '/services' },
+              { label: 'Event Services', href: '/services?scope=EVENT' },
               { label: 'Event Packages', href: '/services/packages?scope=EVENT' },
             ]}
           />

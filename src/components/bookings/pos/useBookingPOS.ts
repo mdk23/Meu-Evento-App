@@ -144,17 +144,20 @@ export function useBookingPOS({
   // 2. Catalog Services State
   const catalogServices = useMemo(() => {
     if (initialServices.length === 0) return defaultCatalogServices;
-    return initialServices.map((s, idx) => ({
+    return initialServices.map((s) => ({
       id: s.id,
       name: s.name,
-      category: (s.category === 'SPACE' || idx % 2 === 0 ? 'SPACE' : 'EVENT') as 'SPACE' | 'EVENT',
+      // Real `Service.scope` now that it exists (Phase 12e) — a BOTH-scoped service is bucketed into
+      // whichever workspace this booking is for, since the existing Space/Event cost-total split only
+      // has two buckets and "shared, but counted here in this booking" is the correct read of BOTH.
+      category: (s.scope === 'BOTH' ? initialKind : s.scope) as 'SPACE' | 'EVENT',
       providerType: (s.defaultProviderType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
       providerName: s.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
       priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'HOURLY' ? 'HOURLY' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'HOURLY',
       price: s.defaultPrice || 15000,
       description: 'Specialized service for your event.',
     }));
-  }, [initialServices]);
+  }, [initialServices, initialKind]);
 
   // Space Services derived directly from catalogServices (Category: SPACE)
   const spaceServices = useMemo(() => {
@@ -170,8 +173,11 @@ export function useBookingPOS({
   const [selectedItems, setSelectedItems] = useState<CartItem[]>(() => {
     if (initialBookingData?.bookingServices) {
       return initialBookingData.bookingServices.map((es) => {
-        const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : 1;
-        const unitPrice = es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0);
+        // PER_GUEST lines always track the live guest count (kept in sync by the effect below);
+        // everything else now reads its real persisted quantity instead of assuming 1, so a
+        // fixed-price multi-unit line (e.g. "10 Extra Tables") survives an edit-reload intact.
+        const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : (es.quantity || 1);
+        const unitPrice = es.unitPrice > 0 ? es.unitPrice : (es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0));
         return {
           id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
           serviceId: es.serviceId,
@@ -246,16 +252,28 @@ export function useBookingPOS({
 
     const existingServiceIds = new Set(selectedItems.map(i => i.serviceId));
     const toAdd = pkg.services
-      .map(s => catalogServices.find(cs => cs.id === s.serviceId))
-      .filter((cs): cs is ServiceItem => !!cs && !existingServiceIds.has(cs.id));
+      .map(s => {
+        const catalogService = catalogServices.find(cs => cs.id === s.serviceId);
+        return catalogService ? { catalogService, packageItem: s } : null;
+      })
+      .filter((entry): entry is { catalogService: ServiceItem; packageItem: CatalogPackage['services'][number] } =>
+        !!entry && !existingServiceIds.has(entry.catalogService.id)
+      );
 
     if (toAdd.length === 0) {
       toast.info(`All services from "${pkg.name}" are already in the cart.`);
       return;
     }
 
-    const newItems: CartItem[] = toAdd.map((service) => {
-      const qty = service.priceType === 'PER_GUEST' ? guestCount : 1;
+    // Groups every line this one click adds so a real `BookingPackage` snapshot can be reconstructed
+    // from the cart at submit time (see `CartItem.packageApplicationKey` doc comment).
+    const packageApplicationKey = `pkg-app-${pkg.id}-${Date.now()}-${Math.random()}`;
+
+    const newItems: CartItem[] = toAdd.map(({ catalogService: service, packageItem }) => {
+      // A package can bundle a specific quantity (e.g. "300 chairs") and/or override the service's
+      // normal price for this bundle — both fall back to the plain catalog values when unset.
+      const qty = service.priceType === 'PER_GUEST' ? guestCount : (packageItem.quantity || 1);
+      const unitPrice = packageItem.priceOverride ?? service.price;
       return {
         id: `cart-${service.id}-${Date.now()}-${Math.random()}`,
         serviceId: service.id,
@@ -264,9 +282,12 @@ export function useBookingPOS({
         providerType: service.providerType,
         providerName: service.providerName || (service.providerType === 'INTERNAL' ? 'Internal Venue' : 'External Supplier'),
         priceType: service.priceType,
-        price: service.price,
+        price: unitPrice,
         quantity: qty,
-        totalPrice: service.price * qty,
+        totalPrice: unitPrice * qty,
+        sourcePackageId: pkg.id,
+        sourcePackageName: pkg.name,
+        packageApplicationKey,
       };
     });
 
@@ -483,6 +504,9 @@ export function useBookingPOS({
           price: item.price,
           quantity: item.quantity,
           totalPrice: item.totalPrice,
+          sourcePackageId: item.sourcePackageId,
+          sourcePackageName: item.sourcePackageName,
+          packageApplicationKey: item.packageApplicationKey,
         })),
         totalAmount: grandTotal,
         discount,

@@ -8,7 +8,7 @@ interface BookingsGridProps {
   isEmpty: boolean;
   deletingId: string | null;
   updating: boolean;
-  kindFilter?: 'SPACE' | 'EVENT';
+  contextFilter?: 'SPACE' | 'EVENT';
   onUpdateStatus: (
     bookingId: string,
     updates: { status?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }
@@ -17,7 +17,7 @@ interface BookingsGridProps {
   onDeletePrompt: (bookingId: string, clientName: string) => void;
 }
 
-export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, kindFilter, onUpdateStatus, onCrossover, onDeletePrompt }: BookingsGridProps) {
+export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, contextFilter, onUpdateStatus, onCrossover, onDeletePrompt }: BookingsGridProps) {
   if (isEmpty) {
     return (
       <div className="empty">
@@ -26,7 +26,7 @@ export default function BookingsGrid({ bookings, isEmpty, deletingId, updating, 
         <p className="mini dim" style={{ marginTop: 4, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
           No commercial bookings match the selected status filter. Create a new booking using the terminal.
         </p>
-        <Link href={kindFilter ? `/bookings/create?kind=${kindFilter}` : '/bookings/create'} className="btn primary sm" style={{ marginTop: 16, display: 'inline-flex' }}>
+        <Link href={contextFilter ? `/bookings/create?context=${contextFilter}` : '/bookings/create'} className="btn primary sm" style={{ marginTop: 16, display: 'inline-flex' }}>
           <Plus className="w-4 h-4" /> Create Booking
         </Link>
       </div>

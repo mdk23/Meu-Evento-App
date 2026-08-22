@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ExecutionType } from '@prisma/client';
+import { ExecutionType, ServiceScope } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
+
+function resolveScope(value: unknown): ServiceScope {
+  return value === 'SPACE' || value === 'EVENT' ? (value as ServiceScope) : ServiceScope.BOTH;
+}
 
 export async function GET() {
   try {
@@ -18,7 +22,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, category, defaultExecutionType, priceType, defaultPrice, fieldSchema } = body;
+    const { name, category, scope, defaultExecutionType, priceType, defaultPrice, fieldSchema } = body;
 
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
@@ -34,6 +38,7 @@ export async function POST(request: Request) {
         tenantId: tenant.id,
         name,
         category,
+        scope: resolveScope(scope),
         defaultProviderType: defaultExecutionType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
         priceType: priceType || 'FIXED',
         defaultPrice: parseFloat(defaultPrice || 0),

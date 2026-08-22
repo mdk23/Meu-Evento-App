@@ -5,14 +5,14 @@ const STATUS_FILTERS = ['ALL', 'RESERVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'
 interface BookingFilterTabsProps {
   statusFilter: string;
   statusCounts: Record<string, number>;
-  kindFilter?: 'SPACE' | 'EVENT';
+  contextFilter?: 'SPACE' | 'EVENT';
 }
 
-export default function BookingFilterTabs({ statusFilter, statusCounts, kindFilter }: BookingFilterTabsProps) {
+export default function BookingFilterTabs({ statusFilter, statusCounts, contextFilter }: BookingFilterTabsProps) {
   const buildHref = (st: string) => {
     const params = new URLSearchParams();
     if (st !== 'ALL') params.set('status', st);
-    if (kindFilter) params.set('kind', kindFilter);
+    if (contextFilter) params.set('context', contextFilter);
     const qs = params.toString();
     return qs ? `/bookings?${qs}` : '/bookings';
   };
@@ -23,7 +23,7 @@ export default function BookingFilterTabs({ statusFilter, statusCounts, kindFilt
         <Link
           key={st}
           // Filter change always resets to page 1 — a stale page number from a different filter's
-          // result set could point past the end of this one. `kind` (the workspace scope) carries
+          // result set could point past the end of this one. `context` (the workspace scope) carries
           // through so switching status doesn't silently drop back to the unfiltered list.
           href={buildHref(st)}
           className={`pill shrink-0${statusFilter === st ? ' active' : ''}`}

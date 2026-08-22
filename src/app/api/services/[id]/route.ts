@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, category, defaultExecutionType, priceType, defaultPrice, fieldSchema } = body;
+    const { name, category, scope, defaultExecutionType, priceType, defaultPrice, fieldSchema } = body;
 
     const existingService = await prisma.service.findUnique({
       where: { id },
@@ -25,6 +25,7 @@ export async function PATCH(
       data: {
         name: name !== undefined ? name : existingService.name,
         category: category !== undefined ? category : existingService.category,
+        scope: scope === 'SPACE' || scope === 'EVENT' || scope === 'BOTH' ? scope : existingService.scope,
         defaultProviderType:
           defaultExecutionType === 'EXTERNAL'
             ? ExecutionType.EXTERNAL

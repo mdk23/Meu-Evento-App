@@ -4,10 +4,10 @@ import { toDisplayNumber } from '@/lib/money';
 
 export class PackageRepository {
   static async getPackageCatalog(): Promise<PackageCardDTO[]> {
-    const packages = await prisma.servicePackage.findMany({
+    const packages = await prisma.package.findMany({
       orderBy: [{ scope: 'asc' }, { name: 'asc' }],
       include: {
-        services: {
+        items: {
           orderBy: { order: 'asc' },
           include: { service: true },
         },
@@ -20,13 +20,16 @@ export class PackageRepository {
       description: p.description,
       scope: p.scope,
       active: p.active,
-      services: p.services.map((ps) => ({
-        serviceId: ps.serviceId,
-        name: ps.service.name,
-        category: ps.service.category,
-        defaultExecutionType: ps.service.defaultProviderType,
-        priceType: ps.service.priceType,
-        defaultPrice: toDisplayNumber(ps.service.defaultPrice),
+      services: p.items.map((pi) => ({
+        serviceId: pi.serviceId,
+        name: pi.service.name,
+        category: pi.service.category,
+        scope: pi.service.scope,
+        defaultExecutionType: pi.service.defaultProviderType,
+        priceType: pi.service.priceType,
+        defaultPrice: toDisplayNumber(pi.service.defaultPrice),
+        quantity: toDisplayNumber(pi.quantity),
+        priceOverride: pi.priceOverride !== null ? toDisplayNumber(pi.priceOverride) : null,
       })),
     }));
   }

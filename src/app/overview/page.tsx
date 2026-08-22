@@ -9,23 +9,23 @@ import SpaceOverviewDashboard from '@/components/aurelia/SpaceOverviewDashboard'
 export const dynamic = 'force-dynamic';
 
 interface OverviewPageProps {
-  searchParams: Promise<{ kind?: string }>;
+  searchParams: Promise<{ context?: string }>;
 }
 
 /** "Overview" is workspace-scoped: reached from the Space workspace it shows only Space bookings,
  * from the Event workspace only Events — matching the rule that every screen in a workspace shows
  * that workspace's world, not everything at once. The one exception is the unscoped entry point
- * (no `?kind=`, linked from the workspace picker's "cross-workspace Business Overview") which keeps
+ * (no `?context=`, linked from the workspace picker's "cross-workspace Business Overview") which keeps
  * showing the combined picture across both. */
 export default async function OverviewPage({ searchParams }: OverviewPageProps) {
-  const { kind } = await searchParams;
+  const { context } = await searchParams;
 
-  if (kind === 'SPACE') {
+  if (context === 'SPACE') {
     const data = await DashboardService.getSpaceDashboardSummary();
     return (
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <Topbar crumb="Space Overview" note="Bookings, hand-overs and collection for the Space workspace.">
-          <Link href="/bookings/create?kind=SPACE" className="btn primary sm">
+          <Link href="/bookings/create?context=SPACE" className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> New Booking
           </Link>
         </Topbar>
@@ -34,12 +34,12 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
     );
   }
 
-  if (kind === 'EVENT') {
+  if (context === 'EVENT') {
     const data = await DashboardService.getEventDashboardSummary();
     return (
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <Topbar crumb="Event Overview" note="Today's operations, upcoming events and service execution for the Event workspace.">
-          <Link href="/bookings/create?kind=EVENT" className="btn primary sm">
+          <Link href="/bookings/create?context=EVENT" className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> New Booking
           </Link>
         </Topbar>

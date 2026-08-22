@@ -6,6 +6,8 @@ import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capa
 import { serializeDecimals } from '@/lib/money';
 import { validatePaymentPlan, MilestoneDraft } from '@/lib/payment-plan';
 import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
+import { resolveLineAmounts } from '@/lib/booking-service-pricing';
+import { assertServiceScopeAllowed, ServiceScopeError } from '@/lib/service-scope';
 
 export async function GET() {
   try {
@@ -190,8 +192,13 @@ export async function POST(request: Request) {
 
       // 3. Attach selected services / items to the Event
       if (Array.isArray(selectedServices) && selectedServices.length > 0) {
+        // One BookingPackage snapshot per distinct "Add Package" click represented in the cart —
+        // created lazily, the first time a line tagged with that key is encountered below.
+        const packageAppMap = new Map<string, string>();
+
         for (const item of selectedServices) {
           let catalogServiceId = item.serviceId;
+          let serviceScope: 'SPACE' | 'EVENT' | 'BOTH';
 
           if (!catalogServiceId) {
             const existingService = await tx.service.findFirst({
@@ -200,22 +207,49 @@ export async function POST(request: Request) {
 
             if (existingService) {
               catalogServiceId = existingService.id;
+              serviceScope = existingService.scope;
             } else {
+              // Ad-hoc service born inside this booking rather than the Services page — "created in
+              // Space, belongs to Space": it's stamped with the booking's own workspace instead of
+              // the schema default BOTH, since there was no explicit scope choice to honor.
               const newService = await tx.service.create({
                 data: {
                   tenantId: tenant.id,
                   name: item.name,
                   category: item.category || 'GERAL',
+                  scope: resolvedKind,
                   defaultProviderType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
                   priceType: item.priceType || 'FIXED',
                   defaultPrice: item.price || 0,
                 },
               });
               catalogServiceId = newService.id;
+              serviceScope = newService.scope;
             }
+          } else {
+            const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { scope: true } });
+            serviceScope = catalogService?.scope ?? 'BOTH';
           }
 
-          const itemSellingPrice = item.totalPrice || item.price || 0;
+          assertServiceScopeAllowed(serviceScope, resolvedKind, item.name);
+
+          const { quantity: itemQuantity, unitPrice: itemUnitPrice, sellingPrice: itemSellingPrice } = resolveLineAmounts(item);
+
+          let bookingPackageId: string | null = null;
+          if (item.packageApplicationKey && item.sourcePackageId) {
+            bookingPackageId = packageAppMap.get(item.packageApplicationKey) ?? null;
+            if (!bookingPackageId) {
+              const bookingPackage = await tx.bookingPackage.create({
+                data: {
+                  bookingId: booking.id,
+                  packageId: item.sourcePackageId,
+                  nameSnapshot: item.sourcePackageName || 'Package',
+                },
+              });
+              bookingPackageId = bookingPackage.id;
+              packageAppMap.set(item.packageApplicationKey, bookingPackageId);
+            }
+          }
 
           await tx.bookingService.create({
             data: {
@@ -224,12 +258,29 @@ export async function POST(request: Request) {
               serviceId: catalogServiceId,
               serviceNameSnapshot: item.name || null,
               providerType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
+              quantity: itemQuantity,
+              unitPrice: itemUnitPrice,
               sellingPrice: itemSellingPrice,
               cost: item.cost || (itemSellingPrice * 0.4),
               status: 'PLANNING',
               notes: item.details || '',
+              source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
+              bookingPackageId,
             },
           });
+
+          if (bookingPackageId) {
+            await tx.bookingPackageItem.create({
+              data: {
+                bookingPackageId,
+                serviceId: catalogServiceId,
+                serviceName: item.name || 'Service',
+                quantity: itemQuantity,
+                unitPrice: itemUnitPrice,
+                totalPrice: itemSellingPrice,
+              },
+            });
+          }
         }
       }
 
@@ -287,6 +338,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof CapacityExceededError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof ServiceScopeError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create booking in POS:', error);

@@ -4,6 +4,7 @@ import BookingPaymentsClient from '@/components/bookings/payments/BookingPayment
 import { notFound } from 'next/navigation';
 import { serializeDecimals, sumMoney, toDisplayNumber } from '@/lib/money';
 import { PackageCatalogService } from '@/lib/services/package.service';
+import { isScopeAllowedForKind } from '@/lib/service-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,9 @@ export default async function EditBookingPage({
       bookingServices: {
         include: { service: true }
       },
+      bookingPackages: {
+        include: { items: true }
+      },
       scheduledPayments: { where: { plan: { active: true } } },
     }
   });
@@ -45,9 +49,12 @@ export default async function EditBookingPage({
   });
 
   const services = await prisma.service.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      ...(initialBookingData.context === 'SPACE' ? { scope: { in: ['SPACE', 'BOTH'] } } : {}),
+    },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, defaultProviderType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, scope: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
   
   const spaces = await prisma.space.findMany({
@@ -73,7 +80,8 @@ export default async function EditBookingPage({
     include: { scheduledPayment: true }
   });
 
-  const packages = (await PackageCatalogService.getCatalog()).filter((p) => p.active);
+  const packages = (await PackageCatalogService.getCatalog())
+    .filter((p) => p.active && isScopeAllowedForKind(p.scope, initialBookingData.context));
 
   const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.bookingServices.map((service) => service.sellingPrice)));
   const totalScheduledAmount = toDisplayNumber(sumMoney(initialBookingData.scheduledPayments.map((sp) => sp.amount)));
@@ -107,6 +115,7 @@ export default async function EditBookingPage({
       initialSpaces={spaces}
       initialBookings={bookings}
       initialBookingData={serializeDecimals(initialBookingData)}
+      initialKind={initialBookingData.context}
       initialPackages={packages}
       paymentsTabComponent={
         <BookingPaymentsClient

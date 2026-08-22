@@ -5,6 +5,8 @@ import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-con
 import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
 import { deriveEventStatus } from '@/lib/event-progress';
+import { resolveLineAmounts } from '@/lib/booking-service-pricing';
+import { assertServiceScopeAllowed, ServiceScopeError } from '@/lib/service-scope';
 
 export async function PATCH(
   request: Request,
@@ -193,11 +195,19 @@ export async function PATCH(
         await tx.bookingService.deleteMany({
           where: { bookingId: existingBooking.id }
         });
+        // ...and their package-application snapshots, if any — a full edit rebuilds the whole line
+        // list from scratch, so any package attribution is rebuilt fresh below too, from whatever
+        // package-tagged lines are still in the submitted cart (cascades to BookingPackageItem).
+        await tx.bookingPackage.deleteMany({
+          where: { bookingId: existingBooking.id }
+        });
 
         const tenantId = existingBooking.tenantId || (await tx.tenant.findFirst())?.id;
+        const packageAppMap = new Map<string, string>();
 
         for (const item of selectedServices) {
           let catalogServiceId = item.serviceId;
+          let serviceScope: 'SPACE' | 'EVENT' | 'BOTH' | undefined;
 
           if (!catalogServiceId && tenantId) {
             const existingService = await tx.service.findFirst({
@@ -205,22 +215,51 @@ export async function PATCH(
             });
             if (existingService) {
               catalogServiceId = existingService.id;
+              serviceScope = existingService.scope;
             } else {
+              // Ad-hoc service born inside this booking rather than the Services page — "created in
+              // Space, belongs to Space": stamped with the booking's own (unchanging) workspace.
               const newService = await tx.service.create({
                 data: {
                   tenantId,
                   name: item.name,
                   category: item.category || 'GERAL',
+                  scope: existingBooking.context,
                   defaultProviderType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
                   priceType: item.priceType || 'FIXED',
                   defaultPrice: item.price || 0,
                 },
               });
               catalogServiceId = newService.id;
+              serviceScope = newService.scope;
             }
           }
 
           if (catalogServiceId) {
+            if (serviceScope === undefined) {
+              const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { scope: true } });
+              serviceScope = catalogService?.scope ?? 'BOTH';
+            }
+            assertServiceScopeAllowed(serviceScope, existingBooking.context, item.name);
+
+            const { quantity: itemQuantity, unitPrice: itemUnitPrice, sellingPrice: itemSellingPrice } = resolveLineAmounts(item);
+
+            let bookingPackageId: string | null = null;
+            if (item.packageApplicationKey && item.sourcePackageId) {
+              bookingPackageId = packageAppMap.get(item.packageApplicationKey) ?? null;
+              if (!bookingPackageId) {
+                const bookingPackage = await tx.bookingPackage.create({
+                  data: {
+                    bookingId: existingBooking.id,
+                    packageId: item.sourcePackageId,
+                    nameSnapshot: item.sourcePackageName || 'Package',
+                  },
+                });
+                bookingPackageId = bookingPackage.id;
+                packageAppMap.set(item.packageApplicationKey, bookingPackageId);
+              }
+            }
+
             await tx.bookingService.create({
               data: {
                 bookingId: existingBooking.id,
@@ -231,11 +270,28 @@ export async function PATCH(
                 serviceId: catalogServiceId,
                 serviceNameSnapshot: item.name || null,
                 providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
-                sellingPrice: item.totalPrice || item.price || 0,
-                cost: item.cost || ((item.totalPrice || item.price || 0) * 0.4),
+                quantity: itemQuantity,
+                unitPrice: itemUnitPrice,
+                sellingPrice: itemSellingPrice,
+                cost: item.cost || (itemSellingPrice * 0.4),
                 status: 'PLANNING',
+                source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
+                bookingPackageId,
               },
             });
+
+            if (bookingPackageId) {
+              await tx.bookingPackageItem.create({
+                data: {
+                  bookingPackageId,
+                  serviceId: catalogServiceId,
+                  serviceName: item.name || 'Service',
+                  quantity: itemQuantity,
+                  unitPrice: itemUnitPrice,
+                  totalPrice: itemSellingPrice,
+                },
+              });
+            }
           }
         }
 
@@ -283,6 +339,9 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof CapacityExceededError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof ServiceScopeError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to update booking:', error);

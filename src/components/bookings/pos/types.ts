@@ -35,6 +35,14 @@ export interface CartItem {
   price: number;
   quantity: number;
   totalPrice: number;
+  /** Set when this line came from "Add Package" rather than being added directly — `sourcePackageId`
+   * identifies the catalog Package, `packageApplicationKey` groups every line added by the same click
+   * (so a real `BookingPackage` snapshot can be reconstructed at submit time from whatever's still in
+   * the cart under that key — if the user removed one line afterward, only the remaining ones become
+   * part of the frozen snapshot, which is the correct reflection of what was actually sold). */
+  sourcePackageId?: string;
+  sourcePackageName?: string;
+  packageApplicationKey?: string;
 }
 
 import React from 'react';
@@ -47,7 +55,7 @@ export type CatalogPackage = PackageCardDTO;
 // `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
 // `serializeDecimals` converts every one to a plain number before this data reaches the client.
 export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
-  select: { id: true; name: true; category: true; defaultProviderType: true; defaultPrice: true; priceType: true };
+  select: { id: true; name: true; category: true; scope: true; defaultProviderType: true; defaultPrice: true; priceType: true };
 }>>;
 
 export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
@@ -56,12 +64,13 @@ export type BookingSummary = Prisma.BookingGetPayload<{
   select: { id: true; eventDate: true; startAt: true; endAt: true; spaceId: true; status: true; client: { select: { name: true } } };
 }>;
 
-/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `bookingServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. */
+/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `bookingServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. `bookingPackages` is the frozen record of which packages produced which lines — read-only, purely for display (see `BookingContractTab`). */
 export type BookingPOSInitialData = DecimalToNumber<Prisma.BookingGetPayload<{
   include: {
     client: true;
     event: { include: { bookingServices: { include: { service: true } } } };
     bookingServices: { include: { service: true } };
+    bookingPackages: { include: { items: true } };
     scheduledPayments: true;
   };
 }>> & {
@@ -81,8 +90,9 @@ export interface BookingPOSTerminalProps {
   /** Pre-selects the event date (`YYYY-MM-DD`) for a brand-new booking — e.g. arriving from the
    * calendar's day view. Ignored when `initialBookingData` is set (editing an existing booking). */
   initialDate?: string;
-  /** Which workspace a brand-new booking is created into (`Booking.kind`) — set from the `?kind=`
-   * query string when the "New Booking" link is reached from a workspace-scoped page (e.g. Space
-   * Bookings). Defaults to `EVENT` to match every existing unscoped caller. Ignored when editing. */
+  /** Which workspace a brand-new booking is created into (`Booking.context`) — set from the
+   * `?context=` query string when the "New Booking" link is reached from a workspace-scoped page
+   * (e.g. Space Bookings). Defaults to `EVENT` to match every existing unscoped caller. Ignored when
+   * editing. */
   initialKind?: 'SPACE' | 'EVENT';
 }

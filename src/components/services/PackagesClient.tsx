@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Boxes, Plus, Loader2, X, Edit3, Trash2, Save, Briefcase } from 'lucide-react';
 import { PackageCardDTO, ServiceCardDTO } from '@/types/dtos';
 import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
+import { isServiceCompatibleWithPackageScope } from '@/lib/service-scope';
 
 const MT = (n: number) => n.toLocaleString('pt-MZ');
 
@@ -28,6 +29,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   const [description, setDescription] = useState('');
   const [scope, setScope] = useState<'SPACE' | 'EVENT'>('SPACE');
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     setDescription('');
     setScope(initialScopeFilter === 'EVENT' ? 'EVENT' : 'SPACE');
     setSelectedServiceIds([]);
+    setQuantities({});
     setIsAddModalOpen(true);
   };
 
@@ -46,12 +49,29 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     setDescription(pkg.description || '');
     setScope(pkg.scope);
     setSelectedServiceIds(pkg.services.map((s) => s.serviceId));
+    setQuantities(Object.fromEntries(pkg.services.map((s) => [s.serviceId, s.quantity])));
   };
 
   const toggleService = (serviceId: string) => {
     setSelectedServiceIds((prev) =>
       prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]
     );
+  };
+
+  const setQuantityFor = (serviceId: string, quantity: number) => {
+    setQuantities((prev) => ({ ...prev, [serviceId]: quantity }));
+  };
+
+  // Switching Workspace can make an already-checked service incompatible (e.g. an EVENT-only
+  // service checked while scope was EVENT, now switching to SPACE) — drop it from the selection
+  // right here rather than just hiding it from the now-filtered checklist below, since a hidden but
+  // still-selected service would otherwise fail with a confusing error on submit.
+  const handleScopeChange = (nextScope: 'SPACE' | 'EVENT') => {
+    setScope(nextScope);
+    const compatibleServiceIds = new Set(
+      initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.scope, nextScope)).map((s) => s.id)
+    );
+    setSelectedServiceIds((prev) => prev.filter((id) => compatibleServiceIds.has(id)));
   };
 
   const handleCreatePackage = async (e: React.FormEvent) => {
@@ -69,7 +89,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
       const res = await fetch('/api/packages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, scope, serviceIds: selectedServiceIds }),
+        body: JSON.stringify({ name, description, scope, serviceIds: selectedServiceIds, quantities }),
       });
       if (res.ok) {
         toast.success(`Package "${name}" created!`);
@@ -103,7 +123,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
       const res = await fetch(`/api/packages/${editingPackage.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, scope, serviceIds: selectedServiceIds }),
+        body: JSON.stringify({ name, description, scope, serviceIds: selectedServiceIds, quantities }),
       });
       if (res.ok) {
         toast.success('Package updated successfully!');
@@ -159,7 +179,8 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     ? initialPackages
     : initialPackages.filter((p) => p.scope === scopeFilter);
 
-  const packageTotal = (pkg: PackageCardDTO) => pkg.services.reduce((sum, s) => sum + s.defaultPrice, 0);
+  const packageTotal = (pkg: PackageCardDTO) =>
+    pkg.services.reduce((sum, s) => sum + (s.priceOverride ?? s.defaultPrice) * s.quantity, 0);
 
   // Arriving via the workspace sidebar (`?scope=SPACE`/`?scope=EVENT`) already puts you inside one
   // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
@@ -253,12 +274,12 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                   <div className="stack" style={{ gap: 0 }}>
                     {pkg.services.map((s) => (
                       <div key={s.serviceId} className="between" style={{ padding: '10px 0', borderBottom: '1px solid var(--rule)' }}>
-                        <span className="mini">{s.name}</span>
+                        <span className="mini">{s.quantity !== 1 ? `${s.quantity}x ` : ''}{s.name}</span>
                         <div className="row" style={{ gap: 10, flexShrink: 0 }}>
                           <span className={`badge ${s.defaultExecutionType === 'INTERNAL' ? 'b-accent' : 'b-info'}`}>
                             {s.defaultExecutionType}
                           </span>
-                          <span className="mini num">{MT(s.defaultPrice)} MT</span>
+                          <span className="mini num">{MT((s.priceOverride ?? s.defaultPrice) * s.quantity)} MT</span>
                         </div>
                       </div>
                     ))}
@@ -332,7 +353,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
 
               <div className="field">
                 <label className="label">Workspace</label>
-                <select value={scope} onChange={(e) => setScope(e.target.value as 'SPACE' | 'EVENT')} className="input">
+                <select value={scope} onChange={(e) => handleScopeChange(e.target.value as 'SPACE' | 'EVENT')} className="input">
                   <option value="SPACE">Space (venue-rental bundle)</option>
                   <option value="EVENT">Event (full-occasion bundle)</option>
                 </select>
@@ -344,18 +365,34 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                   className="stack"
                   style={{ gap: 6, maxHeight: 220, overflowY: 'auto', padding: 10, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}
                 >
-                  {initialServices.map((s) => (
-                    <label key={s.id} className="row" style={{ gap: 10, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedServiceIds.includes(s.id)}
-                        onChange={() => toggleService(s.id)}
-                      />
-                      <span className="mini" style={{ flex: 1, color: 'var(--ink)' }}>{s.name}</span>
-                      <span className="mini dim">{s.category}</span>
-                      <span className="mini num" style={{ width: 80, textAlign: 'right' }}>{MT(s.defaultPrice)} MT</span>
-                    </label>
-                  ))}
+                  {initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.scope, scope)).map((s) => {
+                    const isSelected = selectedServiceIds.includes(s.id);
+                    return (
+                      <div key={s.id} className="row" style={{ gap: 10 }}>
+                        <label className="row" style={{ gap: 10, flex: 1, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleService(s.id)}
+                          />
+                          <span className="mini" style={{ flex: 1, color: 'var(--ink)' }}>{s.name}</span>
+                          <span className="mini dim">{s.category}</span>
+                        </label>
+                        {isSelected && (
+                          <input
+                            type="number"
+                            min={1}
+                            value={quantities[s.id] ?? 1}
+                            onChange={(e) => setQuantityFor(s.id, Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className="input"
+                            style={{ width: 56, padding: '4px 6px', textAlign: 'center' }}
+                            title="Quantity"
+                          />
+                        )}
+                        <span className="mini num" style={{ width: 80, textAlign: 'right', flexShrink: 0 }}>{MT(s.defaultPrice)} MT</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

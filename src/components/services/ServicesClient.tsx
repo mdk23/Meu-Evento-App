@@ -21,6 +21,8 @@ import Topbar from '@/components/aurelia/Topbar';
 
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
+  /** Deep-linked from the Space/Event workspace nav via `?scope=` — defaults to showing everything. */
+  initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
 }
 
 const FIELD_TYPES: FieldType[] = ['text', 'textarea', 'number', 'select', 'multiselect', 'date', 'datetime', 'boolean'];
@@ -59,11 +61,12 @@ function toFieldSchema(rows: FieldSchemaRow[]): FieldSchemaField[] {
     }));
 }
 
-export default function ServicesClient({ initialServices }: ServicesClientProps) {
+export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL' }: ServicesClientProps) {
   const router = useRouter();
 
   // Filter state: 'ALL', 'INTERNAL', 'EXTERNAL'
   const [executionFilter, setExecutionFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SPACE' | 'EVENT'>(initialScopeFilter);
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -72,6 +75,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   // Form states
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Catering');
+  const [scope, setScope] = useState<'SPACE' | 'EVENT' | 'BOTH'>('BOTH');
   const [executionType, setExecutionType] = useState('INTERNAL');
   const [priceType, setPriceType] = useState('FIXED');
   const [defaultPrice, setDefaultPrice] = useState('');
@@ -83,6 +87,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
   const openAddModal = () => {
     setName('');
     setCategory('Catering');
+    setScope(initialScopeFilter === 'SPACE' || initialScopeFilter === 'EVENT' ? initialScopeFilter : 'BOTH');
     setExecutionType('INTERNAL');
     setPriceType('FIXED');
     setDefaultPrice('');
@@ -94,6 +99,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     setEditingService(service);
     setName(service.name || '');
     setCategory(service.category || '');
+    setScope(service.scope || 'BOTH');
     setExecutionType(service.defaultExecutionType || 'INTERNAL');
     setPriceType(service.priceType || 'FIXED');
     setDefaultPrice(service.defaultPrice ? service.defaultPrice.toString() : '');
@@ -127,6 +133,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         body: JSON.stringify({
           name,
           category,
+          scope,
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
@@ -165,6 +172,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         body: JSON.stringify({
           name,
           category,
+          scope,
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
@@ -224,14 +232,23 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
     }
   };
 
-  // Apply filter
-  const filteredServices = executionFilter === 'ALL'
+  // Apply filters — scope first (Space/Event/Both), then execution mode
+  const scopedServices = scopeFilter === 'ALL'
     ? initialServices
-    : initialServices.filter(s => s.defaultExecutionType === executionFilter);
+    : initialServices.filter((s) => s.scope === scopeFilter || s.scope === 'BOTH');
+  const filteredServices = executionFilter === 'ALL'
+    ? scopedServices
+    : scopedServices.filter(s => s.defaultExecutionType === executionFilter);
+
+  // Arriving via the workspace sidebar (`?scope=SPACE`/`?scope=EVENT`) already puts you inside one
+  // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
+  // the workspace you're in" rule, same reasoning as PackagesClient.
+  const isScoped = initialScopeFilter !== 'ALL';
+  const pageTitle = scopeFilter === 'SPACE' ? 'Space services' : scopeFilter === 'EVENT' ? 'Event services' : 'Services catalog';
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-      <Topbar crumb="Services Catalog" note="Commercial offerings with Internal vs External routing.">
+      <Topbar crumb={pageTitle} note="Commercial offerings with Internal vs External routing.">
         <Link href="/services/packages" className="btn sm">
           <Boxes className="w-3.5 h-3.5" /> Packages
         </Link>
@@ -240,12 +257,39 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
         </button>
       </Topbar>
 
-      {/* FILTER TABS */}
-      <div className="tabs" style={{ margin: '24px 32px 0' }}>
+      {/* SCOPE FILTER TABS — unscoped entry point only */}
+      {!isScoped && (
+        <div className="tabs" style={{ margin: '24px 32px 0' }}>
+          {(['ALL', 'SPACE', 'EVENT'] as const).map((filterOpt) => {
+            const count = filterOpt === 'ALL'
+              ? initialServices.length
+              : initialServices.filter((s) => s.scope === filterOpt || s.scope === 'BOTH').length;
+
+            return (
+              <button
+                key={filterOpt}
+                onClick={() => setScopeFilter(filterOpt)}
+                className={`tab ${scopeFilter === filterOpt ? 'active' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <span>
+                  {filterOpt === 'ALL' && 'All Services'}
+                  {filterOpt === 'SPACE' && 'Space Services'}
+                  {filterOpt === 'EVENT' && 'Event Services'}
+                </span>
+                <span className="badge b-mute">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* EXECUTION MODE SUB-FILTER */}
+      <div className="tabs" style={{ margin: `${isScoped ? 24 : 12}px 32px 0` }}>
         {(['ALL', 'INTERNAL', 'EXTERNAL'] as const).map((filterOpt) => {
           const count = filterOpt === 'ALL'
-            ? initialServices.length
-            : initialServices.filter(s => s.defaultExecutionType === filterOpt).length;
+            ? scopedServices.length
+            : scopedServices.filter(s => s.defaultExecutionType === filterOpt).length;
 
           return (
             <button
@@ -255,7 +299,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
               style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
               <span>
-                {filterOpt === 'ALL' && 'All Services'}
+                {filterOpt === 'ALL' && 'All'}
                 {filterOpt === 'INTERNAL' && 'Internal House Services'}
                 {filterOpt === 'EXTERNAL' && 'External Supplier Services'}
               </span>
@@ -283,6 +327,7 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                   <tr>
                     <th>Service Name</th>
                     <th>Category</th>
+                    {!isScoped && <th>Workspace</th>}
                     <th>Price Type</th>
                     <th className="r">Base Price</th>
                     <th>Execution Mode</th>
@@ -300,6 +345,13 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                         <td>
                           <span className="badge b-mute">{s.category}</span>
                         </td>
+                        {!isScoped && (
+                          <td>
+                            <span className={`badge ${s.scope === 'SPACE' ? 'b-accent' : s.scope === 'EVENT' ? 'b-info' : 'b-mute'}`}>
+                              {s.scope === 'BOTH' ? 'Space & Event' : s.scope === 'SPACE' ? 'Space' : 'Event'}
+                            </span>
+                          </td>
+                        )}
                         <td>
                           <span className={`badge ${s.priceType === 'PER_GUEST' ? 'b-warn' : 'b-mute'}`}>
                             {s.priceType === 'PER_GUEST' ? 'Per Guest (Pax)' : 'Fixed Price'}
@@ -380,6 +432,15 @@ export default function ServicesClient({ initialServices }: ServicesClientProps)
                   placeholder="e.g. Catering, Dj, Security, Bar"
                   className="input"
                 />
+              </div>
+
+              <div className="field">
+                <label className="label">Workspace</label>
+                <select value={scope} onChange={(e) => setScope(e.target.value as 'SPACE' | 'EVENT' | 'BOTH')} className="input">
+                  <option value="SPACE">Space only (venue-rental bookings)</option>
+                  <option value="EVENT">Event only (full-occasion bookings)</option>
+                  <option value="BOTH">Both — usable from either workspace</option>
+                </select>
               </div>
 
               <div className="grid g2">

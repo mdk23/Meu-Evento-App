@@ -2,26 +2,30 @@ import { prisma } from '@/lib/prisma';
 import BookingPOSTerminal from '@/components/bookings/BookingPOSTerminal';
 import { serializeDecimals } from '@/lib/money';
 import { PackageCatalogService } from '@/lib/services/package.service';
+import { isScopeAllowedForKind } from '@/lib/service-scope';
 
 export const dynamic = 'force-dynamic';
 
 interface CreateBookingPageProps {
-  searchParams: Promise<{ date?: string; kind?: string }>;
+  searchParams: Promise<{ date?: string; context?: string }>;
 }
 
 export default async function CreateBookingPage({ searchParams }: CreateBookingPageProps) {
-  const { date, kind } = await searchParams;
+  const { date, context } = await searchParams;
   const initialDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
-  const initialKind = kind === 'SPACE' ? 'SPACE' : 'EVENT';
+  const initialKind = context === 'SPACE' ? 'SPACE' : 'EVENT';
   const clients = await prisma.client.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, phone: true, email: true },
   });
   const services = await prisma.service.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      ...(initialKind === 'SPACE' ? { scope: { in: ['SPACE', 'BOTH'] } } : {}),
+    },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, defaultProviderType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, scope: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
   const spaces = await prisma.space.findMany({
     orderBy: { name: 'asc' },
@@ -38,7 +42,8 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
       client: { select: { name: true } },
     },
   });
-  const packages = (await PackageCatalogService.getCatalog()).filter((p) => p.active);
+  const packages = (await PackageCatalogService.getCatalog())
+    .filter((p) => p.active && isScopeAllowedForKind(p.scope, initialKind));
 
   return (
     <BookingPOSTerminal

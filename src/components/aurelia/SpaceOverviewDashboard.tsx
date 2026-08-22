@@ -116,7 +116,7 @@ export default function SpaceOverviewDashboard({ data }: SpaceOverviewDashboardP
           <div className="card">
             <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
               <h3 className="h-md">Upcoming Booking Schedule</h3>
-              <Link href="/bookings?kind=SPACE" className="mini" style={{ color: 'var(--accent)' }}>View All Space Bookings</Link>
+              <Link href="/bookings?context=SPACE" className="mini" style={{ color: 'var(--accent)' }}>View All Space Bookings</Link>
             </div>
 
             <div className="space-y-4">

@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PackageScope } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
+import { isServiceCompatibleWithPackageScope } from '@/lib/service-scope';
 
 export async function GET() {
   try {
-    const packages = await prisma.servicePackage.findMany({
+    const packages = await prisma.package.findMany({
       orderBy: [{ scope: 'asc' }, { name: 'asc' }],
       include: {
-        services: {
+        items: {
           orderBy: { order: 'asc' },
           include: { service: true },
         },
@@ -24,7 +25,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, scope, serviceIds } = body;
+    const { name, description, scope, serviceIds, quantities } = body;
 
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
@@ -38,17 +39,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'At least one service is required' }, { status: 400 });
     }
 
-    const servicePackage = await prisma.servicePackage.create({
+    // Defense in depth — the package builder's checklist already filters to compatible services,
+    // but a direct API call must not be able to bundle e.g. an EVENT-only service into a SPACE
+    // package (or vice versa) just because it bypassed that UI.
+    const candidateServices = await prisma.service.findMany({
+      where: { id: { in: serviceIds } },
+      select: { id: true, name: true, scope: true },
+    });
+    const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.scope, scope as 'SPACE' | 'EVENT'));
+    if (incompatible.length > 0) {
+      return NextResponse.json(
+        { error: `Not compatible with a ${scope} package: ${incompatible.map((s) => s.name).join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    const servicePackage = await prisma.package.create({
       data: {
         tenantId: tenant.id,
         name,
         description: description || null,
         scope: scope as PackageScope,
-        services: {
-          create: serviceIds.map((serviceId: string, index: number) => ({ serviceId, order: index })),
+        items: {
+          create: serviceIds.map((serviceId: string, index: number) => ({
+            serviceId,
+            order: index,
+            quantity: quantities?.[serviceId] ?? 1,
+          })),
         },
       },
-      include: { services: { orderBy: { order: 'asc' }, include: { service: true } } },
+      include: { items: { orderBy: { order: 'asc' }, include: { service: true } } },
     });
 
     return NextResponse.json(serializeDecimals({ success: true, package: servicePackage }), { status: 201 });

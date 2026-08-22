@@ -48,10 +48,10 @@ export function Sidebar() {
   const switchWorkspace = (next: Workspace) => {
     setActiveWorkspace(next);
     setWorkspace(next);
-    router.push(next === 'SPACE' ? '/bookings?kind=SPACE' : '/events');
+    router.push(next === 'SPACE' ? '/bookings?context=SPACE' : '/events');
   };
 
-  /** A link with a query string (e.g. `?kind=SPACE`) is only "active" when every one of its
+  /** A link with a query string (e.g. `?context=SPACE`) is only "active" when every one of its
    * params matches the current URL — otherwise the generic `/bookings` link would also light up
    * while viewing the Space-filtered list, and vice versa. */
   const isItemActive = (href: string): boolean => {
@@ -67,12 +67,14 @@ export function Sidebar() {
   };
 
   const spaceNavItems = [
-    { label: 'Space Bookings', href: '/bookings?kind=SPACE', icon: BookmarkCheck },
+    { label: 'Space Bookings', href: '/bookings?context=SPACE', icon: BookmarkCheck },
+    { label: 'Space Services', href: '/services?scope=SPACE', icon: Briefcase },
     { label: 'Space Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
   ];
 
   const eventNavItems = [
     { label: 'Events', href: '/events', icon: Sparkles },
+    { label: 'Event Services', href: '/services?scope=EVENT', icon: Briefcase },
     { label: 'Event Packages', href: '/services/packages?scope=EVENT', icon: Boxes },
   ];
 
@@ -84,7 +86,7 @@ export function Sidebar() {
     {
       label: 'Shared',
       items: [
-        { label: 'Overview', href: workspace === 'SPACE' ? '/overview?kind=SPACE' : '/overview?kind=EVENT', icon: LayoutDashboard },
+        { label: 'Overview', href: workspace === 'SPACE' ? '/overview?context=SPACE' : '/overview?context=EVENT', icon: LayoutDashboard },
         { label: 'Calendar', href: '/calendar', icon: CalendarDays },
         { label: 'All Bookings', href: '/bookings', icon: BookmarkCheck },
         { label: 'Waiting List', href: '/bookings?status=WAITING_LIST', icon: Clock },
