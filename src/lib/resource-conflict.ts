@@ -57,19 +57,19 @@ export async function assertStaffAvailable(
   endAt: Date,
   excludeAssignmentId?: string
 ): Promise<void> {
-  const conflict = await tx.eventServiceStaff.findFirst({
+  const conflict = await tx.bookingServiceStaff.findFirst({
     where: {
       staffId,
       startAt: { lt: endAt },
       endAt: { gt: startAt },
       ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {}),
     },
-    include: { eventService: { include: { service: true } } },
+    include: { bookingService: { include: { service: true } } },
   });
 
   if (conflict) {
     throw new StaffConflictError(
-      `${conflict.staffNameSnapshot} is already assigned to "${conflict.eventService.service?.name || 'another work order'}" during this time window.`
+      `${conflict.staffNameSnapshot} is already assigned to "${conflict.bookingService.service?.name || 'another work order'}" during this time window.`
     );
   }
 }

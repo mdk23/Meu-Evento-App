@@ -22,6 +22,7 @@ export function useBookingPOS({
   initialBookingData = null,
   initialPackages = [],
   initialDate,
+  initialKind = 'EVENT',
 }: BookingPOSTerminalProps) {
   const router = useRouter();
 
@@ -147,8 +148,8 @@ export function useBookingPOS({
       id: s.id,
       name: s.name,
       category: (s.category === 'SPACE' || idx % 2 === 0 ? 'SPACE' : 'EVENT') as 'SPACE' | 'EVENT',
-      providerType: (s.defaultExecutionType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
-      providerName: s.defaultExecutionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
+      providerType: (s.defaultProviderType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
+      providerName: s.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
       priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'HOURLY' ? 'HOURLY' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'HOURLY',
       price: s.defaultPrice || 15000,
       description: 'Specialized service for your event.',
@@ -167,8 +168,8 @@ export function useBookingPOS({
 
   // 3. POS Cart State (Selected items)
   const [selectedItems, setSelectedItems] = useState<CartItem[]>(() => {
-    if (initialBookingData?.eventServices) {
-      return initialBookingData.eventServices.map((es) => {
+    if (initialBookingData?.bookingServices) {
+      return initialBookingData.bookingServices.map((es) => {
         const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : 1;
         const unitPrice = es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0);
         return {
@@ -176,8 +177,8 @@ export function useBookingPOS({
           serviceId: es.serviceId,
           name: es.service?.name || 'Service',
           category: (es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
-          providerType: es.providerType || es.service?.defaultExecutionType || 'INTERNAL',
-          providerName: es.providerType === 'EXTERNAL' || es.service?.defaultExecutionType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
+          providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
+          providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
           priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'HOURLY' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
           price: unitPrice,
           quantity: qty,
@@ -414,6 +415,24 @@ export function useBookingPOS({
   });
   const hasConflict = selectedDateBookings.length > 0;
 
+  // Every other booking on the selected date, regardless of whether it overlaps the currently
+  // chosen time — unlike `selectedDateBookings` (which only exists to flag a conflict once a time
+  // range is picked), this shows the *whole* day's schedule up front so a free slot can be spotted
+  // before guessing a start/end time. Parsed via explicit Y/M/D fields, same as `getBookingsOnDay`,
+  // to avoid the UTC-midnight day-shift `new Date(dateOnlyString)` can cause.
+  const bookingsOnSelectedDate = useMemo(() => {
+    if (!eventDate) return [];
+    const [y, m, d] = eventDate.split('-').map(Number);
+    return initialBookings
+      .filter((b) => {
+        if (b.status === 'CANCELLED') return false;
+        if (initialBookingData && b.id === initialBookingData.id) return false;
+        const bd = new Date(b.eventDate);
+        return bd.getFullYear() === y && bd.getMonth() === m - 1 && bd.getDate() === d;
+      })
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  }, [eventDate, initialBookings, initialBookingData]);
+
   // Submit Handler
   const handleSubmitPOS = async (targetStatus?: 'CONFIRMED' | 'RESERVED') => {
     if (!clientName.trim()) {
@@ -439,6 +458,9 @@ export function useBookingPOS({
     setSubmitting(true);
     try {
       const payload = {
+        // Only meaningful on create — `PATCH` ignores `kind` entirely, since flipping workspaces
+        // for an existing booking goes through the dedicated promote/demote endpoints instead.
+        kind: initialKind,
         clientId: selectedClientId,
         newClient: {
           name: clientName,
@@ -592,6 +614,7 @@ export function useBookingPOS({
     getBookingsOnDay,
     hasConflict,
     selectedDateBookings,
+    bookingsOnSelectedDate,
 
     handleSelectSpace,
     toggleCatalogService,

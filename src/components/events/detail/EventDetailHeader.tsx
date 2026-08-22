@@ -11,9 +11,9 @@ interface EventDetailHeaderProps {
 export default function EventDetailHeader({ event }: EventDetailHeaderProps) {
   const stages = deriveLifecycleStages({
     bookingStatus: event.booking.status,
-    kind: event.booking.kind,
+    kind: event.booking.context,
     scheduledPayments: event.booking.scheduledPayments,
-    eventServices: event.eventServices,
+    eventServices: event.bookingServices,
     eventStatus: event.status,
   });
 

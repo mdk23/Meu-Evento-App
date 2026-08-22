@@ -16,7 +16,7 @@ export class DashboardRepository {
     const [
       collectedResult,
       pendingResult,
-      eventServicesAll,
+      bookingServicesAll,
       discountAgg,
       otherExpensesAgg,
       totalBookings,
@@ -37,14 +37,14 @@ export class DashboardRepository {
         _sum: { amount: true, paidAmount: true },
       }),
       // 3. Revenue/cost source of truth (Phase 9): every EventService's selling price and cost fields
-      prisma.eventService.findMany({
+      prisma.bookingService.findMany({
         select: { sellingPrice: true, cost: true, supplierCost: true, providerType: true },
       }),
       prisma.booking.aggregate({ _sum: { discount: true } }),
       // General operational expenses not already counted via supplierCost above (avoids double-counting)
       prisma.expense.aggregate({
         _sum: { amount: true },
-        where: { eventServiceId: null },
+        where: { bookingServiceId: null },
       }),
       // 4. Counts
       prisma.booking.count(),
@@ -80,7 +80,7 @@ export class DashboardRepository {
               client: { select: { name: true } },
             },
           },
-          eventServices: {
+          bookingServices: {
             select: {
               id: true,
               providerType: true,
@@ -90,23 +90,23 @@ export class DashboardRepository {
         },
       }),
       // 7. PostgreSQL DB groupBy for Service Work Order Status Breakdown
-      prisma.eventService.groupBy({
+      prisma.bookingService.groupBy({
         by: ['status'],
         _count: { status: true },
       }),
       // 8. PostgreSQL DB groupBy for External Supplier Status Breakdown (null = INTERNAL services, excluded)
-      prisma.eventService.groupBy({
+      prisma.bookingService.groupBy({
         by: ['supplierStatus'],
         _count: { supplierStatus: true },
         where: { supplierStatus: { not: null } },
       }),
     ]);
 
-    const revenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
+    const revenue = toDisplayNumber(calculateRevenue(bookingServicesAll, discountAgg._sum.discount));
     const totalCollected = toDisplayNumber(collectedResult._sum.amount);
     const pendingAmount = toDisplayNumber(subtractMoneyFloor0(pendingResult._sum.amount, pendingResult._sum.paidAmount));
-    const internalCost = toDisplayNumber(calculateInternalCost(eventServicesAll));
-    const supplierCost = toDisplayNumber(calculateSupplierCost(eventServicesAll));
+    const internalCost = toDisplayNumber(calculateInternalCost(bookingServicesAll));
+    const supplierCost = toDisplayNumber(calculateSupplierCost(bookingServicesAll));
     const otherExpenses = toDisplayNumber(otherExpensesAgg._sum.amount);
     const totalCosts = internalCost + supplierCost + otherExpenses;
     const netProfit = revenue - totalCosts;
@@ -149,7 +149,7 @@ export class DashboardRepository {
         date: e.date.toISOString(),
         guestCount: e.guestCount,
         clientName: e.booking?.client?.name || 'N/A',
-        serviceSummary: e.eventServices.map((es) => ({
+        serviceSummary: e.bookingServices.map((es) => ({
           id: es.id,
           name: es.service.name,
           providerType: es.providerType,
@@ -161,7 +161,7 @@ export class DashboardRepository {
   }
 
   /** Same shape as `getDashboardData`, scoped to EVENT-kind bookings only — this is what "Overview"
-   * shows while you're in the Event workspace. Filtering through `booking: { kind: 'EVENT' }` also
+   * shows while you're in the Event workspace. Filtering through `booking: { context: 'EVENT' }` also
    * fixes a real gap in the unscoped query: a demoted booking keeps its `Event` record ("kept, not
    * deleted" — see `booking-crossover.ts`), so without this filter a Space booking that used to be
    * an Event would still show up in operational panels it no longer belongs to. */
@@ -174,7 +174,7 @@ export class DashboardRepository {
     const [
       collectedResult,
       pendingResult,
-      eventServicesAll,
+      bookingServicesAll,
       discountAgg,
       otherExpensesAgg,
       totalBookings,
@@ -184,24 +184,24 @@ export class DashboardRepository {
       serviceStatusGrouped,
       supplierStatusGrouped,
     ] = await Promise.all([
-      prisma.paymentTransaction.aggregate({ where: { booking: { kind: 'EVENT' } }, _sum: { amount: true } }),
+      prisma.paymentTransaction.aggregate({ where: { booking: { context: 'EVENT' } }, _sum: { amount: true } }),
       prisma.scheduledPayment.aggregate({
-        where: { plan: { active: true }, booking: { kind: 'EVENT' } },
+        where: { plan: { active: true }, booking: { context: 'EVENT' } },
         _sum: { amount: true, paidAmount: true },
       }),
-      prisma.eventService.findMany({
-        where: { booking: { kind: 'EVENT' } },
+      prisma.bookingService.findMany({
+        where: { booking: { context: 'EVENT' } },
         select: { sellingPrice: true, cost: true, supplierCost: true, providerType: true },
       }),
-      prisma.booking.aggregate({ where: { kind: 'EVENT' }, _sum: { discount: true } }),
+      prisma.booking.aggregate({ where: { context: 'EVENT' }, _sum: { discount: true } }),
       prisma.expense.aggregate({
         _sum: { amount: true },
-        where: { eventServiceId: null, event: { booking: { kind: 'EVENT' } } },
+        where: { bookingServiceId: null, event: { booking: { context: 'EVENT' } } },
       }),
-      prisma.booking.count({ where: { kind: 'EVENT' } }),
+      prisma.booking.count({ where: { context: 'EVENT' } }),
       prisma.client.count(),
       prisma.event.findMany({
-        where: { date: { gte: todayStart, lte: todayEnd }, booking: { kind: 'EVENT' } },
+        where: { date: { gte: todayStart, lte: todayEnd }, booking: { context: 'EVENT' } },
         select: {
           id: true,
           name: true,
@@ -212,7 +212,7 @@ export class DashboardRepository {
         },
       }),
       prisma.event.findMany({
-        where: { date: { gte: todayStart }, booking: { kind: 'EVENT' } },
+        where: { date: { gte: todayStart }, booking: { context: 'EVENT' } },
         orderBy: { date: 'asc' },
         take: 6,
         select: {
@@ -221,26 +221,26 @@ export class DashboardRepository {
           date: true,
           guestCount: true,
           booking: { select: { client: { select: { name: true } } } },
-          eventServices: { select: { id: true, providerType: true, service: { select: { name: true } } } },
+          bookingServices: { select: { id: true, providerType: true, service: { select: { name: true } } } },
         },
       }),
-      prisma.eventService.groupBy({
+      prisma.bookingService.groupBy({
         by: ['status'],
         _count: { status: true },
-        where: { booking: { kind: 'EVENT' } },
+        where: { booking: { context: 'EVENT' } },
       }),
-      prisma.eventService.groupBy({
+      prisma.bookingService.groupBy({
         by: ['supplierStatus'],
         _count: { supplierStatus: true },
-        where: { supplierStatus: { not: null }, booking: { kind: 'EVENT' } },
+        where: { supplierStatus: { not: null }, booking: { context: 'EVENT' } },
       }),
     ]);
 
-    const revenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
+    const revenue = toDisplayNumber(calculateRevenue(bookingServicesAll, discountAgg._sum.discount));
     const totalCollected = toDisplayNumber(collectedResult._sum.amount);
     const pendingAmount = toDisplayNumber(subtractMoneyFloor0(pendingResult._sum.amount, pendingResult._sum.paidAmount));
-    const internalCost = toDisplayNumber(calculateInternalCost(eventServicesAll));
-    const supplierCost = toDisplayNumber(calculateSupplierCost(eventServicesAll));
+    const internalCost = toDisplayNumber(calculateInternalCost(bookingServicesAll));
+    const supplierCost = toDisplayNumber(calculateSupplierCost(bookingServicesAll));
     const otherExpenses = toDisplayNumber(otherExpensesAgg._sum.amount);
     const totalCosts = internalCost + supplierCost + otherExpenses;
     const netProfit = revenue - totalCosts;
@@ -273,7 +273,7 @@ export class DashboardRepository {
         date: e.date.toISOString(),
         guestCount: e.guestCount,
         clientName: e.booking?.client?.name || 'N/A',
-        serviceSummary: e.eventServices.map((es) => ({ id: es.id, name: es.service.name, providerType: es.providerType })),
+        serviceSummary: e.bookingServices.map((es) => ({ id: es.id, name: es.service.name, providerType: es.providerType })),
       })),
       serviceStatusSummary,
       supplierStatusSummary,
@@ -293,7 +293,7 @@ export class DashboardRepository {
     const [
       collectedResult,
       pendingResult,
-      eventServicesAll,
+      bookingServicesAll,
       discountAgg,
       totalBookings,
       upcomingCount,
@@ -302,29 +302,29 @@ export class DashboardRepository {
       upcomingBookingsRaw,
       tenant,
     ] = await Promise.all([
-      prisma.paymentTransaction.aggregate({ where: { booking: { kind: 'SPACE' } }, _sum: { amount: true } }),
+      prisma.paymentTransaction.aggregate({ where: { booking: { context: 'SPACE' } }, _sum: { amount: true } }),
       prisma.scheduledPayment.aggregate({
-        where: { plan: { active: true }, booking: { kind: 'SPACE' } },
+        where: { plan: { active: true }, booking: { context: 'SPACE' } },
         _sum: { amount: true, paidAmount: true },
       }),
-      prisma.eventService.findMany({
-        where: { booking: { kind: 'SPACE' } },
+      prisma.bookingService.findMany({
+        where: { booking: { context: 'SPACE' } },
         select: { sellingPrice: true },
       }),
-      prisma.booking.aggregate({ where: { kind: 'SPACE' }, _sum: { discount: true } }),
-      prisma.booking.count({ where: { kind: 'SPACE' } }),
+      prisma.booking.aggregate({ where: { context: 'SPACE' }, _sum: { discount: true } }),
+      prisma.booking.count({ where: { context: 'SPACE' } }),
       prisma.booking.count({
-        where: { kind: 'SPACE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
+        where: { context: 'SPACE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
       }),
       prisma.scheduledPayment.count({
-        where: { plan: { active: true }, status: 'OVERDUE', booking: { kind: 'SPACE' } },
+        where: { plan: { active: true }, status: 'OVERDUE', booking: { context: 'SPACE' } },
       }),
       prisma.booking.findMany({
-        where: { kind: 'SPACE', eventDate: { gte: todayStart, lte: todayEnd } },
+        where: { context: 'SPACE', eventDate: { gte: todayStart, lte: todayEnd } },
         select: { id: true, guestCount: true, status: true, startAt: true, endAt: true, client: { select: { name: true } } },
       }),
       prisma.booking.findMany({
-        where: { kind: 'SPACE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
+        where: { context: 'SPACE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
         orderBy: { startAt: 'asc' },
         take: 6,
         select: { id: true, guestCount: true, status: true, eventDate: true, client: { select: { name: true } } },
@@ -332,7 +332,7 @@ export class DashboardRepository {
       prisma.tenant.findFirst({ include: { space: true } }),
     ]);
 
-    const revenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
+    const revenue = toDisplayNumber(calculateRevenue(bookingServicesAll, discountAgg._sum.discount));
     const totalCollected = toDisplayNumber(collectedResult._sum.amount);
     const pendingAmount = toDisplayNumber(subtractMoneyFloor0(pendingResult._sum.amount, pendingResult._sum.paidAmount));
 

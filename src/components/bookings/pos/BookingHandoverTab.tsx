@@ -18,7 +18,7 @@ export default function BookingHandoverTab({ booking }: BookingHandoverTabProps)
   const router = useRouter();
   const [promoting, setPromoting] = useState(false);
 
-  if (booking.kind === 'EVENT') {
+  if (booking.context === 'EVENT') {
     const eventId = booking.event?.id;
     return (
       <div className="page" style={{ maxWidth: 700 }}>

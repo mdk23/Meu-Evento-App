@@ -5,7 +5,7 @@ type SerializedDates<T, K extends keyof T> = Omit<T, K> & { [P in K]: string };
 
 export type SerializedBooking = SerializedDates<
   Omit<
-    DecimalToNumber<Prisma.BookingGetPayload<{ include: { client: true; event: { include: { eventServices: true } } } }>>,
+    DecimalToNumber<Prisma.BookingGetPayload<{ include: { client: true; event: { include: { bookingServices: true } } } }>>,
     'depositDueDate'
   >,
   'createdAt' | 'updatedAt' | 'eventDate'

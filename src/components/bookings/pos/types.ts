@@ -47,7 +47,7 @@ export type CatalogPackage = PackageCardDTO;
 // `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
 // `serializeDecimals` converts every one to a plain number before this data reaches the client.
 export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
-  select: { id: true; name: true; category: true; defaultExecutionType: true; defaultPrice: true; priceType: true };
+  select: { id: true; name: true; category: true; defaultProviderType: true; defaultPrice: true; priceType: true };
 }>>;
 
 export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
@@ -56,12 +56,12 @@ export type BookingSummary = Prisma.BookingGetPayload<{
   select: { id: true; eventDate: true; startAt: true; endAt: true; spaceId: true; status: true; client: { select: { name: true } } };
 }>;
 
-/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `eventServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. */
+/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `bookingServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. */
 export type BookingPOSInitialData = DecimalToNumber<Prisma.BookingGetPayload<{
   include: {
     client: true;
-    event: { include: { eventServices: { include: { service: true } } } };
-    eventServices: { include: { service: true } };
+    event: { include: { bookingServices: { include: { service: true } } } };
+    bookingServices: { include: { service: true } };
     scheduledPayments: true;
   };
 }>> & {
@@ -81,4 +81,8 @@ export interface BookingPOSTerminalProps {
   /** Pre-selects the event date (`YYYY-MM-DD`) for a brand-new booking — e.g. arriving from the
    * calendar's day view. Ignored when `initialBookingData` is set (editing an existing booking). */
   initialDate?: string;
+  /** Which workspace a brand-new booking is created into (`Booking.kind`) — set from the `?kind=`
+   * query string when the "New Booking" link is reached from a workspace-scoped page (e.g. Space
+   * Bookings). Defaults to `EVENT` to match every existing unscoped caller. Ignored when editing. */
+  initialKind?: 'SPACE' | 'EVENT';
 }

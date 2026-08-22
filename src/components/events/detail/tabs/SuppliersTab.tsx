@@ -18,7 +18,7 @@ export default function SuppliersTab({ eventServices, expenses, onOpenWorkOrder 
   const totalSupplierCost = externalServices.reduce((sum, es) => sum + es.supplierCost, 0);
   const pendingCount = externalServices.filter((es) => es.supplierStatus === 'REQUESTED').length;
   const unpaidCount = externalServices.filter((es) => es.paymentStatus === 'UNPAID').length;
-  const otherExpenses = expenses.filter((exp) => !exp.eventServiceId);
+  const otherExpenses = expenses.filter((exp) => !exp.bookingServiceId);
 
   return (
     <div className="stack" style={{ gap: 24 }}>

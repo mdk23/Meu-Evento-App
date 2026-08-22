@@ -40,7 +40,7 @@ export default function BookingsClient({ data, statusFilter, kindFilter }: Booki
             : 'Manage client reservations, deposits & payment closures.'
         }
       >
-        <Link href="/bookings/create" className="btn primary sm">
+        <Link href={kindFilter ? `/bookings/create?kind=${kindFilter}` : '/bookings/create'} className="btn primary sm">
           <Plus className="w-3.5 h-3.5" /> New Booking
         </Link>
       </Topbar>
@@ -53,6 +53,7 @@ export default function BookingsClient({ data, statusFilter, kindFilter }: Booki
           isEmpty={list.bookings.length === 0}
           deletingId={list.deletingId}
           updating={list.updating}
+          kindFilter={kindFilter}
           onUpdateStatus={list.handleUpdateStatus}
           onCrossover={list.handleCrossover}
           onDeletePrompt={list.handleDeletePrompt}

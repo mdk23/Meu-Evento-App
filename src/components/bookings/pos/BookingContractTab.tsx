@@ -6,10 +6,10 @@ interface BookingContractTabProps {
 }
 
 /** Read-only contract breakdown — distinct from the editable cart on the Details tab. Reads off
- * `booking.eventServices` directly (always set, works for both SPACE and EVENT bookings) rather
- * than `booking.event?.eventServices`, which is empty for a SPACE booking. */
+ * `booking.bookingServices` directly (always set, works for both SPACE and EVENT bookings) rather
+ * than `booking.event?.bookingServices`, which is empty for a SPACE booking. */
 export default function BookingContractTab({ booking }: BookingContractTabProps) {
-  const lines = booking.eventServices || [];
+  const lines = booking.bookingServices || [];
   const subtotal = lines.reduce((sum, l) => sum + l.sellingPrice, 0);
   const discount = booking.discount || 0;
   const total = Math.max(0, subtotal - discount);

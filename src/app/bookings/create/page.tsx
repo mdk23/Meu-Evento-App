@@ -6,12 +6,13 @@ import { PackageCatalogService } from '@/lib/services/package.service';
 export const dynamic = 'force-dynamic';
 
 interface CreateBookingPageProps {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; kind?: string }>;
 }
 
 export default async function CreateBookingPage({ searchParams }: CreateBookingPageProps) {
-  const { date } = await searchParams;
+  const { date, kind } = await searchParams;
   const initialDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+  const initialKind = kind === 'SPACE' ? 'SPACE' : 'EVENT';
   const clients = await prisma.client.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
@@ -20,7 +21,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
   const services = await prisma.service.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, defaultExecutionType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
   const spaces = await prisma.space.findMany({
     orderBy: { name: 'asc' },
@@ -47,6 +48,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
       initialBookings={bookings}
       initialPackages={packages}
       initialDate={initialDate}
+      initialKind={initialKind}
     />
   );
 }

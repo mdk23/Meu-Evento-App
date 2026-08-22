@@ -1,6 +1,22 @@
 import React from 'react';
-import { Users, Calendar as CalendarIcon, Clock, AlertTriangle, UserPlus } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, Clock, AlertTriangle, UserPlus, CalendarClock } from 'lucide-react';
 import { Client, BookingSummary } from './types';
+
+const STATUS_BADGE: Record<string, string> = {
+  CONFIRMED: 'b-ok',
+  RESERVED: 'b-warn',
+  WAITING_LIST: 'b-mute',
+  COMPLETED: 'b-info',
+};
+
+/** Hour-of-day as a fraction (14:30 → 14.5), for positioning a booking within a 0–24 timeline bar. */
+function hourFraction(date: Date): number {
+  return date.getHours() + date.getMinutes() / 60;
+}
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
 
 interface ClientCalendarSectionProps {
   clients: Client[];
@@ -31,6 +47,7 @@ interface ClientCalendarSectionProps {
   getBookingsOnDay: (day: number) => BookingSummary[];
   hasConflict: boolean;
   selectedDateBookings: BookingSummary[];
+  bookingsOnSelectedDate: BookingSummary[];
   isWaitingList: boolean;
   setIsWaitingList: (val: boolean) => void;
   startTime: string;
@@ -72,6 +89,7 @@ export default function ClientCalendarSection({
   getBookingsOnDay,
   hasConflict,
   selectedDateBookings,
+  bookingsOnSelectedDate,
   isWaitingList,
   setIsWaitingList,
   startTime,
@@ -331,6 +349,63 @@ export default function ClientCalendarSection({
             <span>Event Date:</span>
             <strong style={{ color: 'var(--ink)' }}>{eventDate ? new Date(eventDate + 'T00:00:00').toLocaleDateString('en-US') : 'None'}</strong>
           </div>
+
+          {/* DAY SCHEDULE — shows every other booking already on this date, so a free time slot
+              can be spotted before picking start/end times below, not after hitting a conflict. */}
+          {eventDate && (
+            <div className="stack" style={{ gap: 8, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+              <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <CalendarClock className="w-3 h-3" /> Day Schedule
+              </span>
+
+              {/* 24H TIMELINE BAR */}
+              <div style={{ position: 'relative', height: 22, borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)', border: '1px solid var(--rule)', overflow: 'hidden' }}>
+                {[6, 12, 18].map((h) => (
+                  <div key={h} style={{ position: 'absolute', left: `${(h / 24) * 100}%`, top: 0, bottom: 0, width: 1, background: 'var(--rule)' }} />
+                ))}
+                {bookingsOnSelectedDate.map((b) => {
+                  const start = new Date(b.startAt);
+                  const end = new Date(b.endAt);
+                  const startH = hourFraction(start);
+                  const spansPastMidnight = end.getDate() !== start.getDate() || end.getMonth() !== start.getMonth();
+                  const endH = spansPastMidnight ? 24 : hourFraction(end);
+                  return (
+                    <div
+                      key={b.id}
+                      title={`${b.client?.name || 'Client'}: ${formatTime(start)}–${formatTime(end)}`}
+                      style={{
+                        position: 'absolute',
+                        left: `${(startH / 24) * 100}%`,
+                        width: `${Math.max(1, ((endH - startH) / 24) * 100)}%`,
+                        top: 2,
+                        bottom: 2,
+                        borderRadius: 3,
+                        background: b.status === 'CONFIRMED' ? 'var(--ok)' : b.status === 'WAITING_LIST' ? 'var(--ink-3)' : 'var(--warn)',
+                        opacity: 0.85,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* LIST OF EXISTING BOOKINGS ON THIS DATE */}
+              {bookingsOnSelectedDate.length === 0 ? (
+                <p className="mini dim">Nothing else booked this day — fully open.</p>
+              ) : (
+                <div className="stack" style={{ gap: 4 }}>
+                  {bookingsOnSelectedDate.map((b) => (
+                    <div key={b.id} className="between mini" style={{ gap: 8 }}>
+                      <span className="dim truncate" style={{ minWidth: 0 }}>{b.client?.name || 'Client'}</span>
+                      <span className="row" style={{ gap: 6, flexShrink: 0 }}>
+                        <span className="num dim">{formatTime(new Date(b.startAt))}&ndash;{formatTime(new Date(b.endAt))}</span>
+                        <span className={`badge ${STATUS_BADGE[b.status] || 'b-mute'}`}>{b.status.replace('_', ' ')}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="field" style={{ marginBottom: 0, paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
             <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -11,15 +11,15 @@ export async function PATCH(
     const body = await request.json();
     const { title, status, assignedTo, dueDate } = body;
 
-    const existing = await prisma.eventServiceTask.findUnique({
+    const existing = await prisma.bookingServiceTask.findUnique({
       where: { id: taskId },
-      include: { eventService: true },
+      include: { bookingService: true },
     });
-    if (!existing || existing.eventServiceId !== eventServiceId || existing.eventService.eventId !== eventId) {
+    if (!existing || existing.bookingServiceId !== eventServiceId || existing.bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Task not found for this event service' }, { status: 404 });
     }
 
-    const task = await prisma.eventServiceTask.update({
+    const task = await prisma.bookingServiceTask.update({
       where: { id: taskId },
       data: {
         title: title !== undefined ? String(title).trim() : undefined,
@@ -43,15 +43,15 @@ export async function DELETE(
   try {
     const { id: eventId, eventServiceId, taskId } = await params;
 
-    const existing = await prisma.eventServiceTask.findUnique({
+    const existing = await prisma.bookingServiceTask.findUnique({
       where: { id: taskId },
-      include: { eventService: true },
+      include: { bookingService: true },
     });
-    if (!existing || existing.eventServiceId !== eventServiceId || existing.eventService.eventId !== eventId) {
+    if (!existing || existing.bookingServiceId !== eventServiceId || existing.bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Task not found for this event service' }, { status: 404 });
     }
 
-    await prisma.eventServiceTask.delete({ where: { id: taskId } });
+    await prisma.bookingServiceTask.delete({ where: { id: taskId } });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

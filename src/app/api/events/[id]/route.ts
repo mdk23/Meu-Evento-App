@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             paymentTransactions: { orderBy: { date: 'desc' }, include: { scheduledPayment: true } },
           },
         },
-        eventServices: {
+        bookingServices: {
           include: {
             service: true,
             supplier: true,
@@ -43,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Only active catalog entries should be selectable when assigning staff/inventory/suppliers/services
-    // to a work order — an already-assigned (now-inactive) one still displays fine via the eventServices
+    // to a work order — an already-assigned (now-inactive) one still displays fine via the bookingServices
     // include above, since that's a live join on whatever is actually assigned, not this picker list.
     const tenant = await prisma.tenant.findFirst({
       include: {

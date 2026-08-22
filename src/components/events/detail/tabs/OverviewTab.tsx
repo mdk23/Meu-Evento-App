@@ -33,7 +33,7 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
   // Execution progress (Phase 10): completed service value / total active service value.
   // Mirrors src/lib/event-progress.ts's server-side calculation, using the plain numbers this
   // payload already carries (Decimal never survives the API boundary — see src/lib/money.ts).
-  const activeServices = event.eventServices.filter((es) => es.status !== 'CANCELLED');
+  const activeServices = event.bookingServices.filter((es) => es.status !== 'CANCELLED');
   const totalActiveValue = activeServices.reduce((sum, es) => sum + es.sellingPrice, 0);
   const completedValue = activeServices
     .filter((es) => es.status === 'COMPLETED')
@@ -41,7 +41,7 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
   const progressPercent = totalActiveValue > 0 ? Math.round((completedValue / totalActiveValue) * 100) : 0;
 
   // Contract value — same definition as ExecutionTab: SUM(EventService.sellingPrice) - discount.
-  const serviceRevenue = event.eventServices.reduce((sum, es) => sum + es.sellingPrice, 0);
+  const serviceRevenue = event.bookingServices.reduce((sum, es) => sum + es.sellingPrice, 0);
   const contractValue = Math.max(0, serviceRevenue - (event.booking?.discount || 0));
   const scheduledPayments = event.booking?.scheduledPayments || [];
   const totalScheduled = scheduledPayments.reduce((sum, sp) => sum + sp.amount, 0);

@@ -12,10 +12,10 @@ export default async function BookingPaymentsPage({ params }: { params: Promise<
       client: true,
       event: {
         include: {
-          eventServices: true
+          bookingServices: true
         }
       },
-      eventServices: true,
+      bookingServices: true,
     }
   });
 
@@ -36,7 +36,7 @@ export default async function BookingPaymentsPage({ params }: { params: Promise<
   });
 
   // Calculate total contract amount just in case it's not stored
-  const totalContractAmount = toDisplayNumber(sumMoney(booking.eventServices.map((service) => service.sellingPrice)));
+  const totalContractAmount = toDisplayNumber(sumMoney(booking.bookingServices.map((service) => service.sellingPrice)));
   const totalScheduledAmount = toDisplayNumber(sumMoney(scheduledPayments.map((sp) => sp.amount)));
 
   const serializedBooking = serializeDecimals({

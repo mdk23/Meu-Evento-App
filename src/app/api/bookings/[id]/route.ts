@@ -190,7 +190,7 @@ export async function PATCH(
       // EVENT bookings (a SPACE booking's lines are commercial-only: no `eventId`).
       if (isEdit && selectedServices && Array.isArray(selectedServices)) {
         // Delete old services
-        await tx.eventService.deleteMany({
+        await tx.bookingService.deleteMany({
           where: { bookingId: existingBooking.id }
         });
 
@@ -211,7 +211,7 @@ export async function PATCH(
                   tenantId,
                   name: item.name,
                   category: item.category || 'GERAL',
-                  defaultExecutionType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+                  defaultProviderType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
                   priceType: item.priceType || 'FIXED',
                   defaultPrice: item.price || 0,
                 },
@@ -221,13 +221,13 @@ export async function PATCH(
           }
 
           if (catalogServiceId) {
-            await tx.eventService.create({
+            await tx.bookingService.create({
               data: {
                 bookingId: existingBooking.id,
                 // Not just `existingBooking.event?.id` — a demoted booking keeps its Event record
-                // (kept, not deleted) while `kind` flips to SPACE, so event-existence alone no
+                // (kept, not deleted) while `context` flips to SPACE, so event-existence alone no
                 // longer implies "this booking is currently in the Event workspace."
-                eventId: existingBooking.kind === 'EVENT' && existingBooking.event ? existingBooking.event.id : null,
+                eventId: existingBooking.context === 'EVENT' && existingBooking.event ? existingBooking.event.id : null,
                 serviceId: catalogServiceId,
                 serviceNameSnapshot: item.name || null,
                 providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
@@ -244,7 +244,7 @@ export async function PATCH(
         // supersedes any eventStatus override passed in this same request. No-op for a SPACE
         // booking, which has no Event to recalculate.
         if (existingBooking.event) {
-          const freshServices = await tx.eventService.findMany({
+          const freshServices = await tx.bookingService.findMany({
             where: { eventId: existingBooking.event.id },
             select: { sellingPrice: true, status: true },
           });
@@ -260,7 +260,7 @@ export async function PATCH(
       // beyond the invoice-status/payment-action handling above.
 
       // `updatedBooking` above was read before the event status/service-sync logic ran, so its
-      // `eventServices` (and nested `event.eventServices`) can be stale — re-fetch once everything
+      // `bookingServices` (and nested `event.bookingServices`) can be stale — re-fetch once everything
       // has settled so the response actually reflects what was just written.
       return tx.booking.findUniqueOrThrow({
         where: { id },
@@ -268,10 +268,10 @@ export async function PATCH(
           client: true,
           event: {
             include: {
-              eventServices: { include: { service: true, supplier: true } },
+              bookingServices: { include: { service: true, supplier: true } },
             },
           },
-          eventServices: { include: { service: true, supplier: true } },
+          bookingServices: { include: { service: true, supplier: true } },
           scheduledPayments: { where: { plan: { active: true } } },
         },
       });

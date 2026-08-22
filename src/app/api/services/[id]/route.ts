@@ -25,12 +25,12 @@ export async function PATCH(
       data: {
         name: name !== undefined ? name : existingService.name,
         category: category !== undefined ? category : existingService.category,
-        defaultExecutionType:
+        defaultProviderType:
           defaultExecutionType === 'EXTERNAL'
             ? ExecutionType.EXTERNAL
             : defaultExecutionType === 'INTERNAL'
             ? ExecutionType.INTERNAL
-            : existingService.defaultExecutionType,
+            : existingService.defaultProviderType,
         priceType: priceType !== undefined ? priceType : existingService.priceType,
         defaultPrice: defaultPrice !== undefined ? parseFloat(defaultPrice) : existingService.defaultPrice,
         fieldSchema: Array.isArray(fieldSchema) ? fieldSchema : undefined,

@@ -42,14 +42,14 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           {detail.activeTab === 'overview' && <OverviewTab event={event} space={space} onNavigateTab={detail.setActiveTab} />}
           {detail.activeTab === 'services' && (
             <ServicesTab
-              eventServices={event.eventServices}
+              eventServices={event.bookingServices}
               onOpenWorkOrder={detail.openServiceWorkOrder}
               onOpenAddService={() => detail.setIsAddServiceOpen(true)}
             />
           )}
           {detail.activeTab === 'tasks' && (
             <TasksTab
-              eventServices={event.eventServices}
+              eventServices={event.bookingServices}
               onToggleTask={detail.toggleTaskCompletedGlobal}
               onOpenWorkOrder={detail.openServiceWorkOrder}
             />
@@ -68,11 +68,11 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
             />
           )}
           {detail.activeTab === 'resources' && (
-            <ResourcesTab eventServices={event.eventServices} onOpenWorkOrder={detail.openServiceWorkOrder} />
+            <ResourcesTab eventServices={event.bookingServices} onOpenWorkOrder={detail.openServiceWorkOrder} />
           )}
           {detail.activeTab === 'suppliers' && (
             <SuppliersTab
-              eventServices={event.eventServices}
+              eventServices={event.bookingServices}
               expenses={event.expenses}
               onOpenWorkOrder={detail.openServiceWorkOrder}
             />
@@ -80,7 +80,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           {detail.activeTab === 'payments' && <PaymentsTab event={event} />}
           {detail.activeTab === 'execution' && (
             <ExecutionTab
-              eventServices={event.eventServices}
+              eventServices={event.bookingServices}
               expenses={event.expenses}
               discount={event.booking.discount || 0}
               onOpenWorkOrder={detail.openServiceWorkOrder}

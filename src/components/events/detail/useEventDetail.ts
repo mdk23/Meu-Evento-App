@@ -39,7 +39,7 @@ export function useEventDetail(id: string) {
   const [addingGuest, setAddingGuest] = useState(false);
 
   const selectedService: EventServiceWithRelations | null =
-    (selectedServiceId && data?.event.eventServices.find((es) => es.id === selectedServiceId)) || null;
+    (selectedServiceId && data?.event.bookingServices.find((es) => es.id === selectedServiceId)) || null;
 
   const reloadEvent = async () => {
     try {

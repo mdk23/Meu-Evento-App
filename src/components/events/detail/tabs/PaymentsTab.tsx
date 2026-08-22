@@ -10,15 +10,15 @@ interface PaymentsTabProps {
  * calls (register payment, edit schedule) is already keyed off `bookingId`, which is exactly
  * `event.booking.id` here. The only work is reshaping this payload into the `SerializedBooking`
  * shape that component expects (it was built for the booking detail page, which reads
- * `booking.event.eventServices`; the event detail page has the same data one level up, as its own
- * top-level `eventServices`). */
+ * `booking.event.bookingServices`; the event detail page has the same data one level up, as its own
+ * top-level `bookingServices`). */
 export default function PaymentsTab({ event }: PaymentsTabProps) {
-  const serviceRevenue = event.eventServices.reduce((sum, es) => sum + es.sellingPrice, 0);
+  const serviceRevenue = event.bookingServices.reduce((sum, es) => sum + es.sellingPrice, 0);
   const totalContractAmount = Math.max(0, serviceRevenue - (event.booking.discount || 0));
 
   const booking = {
     ...event.booking,
-    event: { id: event.id, name: event.name, eventServices: event.eventServices },
+    event: { id: event.id, name: event.name, bookingServices: event.bookingServices },
     totalContractAmount,
   } as unknown as SerializedBooking;
 

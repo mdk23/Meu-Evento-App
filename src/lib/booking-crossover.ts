@@ -1,4 +1,4 @@
-import { Prisma, BookingKind, EventStatus } from '@prisma/client';
+import { Prisma, BookingContext, EventStatus } from '@prisma/client';
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -15,7 +15,7 @@ export class InvalidCrossoverError extends Error {
  * since they're keyed off `bookingId`, which never changes. `Event.bookingId` is unique, so a
  * booking that was previously demoted (its Event kept, not deleted) reactivates that same Event
  * rather than creating a duplicate — this makes promote idempotent-safe across repeated
- * promote/demote cycles. Every commercial-only `EventService` line added while this was a Space
+ * promote/demote cycles. Every commercial-only `BookingService` line added while this was a Space
  * booking (`eventId: null`) gets linked to the (re)activated Event, so it immediately shows up as
  * the event's starting service list.
  */
@@ -29,7 +29,7 @@ export async function promoteBookingToEvent(
     include: { client: true, event: true },
   });
   if (!booking) throw new InvalidCrossoverError('Booking not found.');
-  if (booking.kind !== BookingKind.SPACE) {
+  if (booking.context !== BookingContext.SPACE) {
     throw new InvalidCrossoverError('Only a Space booking can be promoted to an Event.');
   }
 
@@ -46,12 +46,12 @@ export async function promoteBookingToEvent(
       },
     }));
 
-  await tx.eventService.updateMany({
+  await tx.bookingService.updateMany({
     where: { bookingId: booking.id, eventId: null },
     data: { eventId: event.id },
   });
 
-  await tx.booking.update({ where: { id: booking.id }, data: { kind: BookingKind.EVENT } });
+  await tx.booking.update({ where: { id: booking.id }, data: { context: BookingContext.EVENT } });
 
   await tx.auditLog.create({
     data: {
@@ -71,9 +71,9 @@ export async function promoteBookingToEvent(
 
 /**
  * Demotes an EVENT booking back to a SPACE booking. The Event record is kept, not deleted — its
- * `EventService`/task/staff/inventory-reservation history stays exactly as it was, simply no
+ * `BookingService`/task/staff/inventory-reservation history stays exactly as it was, simply no
  * longer the booking's active workspace. Nothing about the contract, payments, or reserved stock
- * changes; `kind` is the only field this touches on `Booking`.
+ * changes; `context` is the only field this touches on `Booking`.
  */
 export async function demoteBookingToSpace(
   tx: TransactionClient,
@@ -82,11 +82,11 @@ export async function demoteBookingToSpace(
 ) {
   const booking = await tx.booking.findUnique({ where: { id: bookingId } });
   if (!booking) throw new InvalidCrossoverError('Booking not found.');
-  if (booking.kind !== BookingKind.EVENT) {
+  if (booking.context !== BookingContext.EVENT) {
     throw new InvalidCrossoverError('Only an Event booking can be demoted to Space.');
   }
 
-  await tx.booking.update({ where: { id: bookingId }, data: { kind: BookingKind.SPACE } });
+  await tx.booking.update({ where: { id: bookingId }, data: { context: BookingContext.SPACE } });
 
   await tx.auditLog.create({
     data: {

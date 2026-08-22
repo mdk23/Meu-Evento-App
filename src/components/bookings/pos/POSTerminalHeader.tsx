@@ -23,9 +23,9 @@ export default function POSTerminalHeader({ onReset, isEdit, booking, bookingKin
   const stages = booking
     ? deriveLifecycleStages({
         bookingStatus: booking.status,
-        kind: booking.kind,
+        kind: booking.context,
         scheduledPayments: booking.scheduledPayments,
-        eventServices: booking.eventServices,
+        eventServices: booking.bookingServices,
         eventStatus: booking.event?.status ?? null,
       })
     : null;

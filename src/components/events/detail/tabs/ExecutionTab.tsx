@@ -37,7 +37,7 @@ export default function ExecutionTab({ eventServices, expenses, discount, onOpen
   const revenue = Math.max(0, serviceRevenue - discount);
   const internalCost = eventServices.filter((es) => es.providerType === 'INTERNAL').reduce((sum, es) => sum + es.cost, 0);
   const supplierCost = eventServices.filter((es) => es.providerType === 'EXTERNAL').reduce((sum, es) => sum + es.supplierCost, 0);
-  const otherExpenses = expenses.filter((exp) => !exp.eventServiceId).reduce((sum, exp) => sum + exp.amount, 0);
+  const otherExpenses = expenses.filter((exp) => !exp.bookingServiceId).reduce((sum, exp) => sum + exp.amount, 0);
   const totalCosts = internalCost + supplierCost + otherExpenses;
   const eventProfit = revenue - totalCosts;
 

@@ -25,7 +25,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
     return (
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <Topbar crumb="Space Overview" note="Bookings, hand-overs and collection for the Space workspace.">
-          <Link href="/bookings/create" className="btn primary sm">
+          <Link href="/bookings/create?kind=SPACE" className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> New Booking
           </Link>
         </Topbar>
@@ -39,7 +39,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
     return (
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <Topbar crumb="Event Overview" note="Today's operations, upcoming events and service execution for the Event workspace.">
-          <Link href="/bookings/create" className="btn primary sm">
+          <Link href="/bookings/create?kind=EVENT" className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> New Booking
           </Link>
         </Topbar>

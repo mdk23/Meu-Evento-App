@@ -14,14 +14,14 @@ export async function POST(
       return NextResponse.json({ error: 'title is required' }, { status: 400 });
     }
 
-    const eventService = await prisma.eventService.findUnique({ where: { id: eventServiceId } });
-    if (!eventService || eventService.eventId !== eventId) {
+    const bookingService = await prisma.bookingService.findUnique({ where: { id: eventServiceId } });
+    if (!bookingService || bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
 
-    const task = await prisma.eventServiceTask.create({
+    const task = await prisma.bookingServiceTask.create({
       data: {
-        eventServiceId,
+        bookingServiceId: eventServiceId,
         title: String(title).trim(),
         assignedTo: assignedTo || null,
         dueDate: dueDate ? new Date(dueDate) : null,

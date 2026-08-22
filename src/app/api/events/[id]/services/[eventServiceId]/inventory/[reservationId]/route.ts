@@ -10,9 +10,9 @@ export async function DELETE(
 
     const existing = await prisma.inventoryReservation.findUnique({
       where: { id: reservationId },
-      include: { eventService: true },
+      include: { bookingService: true },
     });
-    if (!existing || existing.eventServiceId !== eventServiceId || existing.eventService.eventId !== eventId) {
+    if (!existing || existing.bookingServiceId !== eventServiceId || existing.bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Reservation not found for this event service' }, { status: 404 });
     }
 

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         tenantId: tenant.id,
         name,
         category,
-        defaultExecutionType: defaultExecutionType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
+        defaultProviderType: defaultExecutionType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
         priceType: priceType || 'FIXED',
         defaultPrice: parseFloat(defaultPrice || 0),
         fieldSchema: Array.isArray(fieldSchema) ? fieldSchema : undefined,

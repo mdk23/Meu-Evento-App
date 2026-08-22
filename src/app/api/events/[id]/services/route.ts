@@ -10,7 +10,7 @@ import { deriveEventStatus } from '@/lib/event-progress';
  * this is the automatic path that supersedes any prior manual override the next time it runs.
  */
 async function recalculateEventStatus(eventId: string): Promise<void> {
-  const services = await prisma.eventService.findMany({
+  const services = await prisma.bookingService.findMany({
     where: { eventId },
     select: { sellingPrice: true, status: true },
   });
@@ -36,7 +36,7 @@ async function syncSupplierExpense(params: {
 }) {
   const { eventServiceId, eventId, tenantId, providerType, supplierId, supplierCost, serviceName, paymentStatus } = params;
 
-  const existingExpense = await prisma.expense.findFirst({ where: { eventServiceId } });
+  const existingExpense = await prisma.expense.findFirst({ where: { bookingServiceId: eventServiceId } });
 
   if (providerType !== ExecutionType.EXTERNAL || supplierCost <= 0) {
     if (existingExpense) {
@@ -58,7 +58,7 @@ async function syncSupplierExpense(params: {
       data: {
         tenantId,
         eventId,
-        eventServiceId,
+        bookingServiceId: eventServiceId,
         supplierId,
         description,
         amount: supplierCost,
@@ -86,10 +86,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const resolvedProviderType = providerType || catalogService.defaultExecutionType;
+    const resolvedProviderType = providerType || catalogService.defaultProviderType;
     const parsedCost = parseFloat(cost || 0);
 
-    const newEventService = await prisma.eventService.create({
+    const newEventService = await prisma.bookingService.create({
       data: {
         bookingId: event.bookingId,
         eventId,
@@ -146,7 +146,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'eventServiceId is required' }, { status: 400 });
     }
 
-    const existing = await prisma.eventService.findUnique({
+    const existing = await prisma.bookingService.findUnique({
       where: { id: eventServiceId },
       include: { service: true },
     });
@@ -159,7 +159,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       ? (paymentStatus as ServicePaymentStatus)
       : existing.paymentStatus;
 
-    const updated = await prisma.eventService.update({
+    const updated = await prisma.bookingService.update({
       where: { id: eventServiceId },
       data: {
         status: status && Object.values(WorkOrderStatus).includes(status) ? (status as WorkOrderStatus) : undefined,
@@ -208,12 +208,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'eventServiceId query param is required' }, { status: 400 });
     }
 
-    const existing = await prisma.eventService.findUnique({ where: { id: eventServiceId } });
+    const existing = await prisma.bookingService.findUnique({ where: { id: eventServiceId } });
     if (!existing || existing.eventId !== eventId) {
       return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
 
-    await prisma.eventService.delete({
+    await prisma.bookingService.delete({
       where: { id: eventServiceId },
     });
     await recalculateEventStatus(eventId);

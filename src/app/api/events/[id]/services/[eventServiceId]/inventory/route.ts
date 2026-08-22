@@ -22,14 +22,14 @@ export async function POST(
       return NextResponse.json({ error: 'inventoryItemId and a positive quantity are required' }, { status: 400 });
     }
 
-    const eventService = await prisma.eventService.findUnique({
+    const bookingService = await prisma.bookingService.findUnique({
       where: { id: eventServiceId },
       include: { event: true },
     });
-    if (!eventService || !eventService.event || eventService.eventId !== eventId) {
+    if (!bookingService || !bookingService.event || bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
-    assertInternalProvider(eventService.providerType, eventService.serviceNameSnapshot || undefined);
+    assertInternalProvider(bookingService.providerType, bookingService.serviceNameSnapshot || undefined);
 
     const item = await prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } });
     if (!item) {
@@ -38,14 +38,14 @@ export async function POST(
 
     const span = startAt && endAt
       ? { startAt: new Date(startAt), endAt: new Date(endAt) }
-      : fullDaySpan(eventService.event.date);
+      : fullDaySpan(bookingService.event.date);
 
     const reservation = await prismaTransaction.$transaction(async (tx) => {
       await assertInventoryAvailable(tx, inventoryItemId, parsedQuantity, span.startAt, span.endAt);
       return tx.inventoryReservation.create({
         data: {
           eventId,
-          eventServiceId,
+          bookingServiceId: eventServiceId,
           inventoryItemId,
           itemNameSnapshot: item.name,
           quantity: parsedQuantity,

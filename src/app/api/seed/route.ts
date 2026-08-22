@@ -126,7 +126,7 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Venue Space Rental',
         category: 'Space Rental',
-        defaultExecutionType: ExecutionType.INTERNAL,
+        defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 60000,
         fieldSchema: [
@@ -140,7 +140,7 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Gourmet Banquet Catering',
         category: 'Food & Beverage',
-        defaultExecutionType: ExecutionType.INTERNAL,
+        defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'PER_GUEST',
         defaultPrice: 450,
         fieldSchema: [
@@ -155,7 +155,7 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Luxury Floral & Theme Decor',
         category: 'Decoration',
-        defaultExecutionType: ExecutionType.INTERNAL,
+        defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 35000,
         fieldSchema: [
@@ -170,7 +170,7 @@ export async function POST() {
         tenantId: tenant.id,
         name: '4K Cinema & Photo Package',
         category: 'Media',
-        defaultExecutionType: ExecutionType.EXTERNAL,
+        defaultProviderType: ExecutionType.EXTERNAL,
         priceType: 'FIXED',
         defaultPrice: 25000,
         fieldSchema: [
@@ -185,7 +185,7 @@ export async function POST() {
         tenantId: tenant.id,
         name: 'Live DJ & Concert Lighting',
         category: 'Entertainment',
-        defaultExecutionType: ExecutionType.EXTERNAL,
+        defaultProviderType: ExecutionType.EXTERNAL,
         priceType: 'FIXED',
         fieldSchema: [
           { key: 'setDuration', type: 'number', label: 'Set Duration (hours)' },
@@ -227,7 +227,7 @@ export async function POST() {
     });
 
     // Add EventServices for Event 1
-    await prisma.eventService.create({
+    await prisma.bookingService.create({
       data: {
         bookingId: booking1.id,
         eventId: event1.id,
@@ -240,7 +240,7 @@ export async function POST() {
       },
     });
 
-    const eventServiceCatering = await prisma.eventService.create({
+    const eventServiceCatering = await prisma.bookingService.create({
       data: {
         bookingId: booking1.id,
         eventId: event1.id,
@@ -258,17 +258,17 @@ export async function POST() {
     });
 
     const cateringSpan = fullDaySpan(eventDate1);
-    await prisma.eventServiceTask.createMany({
+    await prisma.bookingServiceTask.createMany({
       data: [
-        { eventServiceId: eventServiceCatering.id, title: 'Procure ingredients from market', status: TaskStatus.DONE },
-        { eventServiceId: eventServiceCatering.id, title: 'Prepare appetizer trays', status: TaskStatus.DONE },
-        { eventServiceId: eventServiceCatering.id, title: 'Cook main course meat & fish', status: TaskStatus.PENDING },
-        { eventServiceId: eventServiceCatering.id, title: 'Set up chafing dishes on main buffet', status: TaskStatus.PENDING },
+        { bookingServiceId: eventServiceCatering.id, title: 'Procure ingredients from market', status: TaskStatus.DONE },
+        { bookingServiceId: eventServiceCatering.id, title: 'Prepare appetizer trays', status: TaskStatus.DONE },
+        { bookingServiceId: eventServiceCatering.id, title: 'Cook main course meat & fish', status: TaskStatus.PENDING },
+        { bookingServiceId: eventServiceCatering.id, title: 'Set up chafing dishes on main buffet', status: TaskStatus.PENDING },
       ],
     });
-    await prisma.eventServiceStaff.create({
+    await prisma.bookingServiceStaff.create({
       data: {
-        eventServiceId: eventServiceCatering.id,
+        bookingServiceId: eventServiceCatering.id,
         staffId: staff1.id,
         staffNameSnapshot: staff1.name,
         role: staff1.role,
@@ -279,7 +279,7 @@ export async function POST() {
     await prisma.inventoryReservation.create({
       data: {
         eventId: event1.id,
-        eventServiceId: eventServiceCatering.id,
+        bookingServiceId: eventServiceCatering.id,
         inventoryItemId: itemChafingDishes.id,
         itemNameSnapshot: itemChafingDishes.name,
         quantity: 24,
@@ -288,7 +288,7 @@ export async function POST() {
       },
     });
 
-    const eventServiceDecoration = await prisma.eventService.create({
+    const eventServiceDecoration = await prisma.bookingService.create({
       data: {
         bookingId: booking1.id,
         eventId: event1.id,
@@ -305,16 +305,16 @@ export async function POST() {
     });
 
     const decorationSpan = fullDaySpan(eventDate1);
-    await prisma.eventServiceTask.createMany({
+    await prisma.bookingServiceTask.createMany({
       data: [
-        { eventServiceId: eventServiceDecoration.id, title: 'Source fresh white roses', status: TaskStatus.DONE },
-        { eventServiceId: eventServiceDecoration.id, title: 'Assemble entrance floral arch', status: TaskStatus.PENDING },
-        { eventServiceId: eventServiceDecoration.id, title: 'Position gold charger plates', status: TaskStatus.PENDING },
+        { bookingServiceId: eventServiceDecoration.id, title: 'Source fresh white roses', status: TaskStatus.DONE },
+        { bookingServiceId: eventServiceDecoration.id, title: 'Assemble entrance floral arch', status: TaskStatus.PENDING },
+        { bookingServiceId: eventServiceDecoration.id, title: 'Position gold charger plates', status: TaskStatus.PENDING },
       ],
     });
-    await prisma.eventServiceStaff.create({
+    await prisma.bookingServiceStaff.create({
       data: {
-        eventServiceId: eventServiceDecoration.id,
+        bookingServiceId: eventServiceDecoration.id,
         staffId: staff2.id,
         staffNameSnapshot: staff2.name,
         role: staff2.role,
@@ -326,7 +326,7 @@ export async function POST() {
       data: [
         {
           eventId: event1.id,
-          eventServiceId: eventServiceDecoration.id,
+          bookingServiceId: eventServiceDecoration.id,
           inventoryItemId: itemTables.id,
           itemNameSnapshot: itemTables.name,
           quantity: 30,
@@ -335,7 +335,7 @@ export async function POST() {
         },
         {
           eventId: event1.id,
-          eventServiceId: eventServiceDecoration.id,
+          bookingServiceId: eventServiceDecoration.id,
           inventoryItemId: itemChairs.id,
           itemNameSnapshot: itemChairs.name,
           quantity: 250,
@@ -345,7 +345,7 @@ export async function POST() {
       ],
     });
 
-    await prisma.eventService.create({
+    await prisma.bookingService.create({
       data: {
         bookingId: booking1.id,
         eventId: event1.id,
@@ -421,7 +421,7 @@ export async function POST() {
       },
     });
 
-    await prisma.eventService.create({
+    await prisma.bookingService.create({
       data: {
         bookingId: booking2.id,
         eventId: event2.id,
@@ -433,7 +433,7 @@ export async function POST() {
       },
     });
 
-    await prisma.eventService.create({
+    await prisma.bookingService.create({
       data: {
         bookingId: booking2.id,
         eventId: event2.id,

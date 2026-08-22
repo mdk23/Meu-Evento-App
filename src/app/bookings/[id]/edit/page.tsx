@@ -21,12 +21,12 @@ export default async function EditBookingPage({
       client: true,
       event: {
         include: {
-          eventServices: {
+          bookingServices: {
             include: { service: true }
           }
         }
       },
-      eventServices: {
+      bookingServices: {
         include: { service: true }
       },
       scheduledPayments: { where: { plan: { active: true } } },
@@ -47,7 +47,7 @@ export default async function EditBookingPage({
   const services = await prisma.service.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, defaultExecutionType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
   
   const spaces = await prisma.space.findMany({
@@ -75,7 +75,7 @@ export default async function EditBookingPage({
 
   const packages = (await PackageCatalogService.getCatalog()).filter((p) => p.active);
 
-  const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.eventServices.map((service) => service.sellingPrice)));
+  const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.bookingServices.map((service) => service.sellingPrice)));
   const totalScheduledAmount = toDisplayNumber(sumMoney(initialBookingData.scheduledPayments.map((sp) => sp.amount)));
 
   const serializedBooking = serializeDecimals({

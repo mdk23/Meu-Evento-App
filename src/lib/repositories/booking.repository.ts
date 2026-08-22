@@ -11,7 +11,7 @@ const BOOKING_LIST_SELECT = {
   id: true,
   clientId: true,
   bookingType: true,
-  kind: true,
+  context: true,
   eventDate: true,
   guestCount: true,
   status: true,
@@ -27,7 +27,7 @@ const BOOKING_LIST_SELECT = {
       name: true,
     },
   },
-  eventServices: {
+  bookingServices: {
     select: {
       id: true,
       sellingPrice: true,
@@ -71,10 +71,10 @@ function mapBookingRow(b: BookingListRow): BookingListDTO {
   const scheduledPaymentsSum = sumMoney(b.scheduledPayments?.map((sp) => sp.amount) || []);
   const paidAmountSum = sumMoney(b.scheduledPayments?.map((sp) => sp.paidAmount) || []);
 
-  // Revenue source of truth (Phase 9): SUM(EventService.sellingPrice) - discount, not a
+  // Revenue source of truth (Phase 9): SUM(BookingService.sellingPrice) - discount, not a
   // schedule-vs-contracted MAX() hack — the payment plan is already validated to sum to
   // this exact figure at creation/edit time (see src/lib/payment-plan.ts).
-  const totalContractAmount = calculateRevenue(b.eventServices || [], b.discount);
+  const totalContractAmount = calculateRevenue(b.bookingServices || [], b.discount);
 
   // The deposit is the earliest-due milestone — that's how the payment plan generator
   // (src/lib/payment-plan.ts) always orders a booking's schedule.
@@ -98,7 +98,7 @@ function mapBookingRow(b: BookingListRow): BookingListDTO {
     guestCount: b.guestCount,
     status: b.status,
     bookingType: b.bookingType,
-    kind: b.kind,
+    kind: b.context,
     notes: b.notes,
     hasEvent: !!b.event,
     totalScheduledAmount: toDisplayNumber(scheduledPaymentsSum),
@@ -127,7 +127,7 @@ export class BookingRepository {
       ...(status && status !== 'ALL' && Object.values(BookingStatus).includes(status as BookingStatus)
         ? { status: status as BookingStatus }
         : {}),
-      ...(kind === 'SPACE' || kind === 'EVENT' ? { kind } : {}),
+      ...(kind === 'SPACE' || kind === 'EVENT' ? { context: kind } : {}),
     };
 
     // Tab badge counts must reflect every status regardless of the current *status* filter/page, so
@@ -146,7 +146,7 @@ export class BookingRepository {
       prisma.booking.groupBy({
         by: ['status'],
         _count: { status: true },
-        where: kind === 'SPACE' || kind === 'EVENT' ? { kind } : {},
+        where: kind === 'SPACE' || kind === 'EVENT' ? { context: kind } : {},
       }),
     ]);
 

@@ -36,7 +36,7 @@ export class EventRepository {
           },
           _count: {
             select: {
-              eventServices: true,
+              bookingServices: true,
               guests: true,
             },
           },
@@ -55,7 +55,7 @@ export class EventRepository {
       clientName: evt.booking?.client?.name || 'N/A',
       clientEmail: evt.booking?.client?.email,
       clientPhone: evt.booking?.client?.phone,
-      serviceCount: evt._count.eventServices,
+      serviceCount: evt._count.bookingServices,
       guestCountRegistered: evt._count.guests,
     }));
 

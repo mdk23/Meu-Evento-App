@@ -24,7 +24,7 @@ export class PackageRepository {
         serviceId: ps.serviceId,
         name: ps.service.name,
         category: ps.service.category,
-        defaultExecutionType: ps.service.defaultExecutionType,
+        defaultExecutionType: ps.service.defaultProviderType,
         priceType: ps.service.priceType,
         defaultPrice: toDisplayNumber(ps.service.defaultPrice),
       })),

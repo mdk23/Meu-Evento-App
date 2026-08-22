@@ -15,11 +15,11 @@ export async function POST(
       return NextResponse.json({ error: 'staffId is required' }, { status: 400 });
     }
 
-    const eventService = await prisma.eventService.findUnique({
+    const bookingService = await prisma.bookingService.findUnique({
       where: { id: eventServiceId },
       include: { event: true },
     });
-    if (!eventService || !eventService.event || eventService.eventId !== eventId) {
+    if (!bookingService || !bookingService.event || bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
     }
 
@@ -30,13 +30,13 @@ export async function POST(
 
     const span = startAt && endAt
       ? { startAt: new Date(startAt), endAt: new Date(endAt) }
-      : fullDaySpan(eventService.event.date);
+      : fullDaySpan(bookingService.event.date);
 
     const assignment = await prismaTransaction.$transaction(async (tx) => {
       await assertStaffAvailable(tx, staffId, span.startAt, span.endAt);
-      return tx.eventServiceStaff.create({
+      return tx.bookingServiceStaff.create({
         data: {
-          eventServiceId,
+          bookingServiceId: eventServiceId,
           staffId,
           staffNameSnapshot: staff.name,
           role: role || staff.role,

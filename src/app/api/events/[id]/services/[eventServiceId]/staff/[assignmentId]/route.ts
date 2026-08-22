@@ -8,15 +8,15 @@ export async function DELETE(
   try {
     const { id: eventId, eventServiceId, assignmentId } = await params;
 
-    const existing = await prisma.eventServiceStaff.findUnique({
+    const existing = await prisma.bookingServiceStaff.findUnique({
       where: { id: assignmentId },
-      include: { eventService: true },
+      include: { bookingService: true },
     });
-    if (!existing || existing.eventServiceId !== eventServiceId || existing.eventService.eventId !== eventId) {
+    if (!existing || existing.bookingServiceId !== eventServiceId || existing.bookingService.eventId !== eventId) {
       return NextResponse.json({ error: 'Assignment not found for this event service' }, { status: 404 });
     }
 
-    await prisma.eventServiceStaff.delete({ where: { id: assignmentId } });
+    await prisma.bookingServiceStaff.delete({ where: { id: assignmentId } });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

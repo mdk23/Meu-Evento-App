@@ -24,7 +24,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
         onReset={pos.resetForm}
         isEdit={isEdit}
         bookingId={props.initialBookingData?.id}
-        bookingKind={props.initialBookingData?.kind}
+        bookingKind={props.initialBookingData?.context}
         booking={props.initialBookingData}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -67,6 +67,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             getBookingsOnDay={pos.getBookingsOnDay}
             hasConflict={pos.hasConflict}
             selectedDateBookings={pos.selectedDateBookings}
+            bookingsOnSelectedDate={pos.bookingsOnSelectedDate}
             isWaitingList={pos.isWaitingList}
             setIsWaitingList={pos.setIsWaitingList}
             startTime={pos.startTime}

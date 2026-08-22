@@ -8,7 +8,7 @@ export class FinanceRepository {
     const [
       collectedAggregate,
       pendingAggregate,
-      eventServicesAll,
+      bookingServicesAll,
       discountAgg,
       otherExpensesAgg,
       recentPaymentsRaw,
@@ -25,14 +25,14 @@ export class FinanceRepository {
         _sum: { amount: true, paidAmount: true },
       }),
       // Revenue/cost source of truth (Phase 9)
-      prisma.eventService.findMany({
+      prisma.bookingService.findMany({
         select: { sellingPrice: true, cost: true, supplierCost: true, providerType: true },
       }),
       prisma.booking.aggregate({ _sum: { discount: true } }),
       // General operational expenses not already counted via supplierCost (avoids double-counting)
       prisma.expense.aggregate({
         _sum: { amount: true },
-        where: { eventServiceId: null },
+        where: { bookingServiceId: null },
       }),
       // Recent Payments projection
       prisma.paymentTransaction.findMany({
@@ -67,11 +67,11 @@ export class FinanceRepository {
       }),
     ]);
 
-    const totalRevenue = toDisplayNumber(calculateRevenue(eventServicesAll, discountAgg._sum.discount));
+    const totalRevenue = toDisplayNumber(calculateRevenue(bookingServicesAll, discountAgg._sum.discount));
     const totalCollected = toDisplayNumber(collectedAggregate._sum.amount);
     const pendingInvoicesAmount = toDisplayNumber(subtractMoneyFloor0(pendingAggregate._sum.amount, pendingAggregate._sum.paidAmount));
-    const internalCost = toDisplayNumber(calculateInternalCost(eventServicesAll));
-    const supplierCost = toDisplayNumber(calculateSupplierCost(eventServicesAll));
+    const internalCost = toDisplayNumber(calculateInternalCost(bookingServicesAll));
+    const supplierCost = toDisplayNumber(calculateSupplierCost(bookingServicesAll));
     const otherExpenses = toDisplayNumber(otherExpensesAgg._sum.amount);
     const totalExpensesAmount = internalCost + supplierCost + otherExpenses;
     const netProfit = totalRevenue - totalExpensesAmount;

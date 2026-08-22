@@ -28,7 +28,7 @@ export default function BookingOverviewTab({ booking, spaces }: BookingOverviewT
           </p>
         </div>
         <div className="row" style={{ gap: 8 }}>
-          <span className={`badge ${booking.kind === 'EVENT' ? 'b-info' : 'b-accent'}`}>{booking.kind}</span>
+          <span className={`badge ${booking.context === 'EVENT' ? 'b-info' : 'b-accent'}`}>{booking.context}</span>
           <span className={`badge ${statusBadge}`}>{booking.status}</span>
         </div>
       </div>

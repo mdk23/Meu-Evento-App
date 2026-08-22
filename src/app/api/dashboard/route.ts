@@ -26,7 +26,7 @@ export async function GET() {
       },
       include: {
         booking: { include: { client: true } },
-        eventServices: { include: { service: true } },
+        bookingServices: { include: { service: true } },
       },
     });
 
@@ -39,7 +39,7 @@ export async function GET() {
       take: 6,
       include: {
         booking: { include: { client: true } },
-        eventServices: { include: { service: true } },
+        bookingServices: { include: { service: true } },
       },
     });
 
@@ -62,11 +62,11 @@ export async function GET() {
     const totalClients = await prisma.client.count();
 
     // Service Status Breakdown
-    const allEventServices = await prisma.eventService.findMany({
+    const allBookingServices = await prisma.bookingService.findMany({
       select: { status: true },
     });
 
-    const serviceStatusSummary = allEventServices.reduce((acc: Record<string, number>, item) => {
+    const serviceStatusSummary = allBookingServices.reduce((acc: Record<string, number>, item) => {
       acc[item.status] = (acc[item.status] || 0) + 1;
       return acc;
     }, {});

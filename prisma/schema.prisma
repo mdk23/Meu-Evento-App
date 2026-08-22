@@ -17,9 +17,9 @@ enum BookingType {
 
 /// Which workspace a booking belongs to. SPACE = venue-rental only, no Event exists yet.
 /// EVENT = the booking runs a full occasion. Distinct from `BookingType`, which is advisory
-/// line-composition metadata; `kind` is the structural switch the Space/Event workspace split
+/// line-composition metadata; `context` is the structural switch the Space/Event workspace split
 /// is built on.
-enum BookingKind {
+enum BookingContext {
   SPACE
   EVENT
 }
@@ -115,7 +115,7 @@ model Tenant {
   clients             Client[]
   bookings            Booking[]
   services            Service[]
-  servicePackages     ServicePackage[]
+  packages            Package[]
   suppliers           Supplier[]
   inventoryItems      InventoryItem[]
   staff               Staff[]
@@ -170,9 +170,9 @@ model Booking {
   clientId           String
   spaceId            String
   bookingType        BookingType   @default(SPACE_AND_SERVICES)
-  /// Structural workspace switch — see `BookingKind` doc comment. Defaults to EVENT because,
+  /// Structural workspace switch — see `BookingContext` doc comment. Defaults to EVENT because,
   /// historically, every booking got an Event unconditionally; SPACE bookings are a new concept.
-  kind               BookingKind   @default(EVENT)
+  context            BookingContext @default(EVENT)
   eventDate          DateTime
   /// Real reservation window for the space, used for overlap-conflict checking.
   /// `eventDate` stays in sync (same calendar day as `startAt`) for existing day-level UI/queries.
@@ -193,7 +193,7 @@ model Booking {
   client              Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
   space               Space                @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   event               Event?
-  eventServices       EventService[]
+  bookingServices     BookingService[]
   paymentPlans        PaymentPlan[]
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
@@ -202,7 +202,7 @@ model Booking {
   @@index([clientId])
   @@index([spaceId])
   @@index([status])
-  @@index([kind])
+  @@index([context])
   @@index([eventDate])
   @@index([startAt, endAt])
   @@map("bookings")
@@ -220,7 +220,7 @@ model Event {
   updatedAt  DateTime    @updatedAt
 
   booking               Booking                @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  eventServices         EventService[]
+  bookingServices       BookingService[]
   guests                Guest[]
   expenses              Expense[]
   inventoryReservations InventoryReservation[]
@@ -233,7 +233,7 @@ model Event {
 }
 
 /// Audit trail for manual Event.status overrides (Phase 10). Status is normally derived from
-/// EventService progress — every entry here represents a deliberate manual correction, not the
+/// BookingService progress — every entry here represents a deliberate manual correction, not the
 /// default path, and the next automatic recalculation (any service status change) can supersede it.
 model EventStatusOverride {
   id             String      @id @default(cuid())
@@ -250,7 +250,7 @@ model EventStatusOverride {
   @@map("event_status_overrides")
 }
 
-/// General-purpose audit trail — currently used for Booking kind cross-over (promote/demote), the
+/// General-purpose audit trail — currently used for Booking context cross-over (promote/demote), the
 /// first place a "who did what, when, and why" record was needed outside the narrower
 /// `EventStatusOverride`. `entity`/`entityId` are a loose polymorphic reference (e.g.
 /// `entity: "Booking"`) rather than a typed relation, so this can log against any model without a
@@ -277,13 +277,13 @@ model Service {
   tenantId       String
   name           String
   category       String
-  /// The execution type this service defaults to when added to an event. Purely a suggested
-  /// starting point — `EventService.providerType` is the real per-event decision and can differ.
-  defaultExecutionType ExecutionType @default(INTERNAL)
+  /// The provider type this service defaults to when added to a booking. Purely a suggested
+  /// starting point — `BookingService.providerType` is the real per-booking decision and can differ.
+  defaultProviderType ExecutionType @default(INTERNAL)
   priceType      String        @default("FIXED")
   defaultPrice   Decimal       @default(0) @db.Decimal(12, 2)
   /// Defines the dynamic operational fields this service's work orders should collect —
-  /// an array of `{ key, type, label?, options? }`. `EventService.customFields` then stores
+  /// an array of `{ key, type, label?, options? }`. `BookingService.customFields` then stores
   /// only the values, keyed by `key`. Supported `type`s: text, textarea, number, select,
   /// multiselect, date, datetime, boolean.
   fieldSchema    Json?
@@ -292,8 +292,8 @@ model Service {
   updatedAt      DateTime      @updatedAt
 
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  eventServices   EventService[]
-  packageServices PackageService[]
+  bookingServices BookingService[]
+  packageItems    PackageItem[]
 
   @@index([tenantId])
   @@index([category])
@@ -309,10 +309,11 @@ enum PackageScope {
 }
 
 /// A named bundle of catalog services. Applying one to a booking explodes it into individual
-/// EventService lines at each service's normal price — the bundle itself carries no price of its
-/// own, so applied lines stay fully editable afterward (spec: "apply packages, edit price/
-/// quantity/cost per line").
-model ServicePackage {
+/// BookingService lines at each service's normal price — the bundle itself carries no price of its
+/// own (no cached rollup field — the total is always computed from its live `PackageItem`s, so it
+/// can never drift out of sync), so applied lines stay fully editable afterward (spec: "apply
+/// packages, edit price/quantity/cost per line").
+model Package {
   id          String       @id @default(cuid())
   tenantId    String
   name        String
@@ -322,32 +323,38 @@ model ServicePackage {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  services PackageService[]
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  PackageItem[]
 
   @@index([tenantId])
   @@index([scope])
   @@index([active])
-  @@map("service_packages")
+  @@map("packages")
 }
 
-model PackageService {
-  id        String @id @default(cuid())
+model PackageItem {
+  id        String  @id @default(cuid())
   packageId String
   serviceId String
   /// Display/apply order within the package.
-  order     Int    @default(0)
+  order     Int     @default(0)
+  /// How many units of this service the package bundles by default (e.g. "300 chairs") — editable
+  /// per line after the package is applied to a booking, same as everything else about that line.
+  quantity  Decimal @default(1) @db.Decimal(12, 2)
+  /// Overrides the service's catalog `defaultPrice` for this package only, when set. Null means
+  /// "use whatever the service normally costs" — most package lines leave this unset.
+  priceOverride Decimal? @db.Decimal(12, 2)
 
-  package ServicePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  service Service        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@unique([packageId, serviceId])
   @@index([packageId])
   @@index([serviceId])
-  @@map("package_services")
+  @@map("package_items")
 }
 
-model EventService {
+model BookingService {
   id           String          @id @default(cuid())
   /// The commercial owner of this line — always set. A space-only booking's lines have no
   /// `eventId`; that's how a booking can exist with commercial service lines and no Event.
@@ -382,8 +389,8 @@ model EventService {
   service  Service   @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
-  serviceTasks          EventServiceTask[]
-  staffAssignments      EventServiceStaff[]
+  serviceTasks          BookingServiceTask[]
+  staffAssignments      BookingServiceStaff[]
   inventoryReservations InventoryReservation[]
   expenses              Expense[]
 
@@ -393,66 +400,66 @@ model EventService {
   @@index([supplierId])
   @@index([status])
   @@index([providerType])
-  @@map("event_services")
+  @@map("booking_services")
 }
 
-model EventServiceTask {
-  id             String     @id @default(cuid())
-  eventServiceId String
-  title          String
-  status         TaskStatus @default(PENDING)
-  assignedTo     String?
-  dueDate        DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+model BookingServiceTask {
+  id               String     @id @default(cuid())
+  bookingServiceId String
+  title            String
+  status           TaskStatus @default(PENDING)
+  assignedTo       String?
+  dueDate          DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  eventService EventService @relation(fields: [eventServiceId], references: [id], onDelete: Cascade)
+  bookingService BookingService @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
 
-  @@index([eventServiceId])
-  @@map("event_service_tasks")
+  @@index([bookingServiceId])
+  @@map("booking_service_tasks")
 }
 
-model EventServiceStaff {
-  id             String   @id @default(cuid())
-  eventServiceId String
-  staffId        String
-  role           String?
-  startAt        DateTime
-  endAt          DateTime
-  createdAt      DateTime @default(now())
+model BookingServiceStaff {
+  id               String   @id @default(cuid())
+  bookingServiceId String
+  staffId          String
+  role             String?
+  startAt          DateTime
+  endAt            DateTime
+  createdAt        DateTime @default(now())
 
   /// Snapshot of `Staff.name` at assignment time — protects historical records if the staff
   /// member is later renamed or deactivated.
   staffNameSnapshot String
 
-  eventService EventService @relation(fields: [eventServiceId], references: [id], onDelete: Cascade)
-  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  bookingService BookingService @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
+  staff          Staff          @relation(fields: [staffId], references: [id], onDelete: Restrict)
 
-  @@index([eventServiceId])
+  @@index([bookingServiceId])
   @@index([staffId])
   @@index([startAt, endAt])
-  @@map("event_service_staff")
+  @@map("booking_service_staff")
 }
 
 model InventoryReservation {
-  id              String   @id @default(cuid())
-  eventId         String
-  eventServiceId  String
-  inventoryItemId String
-  quantity        Int
-  startAt         DateTime
-  endAt           DateTime
-  createdAt       DateTime @default(now())
+  id               String   @id @default(cuid())
+  eventId          String
+  bookingServiceId String
+  inventoryItemId  String
+  quantity         Int
+  startAt          DateTime
+  endAt            DateTime
+  createdAt        DateTime @default(now())
 
   /// Snapshot of `InventoryItem.name` at reservation time — protects historical records if the
   /// item is later renamed or deactivated.
   itemNameSnapshot String
 
-  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventService  EventService  @relation(fields: [eventServiceId], references: [id], onDelete: Cascade)
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingService BookingService @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
+  inventoryItem  InventoryItem  @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
 
-  @@index([eventServiceId])
+  @@index([bookingServiceId])
   @@index([inventoryItemId])
   @@index([startAt, endAt])
   @@map("inventory_reservations")
@@ -469,9 +476,9 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  eventServices EventService[]
-  expenses      Expense[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookingServices BookingService[]
+  expenses        Expense[]
 
   @@index([tenantId])
   @@index([active])
@@ -507,8 +514,8 @@ model Staff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assignments EventServiceStaff[]
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments BookingServiceStaff[]
 
   @@index([tenantId])
   @@index([active])
@@ -627,30 +634,30 @@ model PaymentAllocation {
 }
 
 model Expense {
-  id             String        @id @default(cuid())
-  tenantId       String
-  eventId        String?
-  supplierId     String?
+  id               String        @id @default(cuid())
+  tenantId         String
+  eventId          String?
+  supplierId       String?
   /// Links this expense to the specific work order it came from. Set automatically when an
-  /// EXTERNAL EventService's supplierCost is created/updated (see events/[id]/services route) —
+  /// EXTERNAL BookingService's supplierCost is created/updated (see events/[id]/services route) —
   /// null for manually-entered general operational expenses.
-  eventServiceId String?
-  description    String
-  amount         Decimal       @db.Decimal(12, 2)
-  category       String
-  status         ExpenseStatus @default(PENDING)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  bookingServiceId String?
+  description      String
+  amount           Decimal       @db.Decimal(12, 2)
+  category         String
+  status           ExpenseStatus @default(PENDING)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  event        Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  supplier     Supplier?     @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  eventService EventService? @relation(fields: [eventServiceId], references: [id], onDelete: SetNull)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  event          Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  bookingService BookingService? @relation(fields: [bookingServiceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([eventId])
   @@index([supplierId])
-  @@index([eventServiceId])
+  @@index([bookingServiceId])
   @@index([status])
   @@map("expenses")
 }

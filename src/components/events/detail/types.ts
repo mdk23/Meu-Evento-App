@@ -8,7 +8,7 @@ export type SerializedService = DecimalToNumber<Service>;
 export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
   include: {
     booking: { include: { client: true; scheduledPayments: true; paymentTransactions: { include: { scheduledPayment: true } } } };
-    eventServices: {
+    bookingServices: {
       include: {
         service: true;
         supplier: true;
@@ -23,7 +23,7 @@ export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
   };
 }>>;
 
-export type EventServiceWithRelations = EventDetailPayload['eventServices'][number];
+export type EventServiceWithRelations = EventDetailPayload['bookingServices'][number];
 export type WorkOrderTask = EventServiceWithRelations['serviceTasks'][number];
 export type StaffAssignment = EventServiceWithRelations['staffAssignments'][number];
 export type InventoryReservation = EventServiceWithRelations['inventoryReservations'][number];
@@ -48,7 +48,7 @@ export interface FieldSchemaField {
   required?: boolean;
 }
 
-/** Shape of the JSON stored in `EventService.customFields` — values only, keyed by `FieldSchemaField.key`. */
+/** Shape of the JSON stored in `BookingService.customFields` — values only, keyed by `FieldSchemaField.key`. */
 export type WorkOrderCustomFields = Record<string, string | string[] | number | boolean | null | undefined>;
 
 /** Runtime-validates `Service.fieldSchema` (an untyped `Prisma.Json` value) into `FieldSchemaField[]`. */
