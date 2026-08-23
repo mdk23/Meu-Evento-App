@@ -2,13 +2,14 @@ import { prisma } from '@/lib/prisma';
 
 export class ResourceRepository {
   static async getResourcesData() {
-    const [space, inventory, staff, suppliers] = await Promise.all([
+    const [space, inventory, staff, suppliers, inventoryCategories] = await Promise.all([
       prisma.space.findFirst({
         select: { id: true, name: true, capacity: true, address: true, description: true },
       }),
       prisma.inventoryItem.findMany({
+        where: { active: true },
         orderBy: { name: 'asc' },
-        select: { id: true, name: true, totalQuantity: true, category: { select: { name: true } } },
+        select: { id: true, name: true, totalQuantity: true, categoryId: true, category: { select: { name: true } } },
       }),
       prisma.staff.findMany({
         orderBy: { name: 'asc' },
@@ -18,8 +19,13 @@ export class ResourceRepository {
         orderBy: { name: 'asc' },
         select: { id: true, name: true, category: true, email: true, phone: true },
       }),
+      prisma.inventoryCategory.findMany({
+        where: { active: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      }),
     ]);
 
-    return { space, inventory, staff, suppliers };
+    return { space, inventory, staff, suppliers, inventoryCategories };
   }
 }

@@ -68,8 +68,8 @@ export function Sidebar() {
 
   const spaceNavItems = [
     { label: 'Space Bookings', href: '/bookings?context=SPACE', icon: BookmarkCheck },
-    { label: 'Space Services', href: '/services?scope=SPACE', icon: Briefcase },
     { label: 'Space Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
+    { label: 'Space Services', href: '/services?scope=SPACE', icon: Briefcase },
   ];
 
   const eventNavItems = [

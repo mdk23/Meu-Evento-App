@@ -1,8 +1,14 @@
 import React from 'react';
 import { Sliders, Sparkles, ShieldCheck } from 'lucide-react';
 import Topbar from '@/components/aurelia/Topbar';
+import InventoryCategoriesSection from '@/components/settings/InventoryCategoriesSection';
+import { InventoryCategoryRepository } from '@/lib/repositories/inventory-category.repository';
 
-export default function SettingsHubPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function SettingsHubPage() {
+  const categories = await InventoryCategoryRepository.getCategories();
+
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
       <Topbar crumb="System Settings" />
@@ -46,6 +52,8 @@ export default function SettingsHubPage() {
             </div>
           </div>
         </div>
+
+        <InventoryCategoriesSection initialCategories={categories} />
       </div>
     </main>
   );

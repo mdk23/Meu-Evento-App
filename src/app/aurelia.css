@@ -394,6 +394,13 @@
   position: relative;
   z-index: 1;
 }
+/* Opts a `.page` out of the 1440px reading-width cap — the whole viewport's width is used instead,
+   for layouts (like the category-grouped inventory grid) that benefit from more room than the rest
+   of the app's centered-column convention gives them. */
+.page.full-bleed {
+  max-width: none !important;
+  margin: 0 !important;
+}
 .grid {
   display: grid;
   gap: 18px;

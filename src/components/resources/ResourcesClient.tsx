@@ -1,15 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Package, Users, Truck, Plus, Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Building2, Package, Users, Truck, Plus, Loader2, X, Edit3, Trash2, Save, ChevronDown, ChevronRight } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 import Topbar from '@/components/aurelia/Topbar';
 
 type ResourceSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
-type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; category: { select: { name: true } } } }>;
+type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; categoryId: true; category: { select: { name: true } } } }>;
 type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
 type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
+
+interface InventoryCategoryOption {
+  id: string;
+  name: string;
+}
 
 interface ResourcesClientProps {
   initialData: {
@@ -17,6 +23,7 @@ interface ResourcesClientProps {
     inventory: ResourceInventoryItem[];
     staff: ResourceStaff[];
     suppliers: ResourceSupplier[];
+    inventoryCategories: InventoryCategoryOption[];
   };
 }
 
@@ -25,7 +32,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const [activeTab, setActiveTab] = useState('space');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Furniture');
+  const [category, setCategory] = useState(initialData.inventoryCategories[0]?.name || '');
   const [quantity, setQuantity] = useState('50');
   const [role, setRole] = useState('Chef');
   const [email, setEmail] = useState('');
@@ -34,6 +41,86 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Inventory item edit/delete — separate from the generic create-modal state above, since editing
+  // targets one specific existing item regardless of which tab is active.
+  const [editingItem, setEditingItem] = useState<ResourceInventoryItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (categoryName: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryName)) next.delete(categoryName);
+      else next.add(categoryName);
+      return next;
+    });
+  };
+
+  const openEditItem = (item: ResourceInventoryItem) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditCategoryId(item.categoryId);
+    setEditQuantity(String(item.totalQuantity));
+  };
+
+  const handleUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`/api/inventory-items/${editingItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName, categoryId: editCategoryId, quantity: editQuantity }),
+      });
+      if (res.ok) {
+        toast.success('Inventory item updated!');
+        setEditingItem(null);
+        router.refresh();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || 'Failed to update item.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Connection error.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteItemPrompt = (id: string, itemName: string) => {
+    toast(`Deactivate "${itemName}"?`, {
+      description: 'Hides it from new reservations/bookings. Existing reservations keep their own recorded name, unaffected.',
+      action: { label: 'Confirm Deactivate', onClick: () => executeDeleteItem(id) },
+      cancel: { label: 'Cancel', onClick: () => { } },
+      duration: 6000,
+    });
+  };
+
+  const executeDeleteItem = async (id: string) => {
+    setDeletingItemId(id);
+    try {
+      const res = await fetch(`/api/inventory-items/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Inventory item deactivated!');
+        router.refresh();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || 'Failed to deactivate item.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Connection error.');
+    } finally {
+      setDeletingItemId(null);
+    }
+  };
 
   const handleCreateResource = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +155,19 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
     }
   };
 
-  const { space, inventory, staff, suppliers } = initialData;
+  const { space, inventory, staff, suppliers, inventoryCategories } = initialData;
+
+  // Grouped by category, both the group order and the items within each group alphabetical —
+  // `inventory` already arrives name-sorted from the repository, so grouping preserves that order.
+  const groupedInventory = useMemo(() => {
+    const groups = new Map<string, ResourceInventoryItem[]>();
+    for (const item of inventory) {
+      const key = item.category.name;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [inventory]);
 
   return (
     <>
@@ -104,7 +203,9 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         </div>
 
         {/* WORKSPACE */}
-        <div className="flex-1 overflow-auto page">
+        {/* The Inventory tab drops `.page`'s 1440px cap — a category-grouped grid benefits from the
+            full viewport width, unlike the other tabs' single-column/card layouts. */}
+        <div className={`flex-1 overflow-auto page${activeTab === 'inventory' ? ' full-bleed' : ''}`}>
 
           {/* TAB 1: SPACE */}
           {activeTab === 'space' && (
@@ -132,22 +233,75 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
             </div>
           )}
 
-          {/* TAB 2: INVENTORY */}
+          {/* TAB 2: INVENTORY — grouped by category, both groups and items within alphabetical */}
           {activeTab === 'inventory' && (
-            <div className="grid g3">
-              {inventory.map((item, i) => (
-                <div key={item.id} className={`card plain f-in d${(i % 4) + 1} stack`}>
-                  <div className="between">
-                    <span className="badge b-mute">{item.category.name}</span>
-                    <span className="badge b-ok">In Stock</span>
-                  </div>
-                  <h3 className="h-sm">{item.name}</h3>
-                  <div className="between mini" style={{ padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
-                    <span className="dim">Available Quantity</span>
-                    <strong className="num" style={{ fontSize: 15, color: 'var(--ink)' }}>{item.totalQuantity} pcs</strong>
-                  </div>
+            <div className="stack" style={{ gap: 28 }}>
+              {groupedInventory.length === 0 ? (
+                <div className="empty">
+                  <Package className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3 }} />
+                  <h3 className="h-sm">No Inventory Items Yet</h3>
+                  <p className="mini dim" style={{ marginTop: 4 }}>Click &ldquo;Add Inventory&rdquo; to register your first item.</p>
                 </div>
-              ))}
+              ) : (
+                groupedInventory.map(([categoryName, items]) => {
+                  const isCollapsed = collapsedCategories.has(categoryName);
+                  return (
+                    <div key={categoryName}>
+                      <button
+                        onClick={() => toggleCategory(categoryName)}
+                        className="label"
+                        style={{
+                          marginBottom: 14,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-start',
+                          gap: 8,
+                          width: '100%',
+                          textAlign: 'left',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        {categoryName}
+                        <span className="badge b-mute">{items.length}</span>
+                      </button>
+                      {!isCollapsed && (
+                        <div className="grid g4">
+                          {items.map((item, i) => (
+                            <div key={item.id} className={`card plain f-in d${(i % 4) + 1} stack`} style={{ padding: 24 }}>
+                              <div className="between">
+                                <span className="badge b-ok">In Stock</span>
+                                <div className="row" style={{ gap: 5 }}>
+                                  <button onClick={() => openEditItem(item)} className="icon-btn" style={{ width: 30, height: 30 }} title="Edit item">
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    disabled={deletingItemId === item.id}
+                                    onClick={() => handleDeleteItemPrompt(item.id, item.name)}
+                                    className="icon-btn"
+                                    style={{ width: 30, height: 30, color: 'var(--bad)' }}
+                                    title="Deactivate item"
+                                  >
+                                    {deletingItemId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                  </button>
+                                </div>
+                              </div>
+                              <h3 className="h-md">{item.name}</h3>
+                              <div className="between mini" style={{ padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
+                                <span className="dim">Available Quantity</span>
+                                <strong className="num" style={{ fontSize: 18, color: 'var(--ink)' }}>{item.totalQuantity} pcs</strong>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
@@ -228,7 +382,17 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                   </div>
                   <div className="field">
                     <label className="label">Category</label>
-                    <input required value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Furniture, Kitchen, Audio Visual" className="input" />
+                    {inventoryCategories.length > 0 ? (
+                      <select required value={category} onChange={e => setCategory(e.target.value)} className="input">
+                        {inventoryCategories.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="mini dim">
+                        No inventory categories defined yet — add one in <strong>Settings</strong> first.
+                      </p>
+                    )}
                   </div>
                   <div className="field">
                     <label className="label">Quantity</label>
@@ -265,6 +429,50 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                 </button>
                 <button type="submit" disabled={submitting} className="btn primary">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Resource'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT INVENTORY ITEM MODAL */}
+      {editingItem && (
+        <div className="modal-scrim">
+          <div className="modal">
+            <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
+              <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Edit3 className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Edit Inventory Item
+              </h3>
+              <button onClick={() => setEditingItem(null)} className="icon-btn">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateItem} className="stack" style={{ marginTop: 20 }}>
+              <div className="field">
+                <label className="label">Item Name</label>
+                <input required value={editName} onChange={e => setEditName(e.target.value)} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Category</label>
+                <select required value={editCategoryId} onChange={e => setEditCategoryId(e.target.value)} className="input">
+                  {inventoryCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Quantity</label>
+                <input type="number" required value={editQuantity} onChange={e => setEditQuantity(e.target.value)} className="input" />
+              </div>
+
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 12 }}>
+                <button type="button" onClick={() => setEditingItem(null)} className="btn ghost">
+                  Cancel
+                </button>
+                <button type="submit" disabled={editSubmitting} className="btn primary">
+                  {editSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
                 </button>
               </div>
             </form>

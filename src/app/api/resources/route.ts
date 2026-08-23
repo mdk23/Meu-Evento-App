@@ -6,7 +6,7 @@ export async function GET() {
     const tenant = await prisma.tenant.findFirst({
       include: {
         space: true,
-        inventoryItems: { orderBy: { name: 'asc' }, include: { category: true } },
+        inventoryItems: { where: { active: true }, orderBy: { name: 'asc' }, include: { category: true } },
         staff: { orderBy: { name: 'asc' } },
         suppliers: { orderBy: { name: 'asc' } },
       },

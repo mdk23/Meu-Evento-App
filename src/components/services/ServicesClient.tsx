@@ -66,7 +66,9 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
   // Filter state: 'ALL', 'INTERNAL', 'EXTERNAL'
   const [executionFilter, setExecutionFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
-  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SPACE' | 'EVENT'>(initialScopeFilter);
+  // Workspace scope is set only by which link brought you here (sidebar's Space/Event Services, or the
+  // unscoped catalog) — no in-page tab to switch it, since the Workspace column already shows it per row.
+  const scopeFilter = initialScopeFilter;
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -257,35 +259,9 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
         </button>
       </Topbar>
 
-      {/* SCOPE FILTER TABS — unscoped entry point only */}
-      {!isScoped && (
-        <div className="tabs" style={{ margin: '24px 32px 0' }}>
-          {(['ALL', 'SPACE', 'EVENT'] as const).map((filterOpt) => {
-            const count = filterOpt === 'ALL'
-              ? initialServices.length
-              : initialServices.filter((s) => s.scope === filterOpt || s.scope === 'BOTH').length;
-
-            return (
-              <button
-                key={filterOpt}
-                onClick={() => setScopeFilter(filterOpt)}
-                className={`tab ${scopeFilter === filterOpt ? 'active' : ''}`}
-                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-              >
-                <span>
-                  {filterOpt === 'ALL' && 'All Services'}
-                  {filterOpt === 'SPACE' && 'Space Services'}
-                  {filterOpt === 'EVENT' && 'Event Services'}
-                </span>
-                <span className="badge b-mute">{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* EXECUTION MODE SUB-FILTER */}
-      <div className="tabs" style={{ margin: `${isScoped ? 24 : 12}px 32px 0` }}>
+      {/* EXECUTION MODE FILTER — workspace scope is set by which link brought you here (sidebar or
+          the unscoped catalog), shown via the Workspace column below rather than a second tab row. */}
+      <div className="tabs" style={{ margin: '24px 32px 0' }}>
         {(['ALL', 'INTERNAL', 'EXTERNAL'] as const).map((filterOpt) => {
           const count = filterOpt === 'ALL'
             ? scopedServices.length
