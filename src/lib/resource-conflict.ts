@@ -1,7 +1,7 @@
 import { ExecutionType, Prisma, ReservationStatus } from '@prisma/client';
 
 /** Reservation statuses that still count as an active commitment against available stock. */
-const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = ['HELD', 'CONFIRMED', 'CONSUMED'];
+export const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = ['HELD', 'CONFIRMED', 'CONSUMED'];
 
 /** Default reservation span for staff/inventory when no explicit time range is given — the whole calendar day of the event. */
 export function fullDaySpan(date: Date): { startAt: Date; endAt: Date } {
@@ -146,12 +146,16 @@ export function computeReuseAllocation(
  * Row-locks the `InventoryReservation` first, same race-safety reasoning as
  * `assertInventoryAvailable`. Must run inside the same transaction as the write that sets
  * `reuseReservationId`.
+ *
+ * Sums every requirement's claim on this reservation, *including the caller's own* prior claim if
+ * any — the caller (`POST .../inventory/reuse`) increments `providedQuantity` rather than replacing
+ * it, so a second reuse call against the same pair must be capped by what's left after that same
+ * requirement's earlier claim too, not just everyone else's.
  */
 export async function assertReuseQuantityAvailable(
   tx: Prisma.TransactionClient,
   reservationId: string,
-  requestedQuantity: number,
-  excludeRequirementId?: string
+  requestedQuantity: number
 ): Promise<void> {
   const locked = await tx.$queryRaw<{ id: string; quantity: Prisma.Decimal }[]>`
     SELECT "id", "quantity" FROM "inventory_reservations" WHERE "id" = ${reservationId} FOR UPDATE
@@ -162,10 +166,7 @@ export async function assertReuseQuantityAvailable(
   }
 
   const existingReuse = await tx.bookingServiceResourceRequirement.findMany({
-    where: {
-      reuseReservationId: reservationId,
-      ...(excludeRequirementId ? { id: { not: excludeRequirementId } } : {}),
-    },
+    where: { reuseReservationId: reservationId },
   });
   const alreadyReused = existingReuse.reduce((sum, r) => sum.plus(r.providedQuantity), new Prisma.Decimal(0));
 

@@ -18,7 +18,7 @@ export default function RegisterPaymentModal({ isOpen, onClose, bookingId, sched
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
-  const [recordedBy, setRecordedBy] = useState('System Admin');
+  const recordedBy = 'System Admin';
   const [scheduledPaymentId, setScheduledPaymentId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 

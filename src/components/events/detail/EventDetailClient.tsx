@@ -30,7 +30,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
     );
   }
 
-  const { event, space, suppliers, catalogServices, staff, inventoryItems } = detail.data;
+  const { event, space, suppliers, catalogServices, staff, inventoryItems, resourceSummary } = detail.data;
 
   return (
     <>
@@ -68,7 +68,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
             />
           )}
           {detail.activeTab === 'resources' && (
-            <ResourcesTab eventServices={event.bookingServices} onOpenWorkOrder={detail.openServiceWorkOrder} />
+            <ResourcesTab eventServices={event.bookingServices} resourceSummary={resourceSummary || []} onOpenWorkOrder={detail.openServiceWorkOrder} />
           )}
           {detail.activeTab === 'suppliers' && (
             <SuppliersTab
@@ -94,8 +94,6 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           selectedService={detail.selectedService}
           workOrderStatus={detail.workOrderStatus}
           setWorkOrderStatus={detail.setWorkOrderStatus}
-          customFields={detail.customFields}
-          setCustomFields={detail.setCustomFields}
           sellingPrice={detail.sellingPrice}
           setSellingPrice={detail.setSellingPrice}
           newTaskTitle={detail.newTaskTitle}
@@ -126,6 +124,8 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           setReserveQuantity={detail.setReserveQuantity}
           onReserveInventory={detail.handleReserveInventoryItem}
           onRemoveReservedInventory={detail.handleRemoveReservedInventory}
+          onReservationAction={detail.handleReservationAction}
+          onReuseReservation={detail.handleReuseReservation}
           onSave={detail.handleSaveWorkOrder}
           onClose={detail.closeServiceWorkOrder}
         />

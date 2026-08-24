@@ -1,11 +1,13 @@
 import { Prisma, Space, Supplier, Staff, Service, InventoryItem } from '@prisma/client';
 import { DecimalToNumber } from '@/lib/money';
+import { ReuseCandidate } from '@/lib/reuse-candidates';
+import { EventResourceSummaryRow } from '@/lib/event-resource-summary';
 
 // `Decimal` fields never survive the API boundary as `Decimal` — `src/lib/money.ts`'s `serializeDecimals`
 // converts every one to a plain number before `GET /api/events/[id]`'s response is sent.
 export type SerializedService = DecimalToNumber<Service>;
 
-export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
+type RawEventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
   include: {
     booking: { include: { client: true; scheduledPayments: true; paymentTransactions: { include: { scheduledPayment: true } } } };
     bookingServices: {
@@ -14,7 +16,13 @@ export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
         supplier: true;
         serviceTasks: true;
         staffAssignments: { include: { staff: true } };
-        inventoryReservations: { include: { inventoryItem: true } };
+        inventoryReservations: { include: { inventoryItem: true; transactions: true } };
+        resourceRequirements: {
+          include: {
+            inventoryItem: true;
+            sourceRequirement: { select: { categoryId: true; category: { select: { name: true } } } };
+          };
+        };
       };
     };
     guests: true;
@@ -23,44 +31,35 @@ export type EventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
   };
 }>>;
 
-export type EventServiceWithRelations = EventDetailPayload['bookingServices'][number];
+type RawEventServiceWithRelations = RawEventDetailPayload['bookingServices'][number];
+
+// `reuseCandidates` (Phase 17) is computed server-side in `GET /api/events/[id]` — a cross-service
+// comparison, not a Prisma relation — so it's added here by intersection rather than in the `include`
+// shape above.
+export type ResourceRequirement = RawEventServiceWithRelations['resourceRequirements'][number] & {
+  reuseCandidates: ReuseCandidate[];
+};
+
+export type EventServiceWithRelations = Omit<RawEventServiceWithRelations, 'resourceRequirements'> & {
+  resourceRequirements: ResourceRequirement[];
+};
+
+export type EventDetailPayload = Omit<RawEventDetailPayload, 'bookingServices'> & {
+  bookingServices: EventServiceWithRelations[];
+};
+
 export type WorkOrderTask = EventServiceWithRelations['serviceTasks'][number];
 export type StaffAssignment = EventServiceWithRelations['staffAssignments'][number];
 export type InventoryReservation = EventServiceWithRelations['inventoryReservations'][number];
 
 export interface EventDetailApiResponse {
   event: EventDetailPayload;
+  resourceSummary?: EventResourceSummaryRow[];
   space?: Space | null;
   suppliers?: Supplier[];
   staff?: Staff[];
   catalogServices?: SerializedService[];
   inventoryItems?: InventoryItem[];
-}
-
-export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'date' | 'datetime' | 'boolean';
-
-/** One entry of `Service.fieldSchema` — defines a single dynamic operational field for that service's work orders. */
-export interface FieldSchemaField {
-  key: string;
-  type: FieldType;
-  label?: string;
-  options?: string[];
-  required?: boolean;
-}
-
-/** Shape of the JSON stored in `BookingService.customFields` — values only, keyed by `FieldSchemaField.key`. */
-export type WorkOrderCustomFields = Record<string, string | string[] | number | boolean | null | undefined>;
-
-/** Runtime-validates `Service.fieldSchema` (an untyped `Prisma.Json` value) into `FieldSchemaField[]`. */
-export function parseFieldSchema(raw: unknown): FieldSchemaField[] {
-  if (!Array.isArray(raw)) return [];
-  const validTypes: FieldType[] = ['text', 'textarea', 'number', 'select', 'multiselect', 'date', 'datetime', 'boolean'];
-  return raw.filter((f): f is FieldSchemaField =>
-    !!f &&
-    typeof f === 'object' &&
-    typeof (f as FieldSchemaField).key === 'string' &&
-    validTypes.includes((f as FieldSchemaField).type)
-  );
 }
 
 export type TabId = 'overview' | 'services' | 'tasks' | 'guests' | 'resources' | 'suppliers' | 'payments' | 'execution';

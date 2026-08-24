@@ -146,6 +146,21 @@ export interface ClientListPageDTO {
   totalPages: number;
 }
 
+/** Catalog template row — "this service normally requires X" (Phase 14). Either `inventoryItemId` is
+ * set (a hard-linked specific variant) or `categoryId` is set (any item in that category qualifies) —
+ * never both null. See `ServiceInventoryRequirement` in schema.prisma for the full design reasoning. */
+export interface ServiceInventoryRequirementDTO {
+  id: string;
+  inventoryItemId: string | null;
+  inventoryItemName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  quantity: number;
+  quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT';
+  optional: boolean;
+  notes: string | null;
+}
+
 export interface ServiceCardDTO {
   id: string;
   name: string;
@@ -155,7 +170,7 @@ export interface ServiceCardDTO {
   defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
   priceType: string;
   defaultPrice: number;
-  fieldSchema: unknown;
+  inventoryRequirements: ServiceInventoryRequirementDTO[];
 }
 
 export interface WorkspaceSummaryDTO {

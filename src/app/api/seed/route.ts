@@ -75,7 +75,7 @@ export async function POST() {
       },
     });
 
-    const supplierSecurity = await prisma.supplier.create({
+    await prisma.supplier.create({
       data: {
         tenantId: tenant.id,
         name: 'Guardian Tactical Security',
@@ -134,9 +134,6 @@ export async function POST() {
         defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 60000,
-        fieldSchema: [
-          { key: 'layout', type: 'select', label: 'Layout', options: ['Theatre', 'Banquet', 'Cocktail', 'Classroom'] },
-        ],
       },
     });
 
@@ -148,10 +145,6 @@ export async function POST() {
         defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'PER_GUEST',
         defaultPrice: 450,
-        fieldSchema: [
-          { key: 'menu', type: 'select', label: 'Menu Selection', options: ['Standard', 'Premium', 'Vegetarian', 'Custom'] },
-          { key: 'dietary', type: 'multiselect', label: 'Dietary Requirements', options: ['Vegetarian', 'Vegan', 'Gluten-Free', 'Halal', 'Nut-Free'] },
-        ],
       },
     });
 
@@ -163,10 +156,6 @@ export async function POST() {
         defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 35000,
-        fieldSchema: [
-          { key: 'theme', type: 'text', label: 'Theme Name' },
-          { key: 'colorPalette', type: 'text', label: 'Color Palette' },
-        ],
       },
     });
 
@@ -178,10 +167,6 @@ export async function POST() {
         defaultProviderType: ExecutionType.EXTERNAL,
         priceType: 'FIXED',
         defaultPrice: 25000,
-        fieldSchema: [
-          { key: 'coverageHours', type: 'number', label: 'Coverage Hours' },
-          { key: 'deliverables', type: 'multiselect', label: 'Deliverables', options: ['Edited Photos', 'Raw Footage', 'Same-Day Highlight Reel', 'Drone Footage'] },
-        ],
       },
     });
 
@@ -192,10 +177,6 @@ export async function POST() {
         category: 'Entertainment',
         defaultProviderType: ExecutionType.EXTERNAL,
         priceType: 'FIXED',
-        fieldSchema: [
-          { key: 'setDuration', type: 'number', label: 'Set Duration (hours)' },
-          { key: 'genrePreferences', type: 'text', label: 'Genre Preferences' },
-        ],
         defaultPrice: 15000,
       },
     });
@@ -254,11 +235,7 @@ export async function POST() {
         sellingPrice: 112500, // 250 * 450
         cost: 45000,
         status: WorkOrderStatus.IN_PROGRESS,
-        customFields: JSON.stringify({
-          guestCount: 250,
-          menu: { main: 'Grilled Salmon & Beef Tenderloin', sides: 'Truffle Mashed Potatoes', drinks: 'Open Bar Premium' },
-          dietary: '12 Vegetarians, 4 Gluten-Free',
-        }),
+        notes: 'Menu: Grilled Salmon & Beef Tenderloin, Truffle Mashed Potatoes, Open Bar Premium. Dietary: 12 Vegetarians, 4 Gluten-Free.',
       },
     });
 
@@ -302,10 +279,7 @@ export async function POST() {
         sellingPrice: 35000,
         cost: 12000,
         status: WorkOrderStatus.PLANNING,
-        customFields: JSON.stringify({
-          theme: 'Royalty & Gold Elegant',
-          colors: 'White, Gold & Emerald Green',
-        }),
+        notes: 'Theme: Royalty & Gold Elegant. Colors: White, Gold & Emerald Green.',
       },
     });
 

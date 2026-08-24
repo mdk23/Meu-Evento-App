@@ -15,7 +15,20 @@ export class ServiceRepository {
         defaultProviderType: true,
         priceType: true,
         defaultPrice: true,
-        fieldSchema: true,
+        inventoryRequirements: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            inventoryItemId: true,
+            inventoryItem: { select: { name: true } },
+            categoryId: true,
+            category: { select: { name: true } },
+            quantity: true,
+            quantityType: true,
+            optional: true,
+            notes: true,
+          },
+        },
       },
     });
 
@@ -27,7 +40,17 @@ export class ServiceRepository {
       defaultExecutionType: s.defaultProviderType,
       priceType: s.priceType,
       defaultPrice: toDisplayNumber(s.defaultPrice),
-      fieldSchema: s.fieldSchema,
+      inventoryRequirements: s.inventoryRequirements.map((r) => ({
+        id: r.id,
+        inventoryItemId: r.inventoryItemId,
+        inventoryItemName: r.inventoryItem?.name || null,
+        categoryId: r.categoryId,
+        categoryName: r.category?.name || null,
+        quantity: toDisplayNumber(r.quantity),
+        quantityType: r.quantityType,
+        optional: r.optional,
+        notes: r.notes,
+      })),
     }));
   }
 }

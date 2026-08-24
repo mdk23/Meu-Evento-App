@@ -3,7 +3,6 @@ import {
   EventDetailApiResponse,
   EventServiceWithRelations,
   TabId,
-  WorkOrderCustomFields,
 } from './types';
 
 export function useEventDetail(id: string) {
@@ -13,7 +12,6 @@ export function useEventDetail(id: string) {
 
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [workOrderStatus, setWorkOrderStatus] = useState('');
-  const [customFields, setCustomFields] = useState<WorkOrderCustomFields>({});
   const [sellingPrice, setSellingPrice] = useState('0');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [supplierId, setSupplierId] = useState('');
@@ -77,11 +75,6 @@ export function useEventDetail(id: string) {
   const openServiceWorkOrder = (es: EventServiceWithRelations) => {
     setSelectedServiceId(es.id);
     setWorkOrderStatus(es.status || 'PLANNING');
-    try {
-      setCustomFields(es.customFields ? JSON.parse(es.customFields) : {});
-    } catch {
-      setCustomFields({});
-    }
     setSellingPrice(String(es.sellingPrice || 0));
     setSupplierId(es.supplierId || '');
     setSupplierCost(String(es.supplierCost || es.cost || 0));
@@ -108,7 +101,6 @@ export function useEventDetail(id: string) {
         body: JSON.stringify({
           eventServiceId: selectedService.id,
           status: workOrderStatus,
-          customFields,
           sellingPrice,
           supplierId: supplierId || null,
           supplierCost,
@@ -240,16 +232,22 @@ export function useEventDetail(id: string) {
     }
   };
 
-  const handleReserveInventoryItem = async () => {
-    if (!selectedService || !selectedInventoryId) return;
-    const qty = parseInt(reserveQuantity || '0', 10);
+  const handleReserveInventoryItem = async (options?: { inventoryItemId?: string; quantity?: number; resourceRequirementId?: string }) => {
+    if (!selectedService) return;
+    const itemId = options?.inventoryItemId ?? selectedInventoryId;
+    if (!itemId) return;
+    const qty = options?.quantity ?? parseInt(reserveQuantity || '0', 10);
     if (!qty || qty <= 0) return;
     setWorkOrderError('');
     try {
       const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inventoryItemId: selectedInventoryId, quantity: qty }),
+        body: JSON.stringify({
+          inventoryItemId: itemId,
+          quantity: qty,
+          resourceRequirementId: options?.resourceRequirementId,
+        }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -271,6 +269,50 @@ export function useEventDetail(id: string) {
       await reloadEvent();
     } catch (err) {
       console.error('Failed to release inventory reservation:', err);
+    }
+  };
+
+  /** Advances a reservation through Confirm/Allocate/Use/Return/Release/Cancel (Phase 15). */
+  const handleReservationAction = async (reservationId: string, action: string) => {
+    if (!selectedService) return;
+    setWorkOrderError('');
+    try {
+      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory/${reservationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setWorkOrderError(json.error || 'Failed to update reservation.');
+        return;
+      }
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to transition inventory reservation:', err);
+    }
+  };
+
+  /** Fulfills a resource requirement by reusing another service's already-active reservation
+   * (Phase 17) instead of creating a new one — no InventoryReservation/Transaction is created here,
+   * only the requirement's own `providedQuantity`/`reuseReservationId` bookkeeping changes. */
+  const handleReuseReservation = async (resourceRequirementId: string, reuseReservationId: string, quantity: number) => {
+    if (!selectedService) return;
+    setWorkOrderError('');
+    try {
+      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory/reuse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resourceRequirementId, reuseReservationId, quantity }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setWorkOrderError(json.error || 'Failed to reuse reservation.');
+        return;
+      }
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to reuse inventory reservation:', err);
     }
   };
 
@@ -304,8 +346,6 @@ export function useEventDetail(id: string) {
     selectedService,
     workOrderStatus,
     setWorkOrderStatus,
-    customFields,
-    setCustomFields,
     sellingPrice,
     setSellingPrice,
     newTaskTitle,
@@ -339,6 +379,8 @@ export function useEventDetail(id: string) {
     setReserveQuantity,
     handleReserveInventoryItem,
     handleRemoveReservedInventory,
+    handleReservationAction,
+    handleReuseReservation,
 
     isAddServiceOpen,
     setIsAddServiceOpen,

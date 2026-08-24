@@ -1,5 +1,29 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { serializeDecimals } from '@/lib/money';
+import { computeInventoryStockSummary } from '@/lib/inventory-accounting';
+import { InventoryItemRepository } from '@/lib/repositories/inventory-item.repository';
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const item = await InventoryItemRepository.getItemDetail(id);
+    if (!item) {
+      return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
+    }
+
+    const stockSummary = computeInventoryStockSummary(item.totalQuantity, item.reservations, item.transactions);
+
+    return NextResponse.json(serializeDecimals({ item, stockSummary }));
+  } catch (error: unknown) {
+    console.error('Failed to fetch inventory item detail:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
 export async function PATCH(
   request: Request,

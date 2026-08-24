@@ -332,11 +332,6 @@ model Service {
   defaultProviderType ExecutionType @default(INTERNAL)
   priceType           String        @default("FIXED")
   defaultPrice        Decimal       @default(0) @db.Decimal(12, 2)
-  /// Defines the dynamic operational fields this service's work orders should collect —
-  /// an array of `{ key, type, label?, options? }`. `BookingService.customFields` then stores
-  /// only the values, keyed by `key`. Supported `type`s: text, textarea, number, select,
-  /// multiselect, date, datetime, boolean.
-  fieldSchema         Json?
   active              Boolean       @default(true)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
@@ -456,8 +451,6 @@ model BookingService {
   /// Snapshot of `Service.name` at the time this work order was created — protects historical
   /// records from showing the wrong name if the catalog service is later renamed or deactivated.
   serviceNameSnapshot String?
-
-  customFields String?
 
   supplierId     String?
   supplierCost   Decimal              @default(0) @db.Decimal(12, 2)

@@ -12,56 +12,73 @@ import {
   Edit3,
   Trash2,
   Save,
-  Settings2,
   Boxes,
+  Package,
 } from 'lucide-react';
-import { ServiceCardDTO } from '@/types/dtos';
-import { FieldSchemaField, FieldType, parseFieldSchema } from '@/components/events/detail/types';
+import { ServiceCardDTO, ServiceInventoryRequirementDTO } from '@/types/dtos';
 import Topbar from '@/components/aurelia/Topbar';
+
+interface InventoryItemOption {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
+interface InventoryCategoryOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
   /** Deep-linked from the Space/Event workspace nav via `?scope=` — defaults to showing everything. */
   initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
+  inventoryItems: InventoryItemOption[];
+  inventoryCategories: InventoryCategoryOption[];
 }
 
-const FIELD_TYPES: FieldType[] = ['text', 'textarea', 'number', 'select', 'multiselect', 'date', 'datetime', 'boolean'];
+type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT';
 
-/** Editable row shape for the field-schema builder — `optionsText` is a comma-separated
- * working copy of `FieldSchemaField.options`, converted to/from an array on load/save. */
-interface FieldSchemaRow {
-  key: string;
-  type: FieldType;
-  label: string;
-  optionsText: string;
-  required: boolean;
+/** Editable row shape for the Inventory Requirements builder. `targetType` drives whether
+ * `inventoryItemId` or `categoryId` is the active fulfillment target; the other stays populated
+ * with whatever was last selected so switching back doesn't lose it. */
+interface RequirementRow {
+  targetType: 'ITEM' | 'CATEGORY';
+  inventoryItemId: string;
+  categoryId: string;
+  quantity: string;
+  quantityType: QuantityTypeOption;
+  optional: boolean;
+  notes: string;
 }
 
-function toRows(fieldSchema: unknown): FieldSchemaRow[] {
-  return parseFieldSchema(fieldSchema).map((f) => ({
-    key: f.key,
-    type: f.type,
-    label: f.label || '',
-    optionsText: (f.options || []).join(', '),
-    required: f.required || false,
+function toRequirementRows(requirements: ServiceInventoryRequirementDTO[]): RequirementRow[] {
+  return requirements.map((r) => ({
+    targetType: r.categoryId ? 'CATEGORY' : 'ITEM',
+    inventoryItemId: r.inventoryItemId || '',
+    categoryId: r.categoryId || '',
+    quantity: String(r.quantity),
+    quantityType: r.quantityType,
+    optional: r.optional,
+    notes: r.notes || '',
   }));
 }
 
-function toFieldSchema(rows: FieldSchemaRow[]): FieldSchemaField[] {
+function toRequirementPayload(rows: RequirementRow[]) {
   return rows
-    .filter((r) => r.key.trim())
+    .filter((r) => (r.targetType === 'ITEM' ? r.inventoryItemId : r.categoryId))
     .map((r) => ({
-      key: r.key.trim(),
-      type: r.type,
-      label: r.label.trim() || undefined,
-      options: (r.type === 'select' || r.type === 'multiselect')
-        ? r.optionsText.split(',').map((o) => o.trim()).filter(Boolean)
-        : undefined,
-      required: r.required || undefined,
+      inventoryItemId: r.targetType === 'ITEM' ? r.inventoryItemId : null,
+      categoryId: r.targetType === 'CATEGORY' ? r.categoryId : null,
+      quantity: parseFloat(r.quantity || '1') || 1,
+      quantityType: r.quantityType,
+      optional: r.optional,
+      notes: r.notes.trim() || undefined,
     }));
 }
 
-export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL' }: ServicesClientProps) {
+export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL', inventoryItems, inventoryCategories }: ServicesClientProps) {
   const router = useRouter();
 
   // Filter state: 'ALL', 'INTERNAL', 'EXTERNAL'
@@ -81,7 +98,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   const [executionType, setExecutionType] = useState('INTERNAL');
   const [priceType, setPriceType] = useState('FIXED');
   const [defaultPrice, setDefaultPrice] = useState('');
-  const [fieldSchemaRows, setFieldSchemaRows] = useState<FieldSchemaRow[]>([]);
+  const [requirementRows, setRequirementRows] = useState<RequirementRow[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -93,7 +110,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     setExecutionType('INTERNAL');
     setPriceType('FIXED');
     setDefaultPrice('');
-    setFieldSchemaRows([]);
+    setRequirementRows([]);
     setIsAddModalOpen(true);
   };
 
@@ -105,19 +122,30 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     setExecutionType(service.defaultExecutionType || 'INTERNAL');
     setPriceType(service.priceType || 'FIXED');
     setDefaultPrice(service.defaultPrice ? service.defaultPrice.toString() : '');
-    setFieldSchemaRows(toRows(service.fieldSchema));
+    setRequirementRows(toRequirementRows(service.inventoryRequirements));
   };
 
-  const addFieldSchemaRow = () => {
-    setFieldSchemaRows((prev) => [...prev, { key: '', type: 'text', label: '', optionsText: '', required: false }]);
+  const addRequirementRow = () => {
+    setRequirementRows((prev) => [
+      ...prev,
+      {
+        targetType: inventoryCategories.length > 0 ? 'CATEGORY' : 'ITEM',
+        inventoryItemId: inventoryItems[0]?.id || '',
+        categoryId: inventoryCategories[0]?.id || '',
+        quantity: '1',
+        quantityType: 'FIXED',
+        optional: false,
+        notes: '',
+      },
+    ]);
   };
 
-  const updateFieldSchemaRow = (index: number, patch: Partial<FieldSchemaRow>) => {
-    setFieldSchemaRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  const updateRequirementRow = (index: number, patch: Partial<RequirementRow>) => {
+    setRequirementRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   };
 
-  const removeFieldSchemaRow = (index: number) => {
-    setFieldSchemaRows((prev) => prev.filter((_, i) => i !== index));
+  const removeRequirementRow = (index: number) => {
+    setRequirementRows((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Create Service Handler
@@ -139,7 +167,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
-          fieldSchema: toFieldSchema(fieldSchemaRows),
+          inventoryRequirements: toRequirementPayload(requirementRows),
         }),
       });
       if (res.ok) {
@@ -178,7 +206,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
-          fieldSchema: toFieldSchema(fieldSchemaRows),
+          inventoryRequirements: toRequirementPayload(requirementRows),
         }),
       });
       if (res.ok) {
@@ -449,61 +477,101 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                 />
               </div>
 
+
               <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 16 }} className="stack">
                 <div className="between">
                   <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Settings2 className="w-3.5 h-3.5" /> Work Order Fields
+                    <Package className="w-3.5 h-3.5" /> Inventory Requirements
                   </label>
-                  <button type="button" onClick={addFieldSchemaRow} className="btn ghost sm">
-                    <Plus className="w-3 h-3" /> Add Field
+                  <button type="button" onClick={addRequirementRow} className="btn ghost sm">
+                    <Plus className="w-3 h-3" /> Add Requirement
                   </button>
                 </div>
                 <p className="mini dim">
-                  Operational fields collected on this service&apos;s work orders (e.g. menu, theme). Services with no fields defined show none.
+                  What this service normally needs from stock — a template only, never reserves anything.
+                  Point at one specific item, or a whole category to let the variant be chosen per booking.
                 </p>
 
-                {fieldSchemaRows.length > 0 && (
+                {requirementRows.length > 0 && (
                   <div className="stack" style={{ gap: 8 }}>
-                    {fieldSchemaRows.map((row, index) => (
+                    {requirementRows.map((row, index) => (
                       <div key={index} className="stack" style={{ gap: 8, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
-                        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
+                        <div className="grid" style={{ gridTemplateColumns: '110px 1fr auto', gap: 8, alignItems: 'start' }}>
+                          <select
+                            value={row.targetType}
+                            onChange={(e) => updateRequirementRow(index, { targetType: e.target.value as 'ITEM' | 'CATEGORY' })}
+                            className="input"
+                            style={{ padding: '8px 10px', fontSize: 12 }}
+                          >
+                            <option value="ITEM">Specific item</option>
+                            <option value="CATEGORY">Any in category</option>
+                          </select>
+                          {row.targetType === 'ITEM' ? (
+                            <select
+                              value={row.inventoryItemId}
+                              onChange={(e) => updateRequirementRow(index, { inventoryItemId: e.target.value })}
+                              className="input"
+                              style={{ padding: '8px 10px', fontSize: 12 }}
+                            >
+                              <option value="">-- Select item --</option>
+                              {inventoryItems.map((i) => (
+                                <option key={i.id} value={i.id}>{i.name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={row.categoryId}
+                              onChange={(e) => updateRequirementRow(index, { categoryId: e.target.value })}
+                              className="input"
+                              style={{ padding: '8px 10px', fontSize: 12 }}
+                            >
+                              <option value="">-- Select category --</option>
+                              {inventoryCategories.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          )}
+                          <button type="button" onClick={() => removeRequirementRow(index)} className="icon-btn" style={{ width: 30, height: 30 }}>
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
                           <input
-                            value={row.key}
-                            onChange={(e) => updateFieldSchemaRow(index, { key: e.target.value })}
-                            placeholder="key (e.g. menu)"
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={row.quantity}
+                            onChange={(e) => updateRequirementRow(index, { quantity: e.target.value })}
+                            placeholder="Quantity"
                             className="input"
                             style={{ padding: '8px 10px', fontSize: 12 }}
                           />
                           <select
-                            value={row.type}
-                            onChange={(e) => updateFieldSchemaRow(index, { type: e.target.value as FieldType })}
+                            value={row.quantityType}
+                            onChange={(e) => updateRequirementRow(index, { quantityType: e.target.value as QuantityTypeOption })}
                             className="input"
                             style={{ padding: '8px 10px', fontSize: 12 }}
                           >
-                            {FIELD_TYPES.map((t) => (
-                              <option key={t} value={t}>{t}</option>
-                            ))}
+                            <option value="FIXED">Fixed</option>
+                            <option value="PER_GUEST">Per guest</option>
+                            <option value="PER_UNIT">Per unit</option>
                           </select>
-                          <button type="button" onClick={() => removeFieldSchemaRow(index)} className="icon-btn" style={{ width: 30, height: 30 }}>
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          <label className="mini row" style={{ gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                            <input
+                              type="checkbox"
+                              checked={row.optional}
+                              onChange={(e) => updateRequirementRow(index, { optional: e.target.checked })}
+                            />
+                            Optional
+                          </label>
                         </div>
                         <input
-                          value={row.label}
-                          onChange={(e) => updateFieldSchemaRow(index, { label: e.target.value })}
-                          placeholder="Display label (optional)"
+                          value={row.notes}
+                          onChange={(e) => updateRequirementRow(index, { notes: e.target.value })}
+                          placeholder="Notes (optional)"
                           className="input"
                           style={{ padding: '8px 10px', fontSize: 12 }}
                         />
-                        {(row.type === 'select' || row.type === 'multiselect') && (
-                          <input
-                            value={row.optionsText}
-                            onChange={(e) => updateFieldSchemaRow(index, { optionsText: e.target.value })}
-                            placeholder="Options, comma-separated (e.g. Standard, Premium, Custom)"
-                            className="input"
-                            style={{ padding: '8px 10px', fontSize: 12 }}
-                          />
-                        )}
                       </div>
                     ))}
                   </div>

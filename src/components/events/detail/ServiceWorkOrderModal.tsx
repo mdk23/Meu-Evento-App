@@ -1,14 +1,141 @@
-import { X, ChefHat, Loader2, Users, Package, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { X, Loader2, Users, Package, AlertTriangle, ClipboardList, Recycle } from 'lucide-react';
 import { Staff, Supplier, InventoryItem } from '@prisma/client';
-import { EventServiceWithRelations, WorkOrderCustomFields, parseFieldSchema } from './types';
-import DynamicFieldsForm from './DynamicFieldsForm';
+import { EventServiceWithRelations, ResourceRequirement } from './types';
+
+const RESERVATION_ACTIONS: Record<string, { label: string; action: string }[]> = {
+  HELD: [{ label: 'Confirm', action: 'CONFIRM' }, { label: 'Release', action: 'RELEASE' }],
+  CONFIRMED: [{ label: 'Allocate', action: 'ALLOCATE' }, { label: 'Use', action: 'USE' }, { label: 'Release', action: 'RELEASE' }],
+  CONSUMED: [{ label: 'Return', action: 'RETURN' }],
+  RETURNED: [],
+  RELEASED: [],
+  CANCELLED: [],
+};
+
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  HELD: 'b-warn',
+  CONFIRMED: 'b-ok',
+  CONSUMED: 'b-info',
+  RETURNED: 'b-mute',
+  RELEASED: 'b-mute',
+  CANCELLED: 'b-bad',
+};
+
+/** One reuse candidate's inline quantity + "Reuse" control — capped at whichever is smaller, what's
+ * still available on that reservation or what's still needed on this requirement. */
+function ReuseCandidateRow({
+  requirement,
+  candidate,
+  remaining,
+  onReuse,
+}: {
+  requirement: ResourceRequirement;
+  candidate: ResourceRequirement['reuseCandidates'][number];
+  remaining: number;
+  onReuse: (reuseReservationId: string, quantity: number, resourceRequirementId: string) => void;
+}) {
+  const cap = Math.min(candidate.availableToReuse, remaining);
+  const [qty, setQty] = useState(String(cap));
+
+  return (
+    <div className="row between" style={{ gap: 6, padding: '4px 0' }}>
+      <span className="mini dim">
+        {candidate.availableToReuse} {candidate.itemName} already held by <strong style={{ color: 'var(--ink)' }}>{candidate.serviceName}</strong>
+      </span>
+      <div className="row" style={{ gap: 6 }}>
+        <input
+          type="number"
+          min={1}
+          max={cap}
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          className="input"
+          style={{ width: 56, padding: '6px 8px', fontSize: 12 }}
+        />
+        <button
+          type="button"
+          onClick={() => onReuse(candidate.reservationId, Math.min(parseInt(qty, 10) || 0, cap), requirement.id)}
+          className="btn ghost sm"
+          style={{ padding: '4px 10px', fontSize: 11 }}
+        >
+          <Recycle className="w-3 h-3" /> Reuse
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** One requirement row's inline "Reserve" control — its own local state since each row picks an
+ * item/quantity independently and resets once submitted. Reuse candidates (Phase 17 — another
+ * service's already-active reservation for the same item) are offered first; the freeform Reserve
+ * control below them covers whatever's still needed beyond what can be reused. */
+function RequirementReserveRow({
+  requirement,
+  inventoryItems,
+  onReserve,
+  onReuse,
+}: {
+  requirement: ResourceRequirement;
+  inventoryItems: InventoryItem[];
+  onReserve: (inventoryItemId: string, quantity: number, resourceRequirementId: string) => void;
+  onReuse: (reuseReservationId: string, quantity: number, resourceRequirementId: string) => void;
+}) {
+  const categoryId = requirement.sourceRequirement?.categoryId;
+  const eligibleItems = requirement.inventoryItemId
+    ? inventoryItems.filter((i) => i.id === requirement.inventoryItemId)
+    : categoryId
+    ? inventoryItems.filter((i) => i.categoryId === categoryId)
+    : inventoryItems;
+
+  const [pickedItemId, setPickedItemId] = useState(requirement.inventoryItemId || eligibleItems[0]?.id || '');
+  const remaining = Number(requirement.requiredQuantity) - Number(requirement.providedQuantity);
+  const [qty, setQty] = useState(String(Math.max(remaining, 1)));
+
+  if (remaining <= 0) return null;
+
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      {requirement.reuseCandidates.length > 0 && (
+        <div className="stack" style={{ gap: 2 }}>
+          {requirement.reuseCandidates.map((c) => (
+            <ReuseCandidateRow key={c.reservationId} requirement={requirement} candidate={c} remaining={remaining} onReuse={onReuse} />
+          ))}
+        </div>
+      )}
+      <div className="row" style={{ gap: 6 }}>
+        {!requirement.inventoryItemId && (
+          <select value={pickedItemId} onChange={(e) => setPickedItemId(e.target.value)} className="input" style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}>
+            <option value="">-- Pick item --</option>
+            {eligibleItems.map((i) => (
+              <option key={i.id} value={i.id}>{i.name}</option>
+            ))}
+          </select>
+        )}
+        <input
+          type="number"
+          min={1}
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          className="input"
+          style={{ width: 64, padding: '6px 8px', fontSize: 12 }}
+        />
+        <button
+          type="button"
+          onClick={() => pickedItemId && onReserve(pickedItemId, parseInt(qty, 10) || 0, requirement.id)}
+          disabled={!pickedItemId}
+          className="btn ghost sm"
+        >
+          Reserve New
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface ServiceWorkOrderModalProps {
   selectedService: EventServiceWithRelations;
   workOrderStatus: string;
   setWorkOrderStatus: (status: string) => void;
-  customFields: WorkOrderCustomFields;
-  setCustomFields: (fields: WorkOrderCustomFields) => void;
   sellingPrice: string;
   setSellingPrice: (price: string) => void;
   newTaskTitle: string;
@@ -37,8 +164,10 @@ interface ServiceWorkOrderModalProps {
   setSelectedInventoryId: (id: string) => void;
   reserveQuantity: string;
   setReserveQuantity: (quantity: string) => void;
-  onReserveInventory: () => void;
+  onReserveInventory: (options?: { inventoryItemId?: string; quantity?: number; resourceRequirementId?: string }) => void;
   onRemoveReservedInventory: (reservationId: string) => void;
+  onReservationAction: (reservationId: string, action: string) => void;
+  onReuseReservation: (resourceRequirementId: string, reuseReservationId: string, quantity: number) => void;
   onSave: () => void;
   onClose: () => void;
 }
@@ -47,8 +176,6 @@ export default function ServiceWorkOrderModal({
   selectedService,
   workOrderStatus,
   setWorkOrderStatus,
-  customFields,
-  setCustomFields,
   sellingPrice,
   setSellingPrice,
   newTaskTitle,
@@ -79,6 +206,8 @@ export default function ServiceWorkOrderModal({
   setReserveQuantity,
   onReserveInventory,
   onRemoveReservedInventory,
+  onReservationAction,
+  onReuseReservation,
   onSave,
   onClose,
 }: ServiceWorkOrderModalProps) {
@@ -87,8 +216,8 @@ export default function ServiceWorkOrderModal({
   const tasks = selectedService.serviceTasks;
   const assignedStaff = selectedService.staffAssignments;
   const reservedInventory = selectedService.inventoryReservations;
+  const resourceRequirements = selectedService.resourceRequirements;
   const unassignedStaff = staff.filter((s) => !assignedStaff.some((a) => a.staffId === s.id));
-  const fieldSchema = parseFieldSchema(selectedService.service?.fieldSchema);
 
   return (
     <div className="modal-scrim" onClick={onClose}>
@@ -145,15 +274,6 @@ export default function ServiceWorkOrderModal({
               </div>
             )}
           </div>
-
-          {fieldSchema.length > 0 && (
-            <div className="card plain stack" style={{ padding: 16, gap: 12 }}>
-              <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: accentVar }}>
-                <ChefHat className="w-4 h-4" /> Operational Parameters
-              </h4>
-              <DynamicFieldsForm fields={fieldSchema} values={customFields} onChange={setCustomFields} />
-            </div>
-          )}
 
           <div className="stack" style={{ gap: 10 }}>
             <h4 className="mini" style={{ fontWeight: 700, color: 'var(--ink)' }}>Execution Tasks</h4>
@@ -250,6 +370,40 @@ export default function ServiceWorkOrderModal({
             )}
           </div>
 
+          {isInternal && resourceRequirements.length > 0 && (
+            <div className="stack" style={{ gap: 10 }}>
+              <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
+                <ClipboardList className="w-4 h-4" style={{ color: accentVar }} /> Resource Requirements
+              </h4>
+              <p className="mini dim">What this service&apos;s catalog template needs — reserve against a row to fulfill it.</p>
+              <div className="stack" style={{ gap: 8, padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}>
+                {resourceRequirements.map((req) => {
+                  const required = Number(req.requiredQuantity);
+                  const provided = Number(req.providedQuantity);
+                  const label = req.itemNameSnapshot || (req.sourceRequirement?.category?.name ? `Any ${req.sourceRequirement.category.name}` : 'Unresolved item');
+                  return (
+                    <div key={req.id} className="stack" style={{ gap: 6, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                      <div className="between">
+                        <span className="mini" style={{ color: 'var(--ink)' }}>{label}</span>
+                        <span className="mini dim">{provided} / {required} provided</span>
+                      </div>
+                      <RequirementReserveRow
+                        requirement={req}
+                        inventoryItems={inventoryItems}
+                        onReserve={(inventoryItemId, quantity, resourceRequirementId) =>
+                          onReserveInventory({ inventoryItemId, quantity, resourceRequirementId })
+                        }
+                        onReuse={(reuseReservationId, quantity, resourceRequirementId) =>
+                          onReuseReservation(resourceRequirementId, reuseReservationId, quantity)
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {isInternal && (
             <div className="stack" style={{ gap: 10 }}>
               <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
@@ -277,7 +431,7 @@ export default function ServiceWorkOrderModal({
                 />
                 <button
                   type="button"
-                  onClick={onReserveInventory}
+                  onClick={() => onReserveInventory()}
                   disabled={!selectedInventoryId}
                   className="btn ghost sm"
                 >
@@ -288,21 +442,42 @@ export default function ServiceWorkOrderModal({
               {reservedInventory.length > 0 && (
                 <div
                   className="stack"
-                  style={{ gap: 8, maxHeight: 128, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
+                  style={{ gap: 8, maxHeight: 220, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
                 >
                   {reservedInventory.map((r) => (
-                    <div key={r.id} className="between" style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
-                      <span className="mini" style={{ color: 'var(--ink)' }}>
-                        {r.itemNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>× {r.quantity}</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveReservedInventory(r.id)}
-                        className="icon-btn"
-                        style={{ width: 28, height: 28, flexShrink: 0 }}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                    <div key={r.id} className="stack" style={{ gap: 6, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                      <div className="between">
+                        <span className="mini" style={{ color: 'var(--ink)' }}>
+                          {r.itemNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>× {r.quantity}</span>
+                        </span>
+                        <div className="row" style={{ gap: 6 }}>
+                          <span className={`badge ${STATUS_BADGE_CLASS[r.status] || 'b-mute'}`}>{r.status}</span>
+                          <button
+                            type="button"
+                            onClick={() => onRemoveReservedInventory(r.id)}
+                            className="icon-btn"
+                            style={{ width: 24, height: 24, flexShrink: 0 }}
+                            title="Release"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      {(RESERVATION_ACTIONS[r.status] || []).length > 0 && (
+                        <div className="row" style={{ gap: 6 }}>
+                          {RESERVATION_ACTIONS[r.status].map(({ label, action }) => (
+                            <button
+                              key={action}
+                              type="button"
+                              onClick={() => onReservationAction(r.id, action)}
+                              className="btn ghost sm"
+                              style={{ padding: '4px 10px', fontSize: 11 }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

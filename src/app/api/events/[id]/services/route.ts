@@ -132,7 +132,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const {
       eventServiceId,
       status,
-      customFields,
       sellingPrice,
       cost,
       supplierId,
@@ -163,7 +162,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       where: { id: eventServiceId },
       data: {
         status: status && Object.values(WorkOrderStatus).includes(status) ? (status as WorkOrderStatus) : undefined,
-        customFields: typeof customFields === 'object' ? JSON.stringify(customFields) : customFields,
         sellingPrice: sellingPrice !== undefined ? parseFloat(sellingPrice) : undefined,
         cost: cost !== undefined ? parseFloat(cost) : undefined,
         supplierId: supplierId || undefined,

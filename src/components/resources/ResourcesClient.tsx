@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Building2, Package, Users, Truck, Plus, Loader2, X, Edit3, Trash2, Save, ChevronDown, ChevronRight } from 'lucide-react';
@@ -35,11 +36,8 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const [category, setCategory] = useState(initialData.inventoryCategories[0]?.name || '');
   const [quantity, setQuantity] = useState('50');
   const [role, setRole] = useState('Chef');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [capacity, setCapacity] = useState('500');
   const [address, setAddress] = useState('');
-  const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Inventory item edit/delete — separate from the generic create-modal state above, since editing
@@ -136,11 +134,8 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
           category,
           quantity,
           role,
-          email,
-          phone,
           capacity,
           address,
-          description,
         }),
       });
       if (res.ok) {
@@ -289,7 +284,9 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                                   </button>
                                 </div>
                               </div>
-                              <h3 className="h-md">{item.name}</h3>
+                              <Link href={`/resources/inventory/${item.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                <h3 className="h-md" style={{ cursor: 'pointer' }}>{item.name}</h3>
+                              </Link>
                               <div className="between mini" style={{ padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
                                 <span className="dim">Available Quantity</span>
                                 <strong className="num" style={{ fontSize: 18, color: 'var(--ink)' }}>{item.totalQuantity} pcs</strong>

@@ -7,6 +7,7 @@ import { serializeDecimals } from '@/lib/money';
 import { deriveEventStatus } from '@/lib/event-progress';
 import { resolveLineAmounts } from '@/lib/booking-service-pricing';
 import { assertServiceScopeAllowed, ServiceScopeError } from '@/lib/service-scope';
+import { seedResourceRequirementsForBookingService } from '@/lib/booking-resource-requirements';
 
 export async function PATCH(
   request: Request,
@@ -201,6 +202,11 @@ export async function PATCH(
         await tx.bookingPackage.deleteMany({
           where: { bookingId: existingBooking.id }
         });
+        // ...and their auto-seeded resource requirements — rebuilt fresh below per surviving line,
+        // same "full edit replaces the whole line list" reasoning as BookingPackage above.
+        await tx.bookingServiceResourceRequirement.deleteMany({
+          where: { bookingId: existingBooking.id }
+        });
 
         const tenantId = existingBooking.tenantId || (await tx.tenant.findFirst())?.id;
         const packageAppMap = new Map<string, string>();
@@ -260,7 +266,7 @@ export async function PATCH(
               }
             }
 
-            await tx.bookingService.create({
+            const createdBookingService = await tx.bookingService.create({
               data: {
                 bookingId: existingBooking.id,
                 // Not just `existingBooking.event?.id` — a demoted booking keeps its Event record
@@ -279,6 +285,17 @@ export async function PATCH(
                 bookingPackageId,
               },
             });
+
+            if (tenantId) {
+              await seedResourceRequirementsForBookingService(tx, {
+                tenantId,
+                bookingId: existingBooking.id,
+                bookingServiceId: createdBookingService.id,
+                serviceId: catalogServiceId,
+                guestCount: guestCount !== undefined ? parseInt(guestCount, 10) : existingBooking.guestCount,
+                unitCount: itemQuantity,
+              });
+            }
 
             if (bookingPackageId) {
               await tx.bookingPackageItem.create({

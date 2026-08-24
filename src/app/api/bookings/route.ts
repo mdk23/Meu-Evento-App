@@ -8,6 +8,7 @@ import { validatePaymentPlan, MilestoneDraft } from '@/lib/payment-plan';
 import { syncScheduledPaymentAllocations } from '@/lib/payment-allocation';
 import { resolveLineAmounts } from '@/lib/booking-service-pricing';
 import { assertServiceScopeAllowed, ServiceScopeError } from '@/lib/service-scope';
+import { seedResourceRequirementsForBookingService } from '@/lib/booking-resource-requirements';
 
 export async function GET() {
   try {
@@ -251,7 +252,7 @@ export async function POST(request: Request) {
             }
           }
 
-          await tx.bookingService.create({
+          const createdBookingService = await tx.bookingService.create({
             data: {
               bookingId: booking.id,
               eventId: event?.id ?? null,
@@ -267,6 +268,15 @@ export async function POST(request: Request) {
               source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
               bookingPackageId,
             },
+          });
+
+          await seedResourceRequirementsForBookingService(tx, {
+            tenantId: tenant.id,
+            bookingId: booking.id,
+            bookingServiceId: createdBookingService.id,
+            serviceId: catalogServiceId,
+            guestCount: parsedGuestCount,
+            unitCount: itemQuantity,
           });
 
           if (bookingPackageId) {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Client, ServiceItem, SpaceItem, CartItem, CatalogPackage, BookingPOSTerminalProps } from './types';
+import { Client, ServiceItem, CartItem, CatalogPackage, BookingPOSTerminalProps } from './types';
 import { defaultSpaces, defaultCatalogServices } from './constants';
 import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
 import { isOverCapacity } from '@/lib/capacity';
