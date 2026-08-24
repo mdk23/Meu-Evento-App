@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ExecutionType, ServiceScope, QuantityType } from '@prisma/client';
+import { ExecutionType, ServiceContext, PriceType, QuantityType } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
 
-function resolveScope(value: unknown): ServiceScope {
-  return value === 'SPACE' || value === 'EVENT' ? (value as ServiceScope) : ServiceScope.BOTH;
+function resolveContext(value: unknown): ServiceContext {
+  return value === 'SPACE' || value === 'EVENT' ? (value as ServiceContext) : ServiceContext.BOTH;
+}
+
+function resolvePriceType(value: unknown): PriceType {
+  return value === 'PER_GUEST' || value === 'PER_HOUR' || value === 'PER_UNIT'
+    ? (value as PriceType)
+    : PriceType.FIXED;
 }
 
 function resolveQuantityType(value: unknown): QuantityType {
@@ -47,7 +53,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, category, scope, defaultExecutionType, priceType, defaultPrice, inventoryRequirements } = body;
+    const { name, category, context, defaultExecutionType, priceType, defaultPrice, inventoryRequirements } = body;
 
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
@@ -68,9 +74,9 @@ export async function POST(request: Request) {
         tenantId: tenant.id,
         name,
         category,
-        scope: resolveScope(scope),
+        context: resolveContext(context),
         defaultProviderType: defaultExecutionType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
-        priceType: priceType || 'FIXED',
+        priceType: resolvePriceType(priceType),
         defaultPrice: parseFloat(defaultPrice || 0),
         inventoryRequirements: {
           create: validated.rows.map((r, index) => ({

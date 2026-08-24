@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ExecutionType, QuantityType } from '@prisma/client';
+import { ExecutionType, QuantityType, PriceType } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
 
 function resolveQuantityType(value: unknown): QuantityType {
   return value === 'PER_GUEST' || value === 'PER_UNIT' ? (value as QuantityType) : QuantityType.FIXED;
+}
+
+function isPriceType(value: unknown): value is PriceType {
+  return value === 'FIXED' || value === 'PER_GUEST' || value === 'PER_HOUR' || value === 'PER_UNIT';
 }
 
 interface InventoryRequirementInput {
@@ -23,7 +27,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, category, scope, defaultExecutionType, priceType, defaultPrice, inventoryRequirements } = body;
+    const { name, category, context, defaultExecutionType, priceType, defaultPrice, inventoryRequirements } = body;
 
     const existingService = await prisma.service.findUnique({
       where: { id },
@@ -71,14 +75,14 @@ export async function PATCH(
         data: {
           name: name !== undefined ? name : existingService.name,
           category: category !== undefined ? category : existingService.category,
-          scope: scope === 'SPACE' || scope === 'EVENT' || scope === 'BOTH' ? scope : existingService.scope,
+          context: context === 'SPACE' || context === 'EVENT' || context === 'BOTH' ? context : existingService.context,
           defaultProviderType:
             defaultExecutionType === 'EXTERNAL'
               ? ExecutionType.EXTERNAL
               : defaultExecutionType === 'INTERNAL'
               ? ExecutionType.INTERNAL
               : existingService.defaultProviderType,
-          priceType: priceType !== undefined ? priceType : existingService.priceType,
+          priceType: isPriceType(priceType) ? priceType : existingService.priceType,
           defaultPrice: defaultPrice !== undefined ? parseFloat(defaultPrice) : existingService.defaultPrice,
         },
         include: { inventoryRequirements: true },

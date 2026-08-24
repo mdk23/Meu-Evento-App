@@ -28,6 +28,8 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [scope, setScope] = useState<'SPACE' | 'EVENT'>('SPACE');
+  const [pricingMode, setPricingMode] = useState<'COMPUTED' | 'FIXED'>('COMPUTED');
+  const [fixedPrice, setFixedPrice] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
@@ -38,6 +40,8 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     setName('');
     setDescription('');
     setScope(initialScopeFilter === 'EVENT' ? 'EVENT' : 'SPACE');
+    setPricingMode('COMPUTED');
+    setFixedPrice('');
     setSelectedServiceIds([]);
     setQuantities({});
     setIsAddModalOpen(true);
@@ -47,7 +51,9 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     setEditingPackage(pkg);
     setName(pkg.name);
     setDescription(pkg.description || '');
-    setScope(pkg.scope);
+    setScope(pkg.context);
+    setPricingMode(pkg.pricingMode);
+    setFixedPrice(pkg.price !== null ? String(pkg.price) : '');
     setSelectedServiceIds(pkg.services.map((s) => s.serviceId));
     setQuantities(Object.fromEntries(pkg.services.map((s) => [s.serviceId, s.quantity])));
   };
@@ -69,7 +75,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   const handleScopeChange = (nextScope: 'SPACE' | 'EVENT') => {
     setScope(nextScope);
     const compatibleServiceIds = new Set(
-      initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.scope, nextScope)).map((s) => s.id)
+      initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.context, nextScope)).map((s) => s.id)
     );
     setSelectedServiceIds((prev) => prev.filter((id) => compatibleServiceIds.has(id)));
   };
@@ -89,7 +95,15 @@ export default function PackagesClient({ initialPackages, initialServices, initi
       const res = await fetch('/api/packages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, scope, serviceIds: selectedServiceIds, quantities }),
+        body: JSON.stringify({
+          name,
+          description,
+          scope,
+          pricingMode,
+          price: pricingMode === 'FIXED' ? fixedPrice : undefined,
+          serviceIds: selectedServiceIds,
+          quantities,
+        }),
       });
       if (res.ok) {
         toast.success(`Package "${name}" created!`);
@@ -123,7 +137,15 @@ export default function PackagesClient({ initialPackages, initialServices, initi
       const res = await fetch(`/api/packages/${editingPackage.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, scope, serviceIds: selectedServiceIds, quantities }),
+        body: JSON.stringify({
+          name,
+          description,
+          scope,
+          pricingMode,
+          price: pricingMode === 'FIXED' ? fixedPrice : undefined,
+          serviceIds: selectedServiceIds,
+          quantities,
+        }),
       });
       if (res.ok) {
         toast.success('Package updated successfully!');
@@ -177,10 +199,12 @@ export default function PackagesClient({ initialPackages, initialServices, initi
 
   const filteredPackages = scopeFilter === 'ALL'
     ? initialPackages
-    : initialPackages.filter((p) => p.scope === scopeFilter);
+    : initialPackages.filter((p) => p.context === scopeFilter);
 
   const packageTotal = (pkg: PackageCardDTO) =>
-    pkg.services.reduce((sum, s) => sum + (s.priceOverride ?? s.defaultPrice) * s.quantity, 0);
+    pkg.pricingMode === 'FIXED' && pkg.price !== null
+      ? pkg.price
+      : pkg.services.reduce((sum, s) => sum + (s.priceOverride ?? s.defaultPrice) * s.quantity, 0);
 
   // Arriving via the workspace sidebar (`?scope=SPACE`/`?scope=EVENT`) already puts you inside one
   // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
@@ -216,7 +240,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
           {(['ALL', 'SPACE', 'EVENT'] as const).map((filterOpt) => {
             const count = filterOpt === 'ALL'
               ? initialPackages.length
-              : initialPackages.filter((p) => p.scope === filterOpt).length;
+              : initialPackages.filter((p) => p.context === filterOpt).length;
 
             return (
               <button
@@ -256,8 +280,8 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                   <div className="between" style={{ alignItems: 'flex-start' }}>
                     <div>
                       {!isScoped && (
-                        <span className={`badge ${pkg.scope === 'SPACE' ? 'b-accent' : 'b-info'}`} style={{ marginBottom: 8 }}>
-                          {pkg.scope === 'SPACE' ? 'Space' : 'Event'}
+                        <span className={`badge ${pkg.context === 'SPACE' ? 'b-accent' : 'b-info'}`} style={{ marginBottom: 8 }}>
+                          {pkg.context === 'SPACE' ? 'Space' : 'Event'}
                         </span>
                       )}
                       <h3 className="h-md">{pkg.name}</h3>
@@ -360,12 +384,35 @@ export default function PackagesClient({ initialPackages, initialServices, initi
               </div>
 
               <div className="field">
+                <label className="label">Pricing</label>
+                <select value={pricingMode} onChange={(e) => setPricingMode(e.target.value as 'COMPUTED' | 'FIXED')} className="input">
+                  <option value="COMPUTED">Computed — total always derived live from included services</option>
+                  <option value="FIXED">Fixed — a flat negotiated rate for the whole bundle</option>
+                </select>
+              </div>
+
+              {pricingMode === 'FIXED' && (
+                <div className="field">
+                  <label className="label">Fixed Price (MT)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={fixedPrice}
+                    onChange={(e) => setFixedPrice(e.target.value)}
+                    placeholder="e.g. 90000"
+                    className="input"
+                  />
+                </div>
+              )}
+
+              <div className="field">
                 <label className="label">Included Services</label>
                 <div
                   className="stack"
                   style={{ gap: 6, maxHeight: 220, overflowY: 'auto', padding: 10, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}
                 >
-                  {initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.scope, scope)).map((s) => {
+                  {initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.context, scope)).map((s) => {
                     const isSelected = selectedServiceIds.includes(s.id);
                     return (
                       <div key={s.id} className="row" style={{ gap: 10 }}>

@@ -11,7 +11,7 @@ export interface ServiceItem {
   category: 'SPACE' | 'EVENT';
   providerType: 'INTERNAL' | 'EXTERNAL';
   providerName?: string;
-  priceType: 'FIXED' | 'PER_GUEST' | 'HOURLY';
+  priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR';
   price: number;
   description: string;
 }
@@ -31,7 +31,7 @@ export interface CartItem {
   category: 'SPACE' | 'EVENT';
   providerType: 'INTERNAL' | 'EXTERNAL';
   providerName: string;
-  priceType: 'FIXED' | 'PER_GUEST' | 'HOURLY';
+  priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR';
   price: number;
   quantity: number;
   totalPrice: number;
@@ -55,7 +55,7 @@ export type CatalogPackage = PackageCardDTO;
 // `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
 // `serializeDecimals` converts every one to a plain number before this data reaches the client.
 export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
-  select: { id: true; name: true; category: true; scope: true; defaultProviderType: true; defaultPrice: true; priceType: true };
+  select: { id: true; name: true; category: true; context: true; defaultProviderType: true; defaultPrice: true; priceType: true };
 }>>;
 
 export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;

@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { PackageScope } from '@prisma/client';
+import { PackageContext, PackagePricingMode } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
 import { isServiceCompatibleWithPackageScope } from '@/lib/service-scope';
+
+function resolvePricingMode(value: unknown): PackagePricingMode {
+  return value === 'FIXED' ? PackagePricingMode.FIXED : PackagePricingMode.COMPUTED;
+}
 
 export async function GET() {
   try {
     const packages = await prisma.package.findMany({
-      orderBy: [{ scope: 'asc' }, { name: 'asc' }],
+      orderBy: [{ context: 'asc' }, { name: 'asc' }],
       include: {
         items: {
           orderBy: { order: 'asc' },
@@ -25,7 +29,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, scope, serviceIds, quantities } = body;
+    const { name, description, scope, pricingMode, price, serviceIds, quantities } = body;
 
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
@@ -44,9 +48,9 @@ export async function POST(request: Request) {
     // package (or vice versa) just because it bypassed that UI.
     const candidateServices = await prisma.service.findMany({
       where: { id: { in: serviceIds } },
-      select: { id: true, name: true, scope: true },
+      select: { id: true, name: true, context: true },
     });
-    const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.scope, scope as 'SPACE' | 'EVENT'));
+    const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.context, scope as 'SPACE' | 'EVENT'));
     if (incompatible.length > 0) {
       return NextResponse.json(
         { error: `Not compatible with a ${scope} package: ${incompatible.map((s) => s.name).join(', ')}` },
@@ -54,12 +58,16 @@ export async function POST(request: Request) {
       );
     }
 
+    const resolvedPricingMode = resolvePricingMode(pricingMode);
+
     const servicePackage = await prisma.package.create({
       data: {
         tenantId: tenant.id,
         name,
         description: description || null,
-        scope: scope as PackageScope,
+        context: scope as PackageContext,
+        pricingMode: resolvedPricingMode,
+        price: resolvedPricingMode === PackagePricingMode.FIXED && price !== undefined ? parseFloat(price) : null,
         items: {
           create: serviceIds.map((serviceId: string, index: number) => ({
             serviceId,

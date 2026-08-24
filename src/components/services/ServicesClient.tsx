@@ -94,7 +94,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   // Form states
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Catering');
-  const [scope, setScope] = useState<'SPACE' | 'EVENT' | 'BOTH'>('BOTH');
+  const [context, setContext] = useState<'SPACE' | 'EVENT' | 'BOTH'>('BOTH');
   const [executionType, setExecutionType] = useState('INTERNAL');
   const [priceType, setPriceType] = useState('FIXED');
   const [defaultPrice, setDefaultPrice] = useState('');
@@ -106,7 +106,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   const openAddModal = () => {
     setName('');
     setCategory('Catering');
-    setScope(initialScopeFilter === 'SPACE' || initialScopeFilter === 'EVENT' ? initialScopeFilter : 'BOTH');
+    setContext(initialScopeFilter === 'SPACE' || initialScopeFilter === 'EVENT' ? initialScopeFilter : 'BOTH');
     setExecutionType('INTERNAL');
     setPriceType('FIXED');
     setDefaultPrice('');
@@ -118,7 +118,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     setEditingService(service);
     setName(service.name || '');
     setCategory(service.category || '');
-    setScope(service.scope || 'BOTH');
+    setContext(service.context || 'BOTH');
     setExecutionType(service.defaultExecutionType || 'INTERNAL');
     setPriceType(service.priceType || 'FIXED');
     setDefaultPrice(service.defaultPrice ? service.defaultPrice.toString() : '');
@@ -163,7 +163,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
         body: JSON.stringify({
           name,
           category,
-          scope,
+          context,
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
@@ -202,7 +202,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
         body: JSON.stringify({
           name,
           category,
-          scope,
+          context,
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
@@ -265,7 +265,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   // Apply filters — scope first (Space/Event/Both), then execution mode
   const scopedServices = scopeFilter === 'ALL'
     ? initialServices
-    : initialServices.filter((s) => s.scope === scopeFilter || s.scope === 'BOTH');
+    : initialServices.filter((s) => s.context === scopeFilter || s.context === 'BOTH');
   const filteredServices = executionFilter === 'ALL'
     ? scopedServices
     : scopedServices.filter(s => s.defaultExecutionType === executionFilter);
@@ -351,8 +351,8 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                         </td>
                         {!isScoped && (
                           <td>
-                            <span className={`badge ${s.scope === 'SPACE' ? 'b-accent' : s.scope === 'EVENT' ? 'b-info' : 'b-mute'}`}>
-                              {s.scope === 'BOTH' ? 'Space & Event' : s.scope === 'SPACE' ? 'Space' : 'Event'}
+                            <span className={`badge ${s.context === 'SPACE' ? 'b-accent' : s.context === 'EVENT' ? 'b-info' : 'b-mute'}`}>
+                              {s.context === 'BOTH' ? 'Space & Event' : s.context === 'SPACE' ? 'Space' : 'Event'}
                             </span>
                           </td>
                         )}
@@ -440,7 +440,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
               <div className="field">
                 <label className="label">Workspace</label>
-                <select value={scope} onChange={(e) => setScope(e.target.value as 'SPACE' | 'EVENT' | 'BOTH')} className="input">
+                <select value={context} onChange={(e) => setContext(e.target.value as 'SPACE' | 'EVENT' | 'BOTH')} className="input">
                   <option value="SPACE">Space only (venue-rental bookings)</option>
                   <option value="EVENT">Event only (full-occasion bookings)</option>
                   <option value="BOTH">Both — usable from either workspace</option>

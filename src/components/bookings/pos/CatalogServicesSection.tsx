@@ -51,7 +51,7 @@ export default function CatalogServicesSection({
   const filteredPackages = packages.filter((pkg) => {
     const matchesSearch = pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (pkg.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'ALL' || pkg.scope === categoryFilter;
+    const matchesCategory = categoryFilter === 'ALL' || pkg.context === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -118,7 +118,7 @@ export default function CatalogServicesSection({
           >
             Venue ({viewMode === 'services'
               ? catalogServices.filter(s => s.category === 'SPACE').length
-              : packages.filter(p => p.scope === 'SPACE').length})
+              : packages.filter(p => p.context === 'SPACE').length})
           </button>
 
           <button
@@ -128,7 +128,7 @@ export default function CatalogServicesSection({
           >
             Event ({viewMode === 'services'
               ? catalogServices.filter(s => s.category === 'EVENT').length
-              : packages.filter(p => p.scope === 'EVENT').length})
+              : packages.filter(p => p.context === 'EVENT').length})
           </button>
         </div>
 
@@ -188,7 +188,7 @@ export default function CatalogServicesSection({
                             {service.price.toLocaleString()} MT
                           </span>
                           <span className="label">
-                            {service.priceType === 'PER_GUEST' ? 'Per Guest' : service.priceType === 'HOURLY' ? 'Hourly' : 'Fixed Fee'}
+                            {service.priceType === 'PER_GUEST' ? 'Per Guest' : service.priceType === 'PER_HOUR' ? 'Hourly' : 'Fixed Fee'}
                           </span>
                         </div>
                       </div>
@@ -260,8 +260,8 @@ export default function CatalogServicesSection({
                     }}
                   >
                     <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                      <span className={`badge ${pkg.scope === 'SPACE' ? 'b-accent' : 'b-info'}`}>
-                        {pkg.scope === 'SPACE' ? 'Venue Package' : 'Event Package'}
+                      <span className={`badge ${pkg.context === 'SPACE' ? 'b-accent' : 'b-info'}`}>
+                        {pkg.context === 'SPACE' ? 'Venue Package' : 'Event Package'}
                       </span>
                       <span className="badge b-mute">{pkg.services.length} service{pkg.services.length === 1 ? '' : 's'}</span>
                     </div>

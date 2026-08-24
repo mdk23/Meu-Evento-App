@@ -51,10 +51,10 @@ export default async function EditBookingPage({
   const services = await prisma.service.findMany({
     where: {
       active: true,
-      ...(initialBookingData.context === 'SPACE' ? { scope: { in: ['SPACE', 'BOTH'] } } : {}),
+      ...(initialBookingData.context === 'SPACE' ? { context: { in: ['SPACE', 'BOTH'] } } : {}),
     },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, scope: true, defaultProviderType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, context: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
   
   const spaces = await prisma.space.findMany({
@@ -81,7 +81,7 @@ export default async function EditBookingPage({
   });
 
   const packages = (await PackageCatalogService.getCatalog())
-    .filter((p) => p.active && isScopeAllowedForKind(p.scope, initialBookingData.context));
+    .filter((p) => p.active && isScopeAllowedForKind(p.context, initialBookingData.context));
 
   const totalContractAmount = toDisplayNumber(sumMoney(initialBookingData.bookingServices.map((service) => service.sellingPrice)));
   const totalScheduledAmount = toDisplayNumber(sumMoney(initialBookingData.scheduledPayments.map((sp) => sp.amount)));

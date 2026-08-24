@@ -147,13 +147,13 @@ export function useBookingPOS({
     return initialServices.map((s) => ({
       id: s.id,
       name: s.name,
-      // Real `Service.scope` now that it exists (Phase 12e) — a BOTH-scoped service is bucketed into
-      // whichever workspace this booking is for, since the existing Space/Event cost-total split only
-      // has two buckets and "shared, but counted here in this booking" is the correct read of BOTH.
-      category: (s.scope === 'BOTH' ? initialKind : s.scope) as 'SPACE' | 'EVENT',
+      // A BOTH-context service is bucketed into whichever workspace this booking is for, since the
+      // existing Space/Event cost-total split only has two buckets and "shared, but counted here in
+      // this booking" is the correct read of BOTH.
+      category: (s.context === 'BOTH' ? initialKind : s.context) as 'SPACE' | 'EVENT',
       providerType: (s.defaultProviderType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
       providerName: s.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
-      priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'HOURLY' ? 'HOURLY' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'HOURLY',
+      priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'PER_HOUR' ? 'PER_HOUR' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'PER_HOUR',
       price: s.defaultPrice || 15000,
       description: 'Specialized service for your event.',
     }));
@@ -185,7 +185,7 @@ export function useBookingPOS({
           category: (es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
           providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
-          priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'HOURLY' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
+          priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'PER_HOUR' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
           price: unitPrice,
           quantity: qty,
           totalPrice: es.sellingPrice || 0,

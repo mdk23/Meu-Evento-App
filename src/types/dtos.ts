@@ -166,9 +166,9 @@ export interface ServiceCardDTO {
   name: string;
   category: string;
   /** Which workspace(s) this service can be selected from — SPACE, EVENT, or BOTH. */
-  scope: 'SPACE' | 'EVENT' | 'BOTH';
+  context: 'SPACE' | 'EVENT' | 'BOTH';
   defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
-  priceType: string;
+  priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
   defaultPrice: number;
   inventoryRequirements: ServiceInventoryRequirementDTO[];
 }
@@ -183,15 +183,18 @@ export interface PackageCardDTO {
   id: string;
   name: string;
   description: string | null;
-  scope: 'SPACE' | 'EVENT';
+  context: 'SPACE' | 'EVENT';
+  pricingMode: 'COMPUTED' | 'FIXED';
+  /** Only meaningful when `pricingMode = FIXED`. */
+  price: number | null;
   active: boolean;
   services: Array<{
     serviceId: string;
     name: string;
     category: string;
-    scope: 'SPACE' | 'EVENT' | 'BOTH';
+    context: 'SPACE' | 'EVENT' | 'BOTH';
     defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
-    priceType: string;
+    priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
     defaultPrice: number;
     /** Units of this service the package bundles by default (e.g. 300 chairs). */
     quantity: number;

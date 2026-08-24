@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { PackageScope } from '@prisma/client';
+import { PackageContext, PackagePricingMode } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
 import { isServiceCompatibleWithPackageScope } from '@/lib/service-scope';
+
+function resolvePricingMode(value: unknown): PackagePricingMode | undefined {
+  if (value === 'FIXED') return PackagePricingMode.FIXED;
+  if (value === 'COMPUTED') return PackagePricingMode.COMPUTED;
+  return undefined;
+}
 
 export async function PATCH(
   request: Request,
@@ -11,23 +17,24 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, scope, serviceIds, quantities } = body;
+    const { name, description, scope, pricingMode, price, serviceIds, quantities } = body;
 
     const existingPackage = await prisma.package.findUnique({ where: { id } });
     if (!existingPackage) {
       return NextResponse.json({ error: 'Package not found' }, { status: 404 });
     }
 
-    const resolvedScope: PackageScope = scope === 'SPACE' || scope === 'EVENT' ? scope : existingPackage.scope;
+    const resolvedScope: PackageContext = scope === 'SPACE' || scope === 'EVENT' ? scope : existingPackage.context;
+    const resolvedPricingMode = resolvePricingMode(pricingMode) ?? existingPackage.pricingMode;
 
     if (Array.isArray(serviceIds) && serviceIds.length > 0) {
       // Defense in depth — same compatibility rule as create, checked against whichever scope this
       // update actually resolves to (a scope change and a service-list change can arrive together).
       const candidateServices = await prisma.service.findMany({
         where: { id: { in: serviceIds } },
-        select: { id: true, name: true, scope: true },
+        select: { id: true, name: true, context: true },
       });
-      const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.scope, resolvedScope));
+      const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.context, resolvedScope));
       if (incompatible.length > 0) {
         return NextResponse.json(
           { error: `Not compatible with a ${resolvedScope} package: ${incompatible.map((s) => s.name).join(', ')}` },
@@ -59,7 +66,14 @@ export async function PATCH(
         data: {
           name: name !== undefined ? name : existingPackage.name,
           description: description !== undefined ? description : existingPackage.description,
-          scope: resolvedScope,
+          context: resolvedScope,
+          pricingMode: resolvedPricingMode,
+          price:
+            resolvedPricingMode === PackagePricingMode.FIXED
+              ? price !== undefined
+                ? parseFloat(price)
+                : existingPackage.price
+              : null,
         },
         include: { items: { orderBy: { order: 'asc' }, include: { service: true } } },
       });

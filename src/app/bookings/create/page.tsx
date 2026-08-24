@@ -22,10 +22,10 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
   const services = await prisma.service.findMany({
     where: {
       active: true,
-      ...(initialKind === 'SPACE' ? { scope: { in: ['SPACE', 'BOTH'] } } : {}),
+      ...(initialKind === 'SPACE' ? { context: { in: ['SPACE', 'BOTH'] } } : {}),
     },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, scope: true, defaultProviderType: true, defaultPrice: true, priceType: true },
+    select: { id: true, name: true, category: true, context: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
   const spaces = await prisma.space.findMany({
     orderBy: { name: 'asc' },
@@ -43,7 +43,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
     },
   });
   const packages = (await PackageCatalogService.getCatalog())
-    .filter((p) => p.active && isScopeAllowedForKind(p.scope, initialKind));
+    .filter((p) => p.active && isScopeAllowedForKind(p.context, initialKind));
 
   return (
     <BookingPOSTerminal

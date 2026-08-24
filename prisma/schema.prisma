@@ -321,16 +321,16 @@ model Service {
   tenantId            String
   name                String
   category            String
-  /// Which workspace(s) this service can be selected from — see `ServiceScope` doc comment.
-  /// Defaults to `BOTH` on every pre-existing row (this field didn't exist before Phase 12e), which
-  /// preserves the exact "visible everywhere" behavior every service had before scoping existed;
-  /// re-scoping real catalog rows to SPACE-only or EVENT-only is a deliberate follow-up the catalog
-  /// owner does via the Services page, not something inferred automatically from name/category.
-  scope               ServiceScope  @default(BOTH)
+  /// Which workspace(s) this service can be selected from — see `ServiceContext` doc comment.
+  /// Defaults to `BOTH` on every pre-existing row, which preserves the exact "visible everywhere"
+  /// behavior every service had before contexting existed; re-contexting real catalog rows to
+  /// SPACE-only or EVENT-only is a deliberate follow-up the catalog owner does via the Services
+  /// page, not something inferred automatically from name/category.
+  context             ServiceContext @default(BOTH)
   /// The provider type this service defaults to when added to a booking. Purely a suggested
   /// starting point — `BookingService.providerType` is the real per-booking decision and can differ.
   defaultProviderType ExecutionType @default(INTERNAL)
-  priceType           String        @default("FIXED")
+  priceType           PriceType     @default(FIXED)
   defaultPrice        Decimal       @default(0) @db.Decimal(12, 2)
   active              Boolean       @default(true)
   createdAt           DateTime      @default(now())
@@ -345,18 +345,25 @@ model Service {
   @@index([tenantId])
   @@index([category])
   @@index([active])
-  @@index([scope])
+  @@index([context])
   @@map("services")
 }
 
 /// Which workspace a bundle is offered in — Space packages are room-only bundles (e.g. the venue
 /// + furniture), Event packages bundle a full occasion's services (catering, decor, etc.). Unlike
-/// `ServiceScope`, a package never gets `BOTH` — the user's own model is that a cross-workspace need
+/// `ServiceContext`, a package never gets `BOTH` — the user's own model is that a cross-workspace need
 /// (e.g. an Event booking that also needs the venue) is met by applying two separate packages, not
 /// one mixed one; keeping packages single-workspace prevents accidental catalog mixing.
-enum PackageScope {
+enum PackageContext {
   SPACE
   EVENT
+}
+
+/// Whether a `Package`'s total is always derived live from its `items` (`COMPUTED`, the default) or
+/// pinned to an explicit negotiated flat rate via `Package.price` (`FIXED`).
+enum PackagePricingMode {
+  COMPUTED
+  FIXED
 }
 
 /// Which workspace(s) a catalog `Service` can be selected from. `BOTH` is for genuinely
@@ -364,33 +371,47 @@ enum PackageScope {
 /// to exactly where it's actually offered. A SPACE booking's catalog only ever shows SPACE+BOTH
 /// services; an EVENT booking sees everything (Event is the superset workspace — it legitimately
 /// needs the venue too).
-enum ServiceScope {
+enum ServiceContext {
   SPACE
   EVENT
   BOTH
 }
 
+/// How a service's `defaultPrice` (and a sold line's snapshot `unitPrice`) is meant to be applied.
+/// `PER_GUEST`/`PER_UNIT` multipliers are resolved once, at write time, against the booking's real
+/// `guestCount`/the line's own `quantity` — never recomputed live at read time.
+enum PriceType {
+  FIXED
+  PER_GUEST
+  PER_HOUR
+  PER_UNIT
+}
+
 /// A named bundle of catalog services. Applying one to a booking explodes it into individual
-/// BookingService lines at each service's normal price — the bundle itself carries no price of its
-/// own (no cached rollup field — the total is always computed from its live `PackageItem`s, so it
-/// can never drift out of sync), so applied lines stay fully editable afterward (spec: "apply
-/// packages, edit price/quantity/cost per line").
+/// BookingService lines at each service's normal price. When `pricingMode = COMPUTED` (the default),
+/// the bundle carries no price of its own — the total is always computed live from its `PackageItem`s,
+/// so it can never drift out of sync — and applied lines stay fully editable afterward (spec: "apply
+/// packages, edit price/quantity/cost per line"). When `pricingMode = FIXED`, `price` is an explicit
+/// negotiated flat rate for the whole bundle instead.
 model Package {
-  id          String       @id @default(cuid())
+  id          String             @id @default(cuid())
   tenantId    String
   name        String
   description String?
-  scope       PackageScope
-  active      Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  context     PackageContext
+  pricingMode PackagePricingMode @default(COMPUTED)
+  /// Only meaningful when `pricingMode = FIXED` — ignored (and left null on new rows) otherwise.
+  price       Decimal?           @db.Decimal(12, 2)
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   items           PackageItem[]
   bookingPackages BookingPackage[]
 
   @@index([tenantId])
-  @@index([scope])
+  @@index([context])
   @@index([active])
   @@map("packages")
 }
@@ -426,6 +447,14 @@ model BookingService {
   /// for them. Set for every EVENT booking's lines.
   eventId          String?
   serviceId        String
+  /// Which workspace this specific line belongs to — independent of `Booking.context`, since one
+  /// EVENT booking can carry both space-package-sourced and event-package-sourced lines at once.
+  /// Resolved at creation: from the source Package's context when `source = PACKAGE`, otherwise
+  /// from whichever workspace the line was added from.
+  context          ServiceContext
+  /// Snapshot of `Service.priceType` at the moment this line was sold — protects a historical line
+  /// from silently changing meaning if the catalog service's price type is edited afterward.
+  priceType        PriceType
   providerType     ExecutionType   @default(INTERNAL)
   /// How many units of the service this line represents (e.g. 10 for "10 Extra Tables") — kept in
   /// sync with `sellingPrice = unitPrice * quantity` at write time. Persisting this (rather than only

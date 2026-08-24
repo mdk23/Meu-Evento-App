@@ -221,7 +221,7 @@ export async function PATCH(
             });
             if (existingService) {
               catalogServiceId = existingService.id;
-              serviceScope = existingService.scope;
+              serviceScope = existingService.context;
             } else {
               // Ad-hoc service born inside this booking rather than the Services page — "created in
               // Space, belongs to Space": stamped with the booking's own (unchanging) workspace.
@@ -230,21 +230,21 @@ export async function PATCH(
                   tenantId,
                   name: item.name,
                   category: item.category || 'GERAL',
-                  scope: existingBooking.context,
+                  context: existingBooking.context,
                   defaultProviderType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
                   priceType: item.priceType || 'FIXED',
                   defaultPrice: item.price || 0,
                 },
               });
               catalogServiceId = newService.id;
-              serviceScope = newService.scope;
+              serviceScope = newService.context;
             }
           }
 
           if (catalogServiceId) {
             if (serviceScope === undefined) {
-              const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { scope: true } });
-              serviceScope = catalogService?.scope ?? 'BOTH';
+              const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { context: true } });
+              serviceScope = catalogService?.context ?? 'BOTH';
             }
             assertServiceScopeAllowed(serviceScope, existingBooking.context, item.name);
 
