@@ -28,8 +28,8 @@ export default function BookingHandoverTab({ booking }: BookingHandoverTabProps)
           </div>
           <h3 className="h-md">This booking runs a full Event</h3>
           <p className="mini dim">
-            Tasks, staff assignments, inventory reservations, suppliers and execution progress all live in
-            the Event workspace, not here.
+            Tasks, staff assignments, suppliers and execution progress all live in the Event workspace,
+            not here — resources are reserved from the Resources tab on this screen either way.
           </p>
           {eventId ? (
             <Link href={`/events/${eventId}`} className="btn primary" style={{ justifyContent: 'center', marginTop: 8 }}>
@@ -70,9 +70,10 @@ export default function BookingHandoverTab({ booking }: BookingHandoverTabProps)
         </div>
         <h3 className="h-md">No Hand-over yet — this is a Space booking</h3>
         <p className="mini dim">
-          Space bookings are commercial-only: no tasks, staff assignments, or inventory reservations exist
-          for them by design. Promote to an Event to unlock the full operational workspace — the contract,
-          payments and any reserved stock carry across untouched.
+          Space bookings are commercial-only: no tasks or staff assignments exist for them by design —
+          but resources can still be reserved from the Resources tab on this screen, no promotion
+          needed. Promote to an Event to unlock the full operational workspace (tasks, staff, suppliers,
+          execution) — the contract, payments and any reserved stock carry across untouched.
         </p>
         <button onClick={handlePromote} disabled={promoting} className="btn primary" style={{ justifyContent: 'center', marginTop: 8 }}>
           {promoting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-3.5 h-3.5" />}

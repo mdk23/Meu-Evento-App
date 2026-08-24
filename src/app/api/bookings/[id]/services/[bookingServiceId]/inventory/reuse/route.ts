@@ -3,18 +3,18 @@ import { prisma, prismaTransaction } from '@/lib/prisma';
 import { assertReuseQuantityAvailable, InventoryConflictError } from '@/lib/resource-conflict';
 
 /**
- * Fulfills a `BookingServiceResource` row by reusing another service's already-active resource
- * instead of creating a fresh reservation — the cross-workspace "Space already reserved 300 chairs,
- * Event's Decoration needs 200 of them" scenario. Never touches the target's own `reservedQuantity`
- * or creates an `InventoryTransaction` — reuse is a bookkeeping link (`reusedFromResourceId`) against
- * stock that's already committed, not a new physical movement.
+ * Fulfills a `BookingServiceResource` row by reusing another service's already-active resource on
+ * the same booking instead of creating a fresh reservation — the cross-workspace "Space already
+ * reserved 300 chairs, Event's Decoration needs 200 of them" scenario. Never touches the target's
+ * own `reservedQuantity` or creates an `InventoryTransaction` — reuse is a bookkeeping link
+ * (`reusedFromResourceId`) against stock that's already committed, not a new physical movement.
  */
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string; eventServiceId: string }> }
+  { params }: { params: Promise<{ id: string; bookingServiceId: string }> }
 ) {
   try {
-    const { id: eventId, eventServiceId } = await params;
+    const { id: bookingId, bookingServiceId } = await params;
     const body = await request.json();
     const { resourceRequirementId, reuseReservationId, quantity } = body;
 
@@ -24,19 +24,16 @@ export async function POST(
     }
 
     const resource = await prisma.bookingServiceResource.findUnique({ where: { id: resourceRequirementId } });
-    if (!resource || resource.bookingServiceId !== eventServiceId) {
-      return NextResponse.json({ error: 'Resource requirement not found for this work order' }, { status: 404 });
+    if (!resource || resource.bookingServiceId !== bookingServiceId) {
+      return NextResponse.json({ error: 'Resource requirement not found for this service' }, { status: 404 });
     }
 
-    const target = await prisma.bookingServiceResource.findUnique({
-      where: { id: reuseReservationId },
-      include: { bookingService: { select: { eventId: true } } },
-    });
-    if (!target || target.bookingService.eventId !== eventId) {
-      return NextResponse.json({ error: 'Resource not found for this event' }, { status: 404 });
+    const target = await prisma.bookingServiceResource.findUnique({ where: { id: reuseReservationId } });
+    if (!target || target.bookingId !== bookingId) {
+      return NextResponse.json({ error: 'Resource not found for this booking' }, { status: 404 });
     }
-    if (target.bookingServiceId === eventServiceId) {
-      return NextResponse.json({ error: 'Cannot reuse a resource this same work order already holds' }, { status: 400 });
+    if (target.bookingServiceId === bookingServiceId) {
+      return NextResponse.json({ error: 'Cannot reuse a resource this same service already holds' }, { status: 400 });
     }
 
     const updated = await prismaTransaction.$transaction(async (tx) => {

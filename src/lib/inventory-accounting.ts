@@ -31,7 +31,7 @@ export interface InventoryStockSummary {
   lostQuantity: Prisma.Decimal;
 }
 
-const ACTIVE_RESERVATION_STATUSES = new Set(['RESERVED', 'IN_USE']);
+const ACTIVE_RESOURCE_STATUSES = new Set(['RESERVED', 'IN_USE']);
 
 function sumBy<T>(items: T[], predicate: (item: T) => boolean, quantityOf: (item: T) => number | Prisma.Decimal): Prisma.Decimal {
   return items
@@ -55,7 +55,7 @@ export function computeInventoryStockSummary(
   const total = new Prisma.Decimal(totalQuantity);
   const reservedQuantity = sumBy(
     reservations,
-    (r) => ACTIVE_RESERVATION_STATUSES.has(r.status) && r.reusedFromResourceId === null,
+    (r) => ACTIVE_RESOURCE_STATUSES.has(r.status) && r.reusedFromResourceId === null,
     (r) => r.reservedQuantity
   );
   const availableQuantity = Prisma.Decimal.max(total.minus(reservedQuantity), 0);

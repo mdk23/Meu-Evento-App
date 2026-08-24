@@ -22,8 +22,6 @@ export function useEventDetail(id: string) {
   const [workOrderError, setWorkOrderError] = useState('');
 
   const [selectedStaffId, setSelectedStaffId] = useState('');
-  const [selectedInventoryId, setSelectedInventoryId] = useState('');
-  const [reserveQuantity, setReserveQuantity] = useState('1');
 
   const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
   const [catalogServiceId, setCatalogServiceId] = useState('');
@@ -81,8 +79,6 @@ export function useEventDetail(id: string) {
     setSupplierStatus(es.supplierStatus || 'REQUESTED');
     setPaymentStatus(es.paymentStatus || 'UNPAID');
     setSelectedStaffId('');
-    setSelectedInventoryId('');
-    setReserveQuantity('1');
     setWorkOrderError('');
   };
 
@@ -232,21 +228,20 @@ export function useEventDetail(id: string) {
     }
   };
 
-  const handleReserveInventoryItem = async (options?: { inventoryItemId?: string; quantity?: number; resourceRequirementId?: string }) => {
-    if (!selectedService) return;
-    const itemId = options?.inventoryItemId ?? selectedInventoryId;
-    if (!itemId) return;
-    const qty = options?.quantity ?? parseInt(reserveQuantity || '0', 10);
-    if (!qty || qty <= 0) return;
+  // Resource actions hit the booking-scoped API — the same routes the booking-scoped Resources tab
+  // uses — rather than a parallel event-scoped implementation. `data.event.booking.id` is always
+  // present once an event is loaded (every Event has exactly one parent Booking).
+  const handleReserveInventoryItem = async (options: { inventoryItemId: string; quantity: number; resourceRequirementId?: string }) => {
+    if (!selectedService || !data) return;
     setWorkOrderError('');
     try {
-      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory`, {
+      const res = await fetch(`/api/bookings/${data.event.booking.id}/services/${selectedService.id}/inventory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inventoryItemId: itemId,
-          quantity: qty,
-          resourceRequirementId: options?.resourceRequirementId,
+          inventoryItemId: options.inventoryItemId,
+          quantity: options.quantity,
+          resourceRequirementId: options.resourceRequirementId,
         }),
       });
       if (!res.ok) {
@@ -254,30 +249,28 @@ export function useEventDetail(id: string) {
         setWorkOrderError(json.error || 'Failed to reserve inventory.');
         return;
       }
-      setSelectedInventoryId('');
-      setReserveQuantity('1');
       await reloadEvent();
     } catch (err) {
       console.error('Failed to reserve inventory:', err);
     }
   };
 
-  const handleRemoveReservedInventory = async (reservationId: string) => {
-    if (!selectedService) return;
+  const handleRemoveReservedInventory = async (resourceId: string) => {
+    if (!selectedService || !data) return;
     try {
-      await fetch(`/api/events/${id}/services/${selectedService.id}/inventory/${reservationId}`, { method: 'DELETE' });
+      await fetch(`/api/bookings/${data.event.booking.id}/services/${selectedService.id}/inventory/${resourceId}`, { method: 'DELETE' });
       await reloadEvent();
     } catch (err) {
       console.error('Failed to release inventory reservation:', err);
     }
   };
 
-  /** Advances a reservation through Confirm/Allocate/Use/Return/Release/Cancel (Phase 15). */
-  const handleReservationAction = async (reservationId: string, action: string) => {
-    if (!selectedService) return;
+  /** Advances a resource through Allocate/Use/Return/Release. */
+  const handleReservationAction = async (resourceId: string, action: string) => {
+    if (!selectedService || !data) return;
     setWorkOrderError('');
     try {
-      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory/${reservationId}`, {
+      const res = await fetch(`/api/bookings/${data.event.booking.id}/services/${selectedService.id}/inventory/${resourceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
@@ -293,17 +286,17 @@ export function useEventDetail(id: string) {
     }
   };
 
-  /** Fulfills a resource requirement by reusing another service's already-active reservation
-   * (Phase 17) instead of creating a new one — no InventoryReservation/Transaction is created here,
-   * only the requirement's own `providedQuantity`/`reuseReservationId` bookkeeping changes. */
-  const handleReuseReservation = async (resourceRequirementId: string, reuseReservationId: string, quantity: number) => {
-    if (!selectedService) return;
+  /** Fulfills a resource by reusing another service's already-active resource instead of creating a
+   * new one — no InventoryReservation/Transaction is created here, only the row's own
+   * `reservedQuantity`/`reusedFromResourceId` bookkeeping changes. */
+  const handleReuseReservation = async (resourceRequirementId: string, reuseFromResourceId: string, quantity: number) => {
+    if (!selectedService || !data) return;
     setWorkOrderError('');
     try {
-      const res = await fetch(`/api/events/${id}/services/${selectedService.id}/inventory/reuse`, {
+      const res = await fetch(`/api/bookings/${data.event.booking.id}/services/${selectedService.id}/inventory/reuse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resourceRequirementId, reuseReservationId, quantity }),
+        body: JSON.stringify({ resourceRequirementId, reuseReservationId: reuseFromResourceId, quantity }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -373,10 +366,6 @@ export function useEventDetail(id: string) {
     handleAssignStaff,
     handleUnassignStaff,
 
-    selectedInventoryId,
-    setSelectedInventoryId,
-    reserveQuantity,
-    setReserveQuantity,
     handleReserveInventoryItem,
     handleRemoveReservedInventory,
     handleReservationAction,

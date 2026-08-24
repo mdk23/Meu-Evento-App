@@ -4,12 +4,9 @@ import { resolveReservationTransition, ReservationAction } from '@/lib/inventory
 
 const VALID_ACTIONS: ReservationAction[] = ['ALLOCATE', 'USE', 'RETURN', 'RELEASE'];
 
-async function loadScopedResource(eventId: string, eventServiceId: string, resourceId: string) {
-  const existing = await prisma.bookingServiceResource.findUnique({
-    where: { id: resourceId },
-    include: { bookingService: true },
-  });
-  if (!existing || existing.bookingServiceId !== eventServiceId || existing.bookingService.eventId !== eventId) {
+async function loadScopedResource(bookingId: string, bookingServiceId: string, resourceId: string) {
+  const existing = await prisma.bookingServiceResource.findUnique({ where: { id: resourceId } });
+  if (!existing || existing.bookingServiceId !== bookingServiceId || existing.bookingId !== bookingId) {
     return null;
   }
   return existing;
@@ -22,10 +19,10 @@ async function loadScopedResource(eventId: string, eventServiceId: string, resou
  * which sets both the reserved quantity and the status together in one write. */
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string; eventServiceId: string; reservationId: string }> }
+  { params }: { params: Promise<{ id: string; bookingServiceId: string; resourceId: string }> }
 ) {
   try {
-    const { id: eventId, eventServiceId, reservationId } = await params;
+    const { id: bookingId, bookingServiceId, resourceId } = await params;
     const body = await request.json();
     const action = body.action as ReservationAction;
 
@@ -33,9 +30,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    const existing = await loadScopedResource(eventId, eventServiceId, reservationId);
+    const existing = await loadScopedResource(bookingId, bookingServiceId, resourceId);
     if (!existing) {
-      return NextResponse.json({ error: 'Resource not found for this event service' }, { status: 404 });
+      return NextResponse.json({ error: 'Resource not found for this booking service' }, { status: 404 });
     }
 
     const transition = resolveReservationTransition(existing.status, action);
@@ -48,10 +45,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'No tenant found' }, { status: 400 });
     }
 
+    const bookingService = await prisma.bookingService.findUnique({ where: { id: bookingServiceId }, select: { eventId: true } });
+
     const updated = await prismaTransaction.$transaction(async (tx) => {
       const resource = transition.nextStatus
         ? await tx.bookingServiceResource.update({
-            where: { id: reservationId },
+            where: { id: resourceId },
             data: {
               status: transition.nextStatus,
               // USE marks the full reserved commitment as now in active use; RETURN closes it back
@@ -69,9 +68,9 @@ export async function PATCH(
           data: {
             tenantId: tenant.id,
             inventoryItemId: existing.inventoryItemId,
-            eventId,
-            bookingServiceId: eventServiceId,
-            bookingServiceResourceId: reservationId,
+            eventId: bookingService?.eventId ?? null,
+            bookingServiceId,
+            bookingServiceResourceId: resourceId,
             type: transition.transactionType,
             quantity: existing.reservedQuantity,
             createdBy: 'Staff',
@@ -99,18 +98,18 @@ export async function PATCH(
 
 /** Releasing a resource is a status change (RELEASED), never a hard delete — its history (and
  * anything reusing its stock) survives it no longer being active. Kept as DELETE (not folded into
- * the PATCH action set above) since this is what the existing "remove" button in the work order UI
+ * the PATCH action set above) since this is what the existing "remove" button in the resource UI
  * already calls; its *meaning* changed, not its route shape. */
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string; eventServiceId: string; reservationId: string }> }
+  { params }: { params: Promise<{ id: string; bookingServiceId: string; resourceId: string }> }
 ) {
   try {
-    const { id: eventId, eventServiceId, reservationId } = await params;
+    const { id: bookingId, bookingServiceId, resourceId } = await params;
 
-    const existing = await loadScopedResource(eventId, eventServiceId, reservationId);
+    const existing = await loadScopedResource(bookingId, bookingServiceId, resourceId);
     if (!existing) {
-      return NextResponse.json({ error: 'Resource not found for this event service' }, { status: 404 });
+      return NextResponse.json({ error: 'Resource not found for this booking service' }, { status: 404 });
     }
 
     const transition = resolveReservationTransition(existing.status, 'RELEASE');
@@ -123,16 +122,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'No tenant found' }, { status: 400 });
     }
 
+    const bookingService = await prisma.bookingService.findUnique({ where: { id: bookingServiceId }, select: { eventId: true } });
+
     await prismaTransaction.$transaction(async (tx) => {
-      await tx.bookingServiceResource.update({ where: { id: reservationId }, data: { status: 'RELEASED' } });
+      await tx.bookingServiceResource.update({ where: { id: resourceId }, data: { status: 'RELEASED' } });
       if (existing.inventoryItemId) {
         await tx.inventoryTransaction.create({
           data: {
             tenantId: tenant.id,
             inventoryItemId: existing.inventoryItemId,
-            eventId,
-            bookingServiceId: eventServiceId,
-            bookingServiceResourceId: reservationId,
+            eventId: bookingService?.eventId ?? null,
+            bookingServiceId,
+            bookingServiceResourceId: resourceId,
             type: 'RELEASE',
             quantity: existing.reservedQuantity,
             createdBy: 'Staff',

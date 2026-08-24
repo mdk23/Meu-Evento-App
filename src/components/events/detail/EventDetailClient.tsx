@@ -118,10 +118,6 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           onAssignStaff={detail.handleAssignStaff}
           onUnassignStaff={detail.handleUnassignStaff}
           inventoryItems={inventoryItems || []}
-          selectedInventoryId={detail.selectedInventoryId}
-          setSelectedInventoryId={detail.setSelectedInventoryId}
-          reserveQuantity={detail.reserveQuantity}
-          setReserveQuantity={detail.setReserveQuantity}
           onReserveInventory={detail.handleReserveInventoryItem}
           onRemoveReservedInventory={detail.handleRemoveReservedInventory}
           onReservationAction={detail.handleReservationAction}

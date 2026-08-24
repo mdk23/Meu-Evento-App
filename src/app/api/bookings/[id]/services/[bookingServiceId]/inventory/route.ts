@@ -8,12 +8,18 @@ import {
   InventoryConflictError,
 } from '@/lib/resource-conflict';
 
+/**
+ * Reserves inventory for a `BookingService` line — reachable from any booking regardless of
+ * whether it has an Event (no `eventId` requirement anywhere in this path), which is the whole
+ * point of Phase 6: a Space-only booking gets exactly the same resource capability an Event
+ * booking gets, no "Promote to Event" step required.
+ */
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string; eventServiceId: string }> }
+  { params }: { params: Promise<{ id: string; bookingServiceId: string }> }
 ) {
   try {
-    const { id: eventId, eventServiceId } = await params;
+    const { id: bookingId, bookingServiceId } = await params;
     const body = await request.json();
     const { inventoryItemId, quantity, startAt, endAt, resourceRequirementId } = body;
 
@@ -23,11 +29,11 @@ export async function POST(
     }
 
     const bookingService = await prisma.bookingService.findUnique({
-      where: { id: eventServiceId },
-      include: { event: true, booking: { select: { tenantId: true } } },
+      where: { id: bookingServiceId },
+      include: { booking: { select: { id: true, tenantId: true, startAt: true, endAt: true } } },
     });
-    if (!bookingService || !bookingService.event || bookingService.eventId !== eventId) {
-      return NextResponse.json({ error: 'Event service not found for this event' }, { status: 404 });
+    if (!bookingService || bookingService.bookingId !== bookingId) {
+      return NextResponse.json({ error: 'Service not found for this booking' }, { status: 404 });
     }
     assertInternalProvider(bookingService.providerType, bookingService.serviceNameSnapshot || undefined);
 
@@ -42,15 +48,15 @@ export async function POST(
     const resourceRow = resourceRequirementId
       ? await prisma.bookingServiceResource.findUnique({ where: { id: resourceRequirementId } })
       : null;
-    if (resourceRequirementId && (!resourceRow || resourceRow.bookingServiceId !== eventServiceId)) {
-      return NextResponse.json({ error: 'Resource requirement not found for this work order' }, { status: 404 });
+    if (resourceRequirementId && (!resourceRow || resourceRow.bookingServiceId !== bookingServiceId)) {
+      return NextResponse.json({ error: 'Resource requirement not found for this service' }, { status: 404 });
     }
 
     const span = startAt && endAt
       ? { startAt: new Date(startAt), endAt: new Date(endAt) }
       : resourceRow
       ? { startAt: resourceRow.startAt, endAt: resourceRow.endAt }
-      : fullDaySpan(bookingService.event.date);
+      : fullDaySpan(bookingService.booking.startAt);
 
     const resource = await prismaTransaction.$transaction(async (tx) => {
       await assertInventoryAvailable(tx, inventoryItemId, parsedQuantity, span.startAt, span.endAt, resourceRow?.id);
@@ -72,8 +78,8 @@ export async function POST(
         : await tx.bookingServiceResource.create({
             data: {
               tenantId: bookingService.booking.tenantId,
-              bookingId: bookingService.bookingId,
-              bookingServiceId: eventServiceId,
+              bookingId,
+              bookingServiceId,
               inventoryItemId,
               itemNameSnapshot: item.name,
               requiredQuantity: parsedQuantity,
@@ -88,8 +94,8 @@ export async function POST(
         data: {
           tenantId: bookingService.booking.tenantId,
           inventoryItemId,
-          eventId,
-          bookingServiceId: eventServiceId,
+          eventId: bookingService.eventId,
+          bookingServiceId,
           bookingServiceResourceId: updated.id,
           type: 'RESERVE',
           quantity: parsedQuantity,
@@ -108,7 +114,7 @@ export async function POST(
     if (error instanceof ExternalProviderReservationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error('Failed to reserve inventory for work order:', error);
+    console.error('Failed to reserve inventory for booking service:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

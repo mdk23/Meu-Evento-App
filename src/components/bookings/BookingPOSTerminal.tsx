@@ -9,6 +9,7 @@ import CatalogServicesSection from './pos/CatalogServicesSection';
 import POSExtractSummarySection from './pos/POSExtractSummarySection';
 import BookingOverviewTab from './pos/BookingOverviewTab';
 import BookingContractTab from './pos/BookingContractTab';
+import BookingResourcesTab from './pos/BookingResourcesTab';
 import BookingHandoverTab from './pos/BookingHandoverTab';
 import ClientFormModal from '@/components/clients/ClientFormModal';
 
@@ -139,6 +140,9 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             </main>
             <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'contract' ? 'block' : 'hidden'}`}>
               <BookingContractTab booking={props.initialBookingData} />
+            </main>
+            <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'resources' ? 'block' : 'hidden'}`}>
+              <BookingResourcesTab bookingId={props.initialBookingData.id} />
             </main>
             <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'handover' ? 'block' : 'hidden'}`}>
               <BookingHandoverTab booking={props.initialBookingData} />

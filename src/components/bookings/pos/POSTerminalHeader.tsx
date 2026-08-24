@@ -1,12 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, TrendingUp, LayoutGrid, FileText, ScrollText, ArrowRightLeft, CreditCard } from 'lucide-react';
+import { ArrowLeft, Plus, TrendingUp, LayoutGrid, FileText, ScrollText, ArrowRightLeft, CreditCard, Package } from 'lucide-react';
 import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
 import LifecycleSpine from '@/components/aurelia/LifecycleSpine';
 import { deriveLifecycleStages } from '@/lib/booking-lifecycle';
 import { BookingPOSInitialData } from './types';
 
-export type POSTab = 'overview' | 'details' | 'contract' | 'handover' | 'payments';
+export type POSTab = 'overview' | 'details' | 'contract' | 'resources' | 'handover' | 'payments';
 
 interface POSTerminalHeaderProps {
   onReset: () => void;
@@ -76,6 +76,15 @@ export default function POSTerminalHeader({ onReset, isEdit, booking, bookingKin
             >
               <ScrollText className="w-3.5 h-3.5" />
               Contract
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('resources')}
+              className={`tab ${activeTab === 'resources' ? 'active' : ''}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <Package className="w-3.5 h-3.5" />
+              Resources
             </button>
             {hasPaymentsTab && (
               <button
