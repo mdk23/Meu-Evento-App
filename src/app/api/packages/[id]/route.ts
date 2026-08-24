@@ -52,6 +52,7 @@ export async function PATCH(
         if (serviceIds.length > 0) {
           await tx.packageItem.createMany({
             data: serviceIds.map((serviceId: string, index: number) => ({
+              tenantId: existingPackage.tenantId,
               packageId: id,
               serviceId,
               order: index,

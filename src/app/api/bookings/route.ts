@@ -296,6 +296,7 @@ export async function POST(request: Request) {
           if (bookingPackageId) {
             await tx.bookingPackageItem.create({
               data: {
+                tenantId: tenant.id,
                 bookingPackageId,
                 serviceId: catalogServiceId,
                 bookingServiceId: createdBookingService.id,

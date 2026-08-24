@@ -310,9 +310,10 @@ export async function PATCH(
               });
             }
 
-            if (bookingPackageId) {
+            if (bookingPackageId && tenantId) {
               await tx.bookingPackageItem.create({
                 data: {
+                  tenantId,
                   bookingPackageId,
                   serviceId: catalogServiceId,
                   bookingServiceId: createdBookingService.id,

@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         price: resolvedPricingMode === PackagePricingMode.FIXED && price !== undefined ? parseFloat(price) : null,
         items: {
           create: serviceIds.map((serviceId: string, index: number) => ({
+            tenantId: tenant.id,
             serviceId,
             order: index,
             quantity: quantities?.[serviceId] ?? 1,

@@ -250,6 +250,7 @@ model Booking {
   @@index([context])
   @@index([eventDate])
   @@index([startAt, endAt])
+  @@index([context, startAt])
   @@map("bookings")
 }
 
@@ -419,6 +420,7 @@ model Package {
 
 model PackageItem {
   id            String   @id @default(cuid())
+  tenantId      String
   packageId     String
   serviceId     String
   /// Display/apply order within the package.
@@ -434,6 +436,7 @@ model PackageItem {
   service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@unique([packageId, serviceId])
+  @@index([tenantId])
   @@index([packageId])
   @@index([serviceId])
   @@map("package_items")
@@ -545,6 +548,7 @@ model BookingPackage {
 
 model BookingPackageItem {
   id               String   @id @default(cuid())
+  tenantId         String
   bookingPackageId String
   serviceId        String?
   /// Ties this template line to the exact `BookingService` it exploded into, for full
@@ -563,6 +567,7 @@ model BookingPackageItem {
   service        Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   bookingService BookingService? @relation(fields: [bookingServiceId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId])
   @@index([bookingPackageId])
   @@index([bookingServiceId])
   @@map("booking_package_items")
@@ -711,7 +716,7 @@ model ServiceInventoryRequirement {
   /// Every per-booking resource row seeded from this template across every booking it's been applied to.
   seededResources BookingServiceResource[]
 
-  @@index([serviceId])
+  @@unique([serviceId, inventoryItemId])
   @@index([inventoryItemId])
   @@index([categoryId])
   @@map("service_inventory_requirements")
