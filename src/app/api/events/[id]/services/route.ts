@@ -94,6 +94,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         bookingId: event.bookingId,
         eventId,
         serviceId,
+        context: 'EVENT',
+        priceType: catalogService.priceType,
         serviceNameSnapshot: catalogService.name,
         providerType: resolvedProviderType,
         sellingPrice: sellingPrice ? parseFloat(sellingPrice) : toDisplayNumber(catalogService.defaultPrice),

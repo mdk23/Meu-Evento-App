@@ -214,6 +214,7 @@ export async function PATCH(
         for (const item of selectedServices) {
           let catalogServiceId = item.serviceId;
           let serviceScope: 'SPACE' | 'EVENT' | 'BOTH' | undefined;
+          let servicePriceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT' | undefined;
 
           if (!catalogServiceId && tenantId) {
             const existingService = await tx.service.findFirst({
@@ -222,6 +223,7 @@ export async function PATCH(
             if (existingService) {
               catalogServiceId = existingService.id;
               serviceScope = existingService.context;
+              servicePriceType = existingService.priceType;
             } else {
               // Ad-hoc service born inside this booking rather than the Services page — "created in
               // Space, belongs to Space": stamped with the booking's own (unchanging) workspace.
@@ -238,13 +240,15 @@ export async function PATCH(
               });
               catalogServiceId = newService.id;
               serviceScope = newService.context;
+              servicePriceType = newService.priceType;
             }
           }
 
           if (catalogServiceId) {
-            if (serviceScope === undefined) {
-              const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { context: true } });
+            if (serviceScope === undefined || servicePriceType === undefined) {
+              const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { context: true, priceType: true } });
               serviceScope = catalogService?.context ?? 'BOTH';
+              servicePriceType = catalogService?.priceType ?? 'FIXED';
             }
             assertServiceScopeAllowed(serviceScope, existingBooking.context, item.name);
 
@@ -254,11 +258,17 @@ export async function PATCH(
             if (item.packageApplicationKey && item.sourcePackageId) {
               bookingPackageId = packageAppMap.get(item.packageApplicationKey) ?? null;
               if (!bookingPackageId) {
+                const sourcePackage = await tx.package.findUnique({
+                  where: { id: item.sourcePackageId },
+                  select: { context: true, pricingMode: true, price: true },
+                });
                 const bookingPackage = await tx.bookingPackage.create({
                   data: {
                     bookingId: existingBooking.id,
                     packageId: item.sourcePackageId,
                     nameSnapshot: item.sourcePackageName || 'Package',
+                    context: sourcePackage?.context ?? existingBooking.context,
+                    price: sourcePackage?.pricingMode === 'FIXED' ? sourcePackage.price : null,
                   },
                 });
                 bookingPackageId = bookingPackage.id;
@@ -274,6 +284,10 @@ export async function PATCH(
                 // longer implies "this booking is currently in the Event workspace."
                 eventId: existingBooking.context === 'EVENT' && existingBooking.event ? existingBooking.event.id : null,
                 serviceId: catalogServiceId,
+                // Resolved from whichever workspace this booking is in — matches the plain-add path
+                // since a package's own context snapshot doesn't exist as a separate signal yet.
+                context: existingBooking.context,
+                priceType: servicePriceType ?? 'FIXED',
                 serviceNameSnapshot: item.name || null,
                 providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
                 quantity: itemQuantity,
@@ -302,6 +316,7 @@ export async function PATCH(
                 data: {
                   bookingPackageId,
                   serviceId: catalogServiceId,
+                  bookingServiceId: createdBookingService.id,
                   serviceName: item.name || 'Service',
                   quantity: itemQuantity,
                   unitPrice: itemUnitPrice,

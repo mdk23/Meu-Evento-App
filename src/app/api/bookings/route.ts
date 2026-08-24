@@ -200,6 +200,7 @@ export async function POST(request: Request) {
         for (const item of selectedServices) {
           let catalogServiceId = item.serviceId;
           let serviceScope: 'SPACE' | 'EVENT' | 'BOTH';
+          let servicePriceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
 
           if (!catalogServiceId) {
             const existingService = await tx.service.findFirst({
@@ -209,6 +210,7 @@ export async function POST(request: Request) {
             if (existingService) {
               catalogServiceId = existingService.id;
               serviceScope = existingService.context;
+              servicePriceType = existingService.priceType;
             } else {
               // Ad-hoc service born inside this booking rather than the Services page — "created in
               // Space, belongs to Space": it's stamped with the booking's own workspace instead of
@@ -226,10 +228,12 @@ export async function POST(request: Request) {
               });
               catalogServiceId = newService.id;
               serviceScope = newService.context;
+              servicePriceType = newService.priceType;
             }
           } else {
-            const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { context: true } });
+            const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { context: true, priceType: true } });
             serviceScope = catalogService?.context ?? 'BOTH';
+            servicePriceType = catalogService?.priceType ?? 'FIXED';
           }
 
           assertServiceScopeAllowed(serviceScope, resolvedKind, item.name);
@@ -240,11 +244,17 @@ export async function POST(request: Request) {
           if (item.packageApplicationKey && item.sourcePackageId) {
             bookingPackageId = packageAppMap.get(item.packageApplicationKey) ?? null;
             if (!bookingPackageId) {
+              const sourcePackage = await tx.package.findUnique({
+                where: { id: item.sourcePackageId },
+                select: { context: true, pricingMode: true, price: true },
+              });
               const bookingPackage = await tx.bookingPackage.create({
                 data: {
                   bookingId: booking.id,
                   packageId: item.sourcePackageId,
                   nameSnapshot: item.sourcePackageName || 'Package',
+                  context: sourcePackage?.context ?? resolvedKind,
+                  price: sourcePackage?.pricingMode === 'FIXED' ? sourcePackage.price : null,
                 },
               });
               bookingPackageId = bookingPackage.id;
@@ -257,6 +267,8 @@ export async function POST(request: Request) {
               bookingId: booking.id,
               eventId: event?.id ?? null,
               serviceId: catalogServiceId,
+              context: resolvedKind,
+              priceType: servicePriceType,
               serviceNameSnapshot: item.name || null,
               providerType: item.providerType === 'EXTERNAL' ? ExecutionType.EXTERNAL : ExecutionType.INTERNAL,
               quantity: itemQuantity,
@@ -284,6 +296,7 @@ export async function POST(request: Request) {
               data: {
                 bookingPackageId,
                 serviceId: catalogServiceId,
+                bookingServiceId: createdBookingService.id,
                 serviceName: item.name || 'Service',
                 quantity: itemQuantity,
                 unitPrice: itemUnitPrice,
