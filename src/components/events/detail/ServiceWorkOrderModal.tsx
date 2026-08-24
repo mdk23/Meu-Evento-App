@@ -1,24 +1,22 @@
 import { useState } from 'react';
-import { X, Loader2, Users, Package, AlertTriangle, ClipboardList, Recycle } from 'lucide-react';
+import { X, Loader2, Users, Package, AlertTriangle, Recycle } from 'lucide-react';
 import { Staff, Supplier, InventoryItem } from '@prisma/client';
-import { EventServiceWithRelations, ResourceRequirement } from './types';
+import { EventServiceWithRelations, BookingServiceResource } from './types';
 
 const RESERVATION_ACTIONS: Record<string, { label: string; action: string }[]> = {
-  HELD: [{ label: 'Confirm', action: 'CONFIRM' }, { label: 'Release', action: 'RELEASE' }],
-  CONFIRMED: [{ label: 'Allocate', action: 'ALLOCATE' }, { label: 'Use', action: 'USE' }, { label: 'Release', action: 'RELEASE' }],
-  CONSUMED: [{ label: 'Return', action: 'RETURN' }],
+  PLANNED: [],
+  RESERVED: [{ label: 'Allocate', action: 'ALLOCATE' }, { label: 'Use', action: 'USE' }, { label: 'Release', action: 'RELEASE' }],
+  IN_USE: [{ label: 'Return', action: 'RETURN' }],
   RETURNED: [],
   RELEASED: [],
-  CANCELLED: [],
 };
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
-  HELD: 'b-warn',
-  CONFIRMED: 'b-ok',
-  CONSUMED: 'b-info',
+  PLANNED: 'b-mute',
+  RESERVED: 'b-ok',
+  IN_USE: 'b-info',
   RETURNED: 'b-mute',
   RELEASED: 'b-mute',
-  CANCELLED: 'b-bad',
 };
 
 /** One reuse candidate's inline quantity + "Reuse" control — capped at whichever is smaller, what's
@@ -29,8 +27,8 @@ function ReuseCandidateRow({
   remaining,
   onReuse,
 }: {
-  requirement: ResourceRequirement;
-  candidate: ResourceRequirement['reuseCandidates'][number];
+  requirement: BookingServiceResource;
+  candidate: BookingServiceResource['reuseCandidates'][number];
   remaining: number;
   onReuse: (reuseReservationId: string, quantity: number, resourceRequirementId: string) => void;
 }) {
@@ -54,7 +52,7 @@ function ReuseCandidateRow({
         />
         <button
           type="button"
-          onClick={() => onReuse(candidate.reservationId, Math.min(parseInt(qty, 10) || 0, cap), requirement.id)}
+          onClick={() => onReuse(candidate.resourceId, Math.min(parseInt(qty, 10) || 0, cap), requirement.id)}
           className="btn ghost sm"
           style={{ padding: '4px 10px', fontSize: 11 }}
         >
@@ -65,17 +63,17 @@ function ReuseCandidateRow({
   );
 }
 
-/** One requirement row's inline "Reserve" control — its own local state since each row picks an
- * item/quantity independently and resets once submitted. Reuse candidates (Phase 17 — another
- * service's already-active reservation for the same item) are offered first; the freeform Reserve
- * control below them covers whatever's still needed beyond what can be reused. */
+/** One resource row's inline "Reserve" control — its own local state since each row picks an
+ * item/quantity independently and resets once submitted. Reuse candidates (another service's
+ * already-active resource for the same item) are offered first; the freeform Reserve control below
+ * them covers whatever's still needed beyond what can be reused. */
 function RequirementReserveRow({
   requirement,
   inventoryItems,
   onReserve,
   onReuse,
 }: {
-  requirement: ResourceRequirement;
+  requirement: BookingServiceResource;
   inventoryItems: InventoryItem[];
   onReserve: (inventoryItemId: string, quantity: number, resourceRequirementId: string) => void;
   onReuse: (reuseReservationId: string, quantity: number, resourceRequirementId: string) => void;
@@ -88,7 +86,7 @@ function RequirementReserveRow({
     : inventoryItems;
 
   const [pickedItemId, setPickedItemId] = useState(requirement.inventoryItemId || eligibleItems[0]?.id || '');
-  const remaining = Number(requirement.requiredQuantity) - Number(requirement.providedQuantity);
+  const remaining = Number(requirement.requiredQuantity) - Number(requirement.reservedQuantity);
   const [qty, setQty] = useState(String(Math.max(remaining, 1)));
 
   if (remaining <= 0) return null;
@@ -98,7 +96,7 @@ function RequirementReserveRow({
       {requirement.reuseCandidates.length > 0 && (
         <div className="stack" style={{ gap: 2 }}>
           {requirement.reuseCandidates.map((c) => (
-            <ReuseCandidateRow key={c.reservationId} requirement={requirement} candidate={c} remaining={remaining} onReuse={onReuse} />
+            <ReuseCandidateRow key={c.resourceId} requirement={requirement} candidate={c} remaining={remaining} onReuse={onReuse} />
           ))}
         </div>
       )}
@@ -215,8 +213,7 @@ export default function ServiceWorkOrderModal({
   const accentVar = isInternal ? 'var(--ok)' : 'var(--info)';
   const tasks = selectedService.serviceTasks;
   const assignedStaff = selectedService.staffAssignments;
-  const reservedInventory = selectedService.inventoryReservations;
-  const resourceRequirements = selectedService.resourceRequirements;
+  const resources = selectedService.resources;
   const unassignedStaff = staff.filter((s) => !assignedStaff.some((a) => a.staffId === s.id));
 
   return (
@@ -370,45 +367,72 @@ export default function ServiceWorkOrderModal({
             )}
           </div>
 
-          {isInternal && resourceRequirements.length > 0 && (
-            <div className="stack" style={{ gap: 10 }}>
-              <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
-                <ClipboardList className="w-4 h-4" style={{ color: accentVar }} /> Resource Requirements
-              </h4>
-              <p className="mini dim">What this service&apos;s catalog template needs — reserve against a row to fulfill it.</p>
-              <div className="stack" style={{ gap: 8, padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}>
-                {resourceRequirements.map((req) => {
-                  const required = Number(req.requiredQuantity);
-                  const provided = Number(req.providedQuantity);
-                  const label = req.itemNameSnapshot || (req.sourceRequirement?.category?.name ? `Any ${req.sourceRequirement.category.name}` : 'Unresolved item');
-                  return (
-                    <div key={req.id} className="stack" style={{ gap: 6, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
-                      <div className="between">
-                        <span className="mini" style={{ color: 'var(--ink)' }}>{label}</span>
-                        <span className="mini dim">{provided} / {required} provided</span>
-                      </div>
-                      <RequirementReserveRow
-                        requirement={req}
-                        inventoryItems={inventoryItems}
-                        onReserve={(inventoryItemId, quantity, resourceRequirementId) =>
-                          onReserveInventory({ inventoryItemId, quantity, resourceRequirementId })
-                        }
-                        onReuse={(reuseReservationId, quantity, resourceRequirementId) =>
-                          onReuseReservation(resourceRequirementId, reuseReservationId, quantity)
-                        }
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {isInternal && (
             <div className="stack" style={{ gap: 10 }}>
               <h4 className="mini row" style={{ gap: 6, fontWeight: 700, color: 'var(--ink)' }}>
-                <Package className="w-4 h-4" style={{ color: accentVar }} /> Reserved Inventory
+                <Package className="w-4 h-4" style={{ color: accentVar }} /> Resources
               </h4>
+              {resources.length > 0 && (
+                <p className="mini dim">What this service needs — reserve against a row to fulfill it, then advance it through Allocate/Use/Return.</p>
+              )}
+              {resources.length > 0 && (
+                <div className="stack" style={{ gap: 8, padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}>
+                  {resources.map((r) => {
+                    const required = Number(r.requiredQuantity);
+                    const reserved = Number(r.reservedQuantity);
+                    const label = r.itemNameSnapshot || (r.sourceRequirement?.category?.name ? `Any ${r.sourceRequirement.category.name}` : 'Unresolved item');
+                    return (
+                      <div key={r.id} className="stack" style={{ gap: 6, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
+                        <div className="between">
+                          <span className="mini" style={{ color: 'var(--ink)' }}>{label}</span>
+                          <div className="row" style={{ gap: 6 }}>
+                            <span className="mini dim">{reserved} / {required} reserved</span>
+                            <span className={`badge ${STATUS_BADGE_CLASS[r.status] || 'b-mute'}`}>{r.status}</span>
+                            {r.status !== 'RELEASED' && r.status !== 'RETURNED' && (
+                              <button
+                                type="button"
+                                onClick={() => onRemoveReservedInventory(r.id)}
+                                className="icon-btn"
+                                style={{ width: 24, height: 24, flexShrink: 0 }}
+                                title="Release"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <RequirementReserveRow
+                          requirement={r}
+                          inventoryItems={inventoryItems}
+                          onReserve={(inventoryItemId, quantity, resourceRequirementId) =>
+                            onReserveInventory({ inventoryItemId, quantity, resourceRequirementId })
+                          }
+                          onReuse={(reuseReservationId, quantity, resourceRequirementId) =>
+                            onReuseReservation(resourceRequirementId, reuseReservationId, quantity)
+                          }
+                        />
+                        {(RESERVATION_ACTIONS[r.status] || []).length > 0 && (
+                          <div className="row" style={{ gap: 6 }}>
+                            {RESERVATION_ACTIONS[r.status].map(({ label: actionLabel, action }) => (
+                              <button
+                                key={action}
+                                type="button"
+                                onClick={() => onReservationAction(r.id, action)}
+                                className="btn ghost sm"
+                                style={{ padding: '4px 10px', fontSize: 11 }}
+                              >
+                                {actionLabel}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="mini dim">Add a resource not covered by a template above.</p>
               <div className="row">
                 <select
                   value={selectedInventoryId}
@@ -438,50 +462,6 @@ export default function ServiceWorkOrderModal({
                   + Reserve
                 </button>
               </div>
-
-              {reservedInventory.length > 0 && (
-                <div
-                  className="stack"
-                  style={{ gap: 8, maxHeight: 220, overflowY: 'auto', padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}
-                >
-                  {reservedInventory.map((r) => (
-                    <div key={r.id} className="stack" style={{ gap: 6, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
-                      <div className="between">
-                        <span className="mini" style={{ color: 'var(--ink)' }}>
-                          {r.itemNameSnapshot} <span style={{ color: 'var(--ink-3)' }}>× {r.quantity}</span>
-                        </span>
-                        <div className="row" style={{ gap: 6 }}>
-                          <span className={`badge ${STATUS_BADGE_CLASS[r.status] || 'b-mute'}`}>{r.status}</span>
-                          <button
-                            type="button"
-                            onClick={() => onRemoveReservedInventory(r.id)}
-                            className="icon-btn"
-                            style={{ width: 24, height: 24, flexShrink: 0 }}
-                            title="Release"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      {(RESERVATION_ACTIONS[r.status] || []).length > 0 && (
-                        <div className="row" style={{ gap: 6 }}>
-                          {RESERVATION_ACTIONS[r.status].map(({ label, action }) => (
-                            <button
-                              key={action}
-                              type="button"
-                              onClick={() => onReservationAction(r.id, action)}
-                              className="btn ghost sm"
-                              style={{ padding: '4px 10px', fontSize: 11 }}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 

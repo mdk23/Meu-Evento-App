@@ -116,15 +116,17 @@ enum QuantityType {
   PER_UNIT
 }
 
-/// Lifecycle of an `InventoryReservation`'s commitment. Only HELD/CONFIRMED/CONSUMED count as active
-/// commitments against availability — RELEASED/RETURNED/CANCELLED free the stock back up.
-enum ReservationStatus {
-  HELD
-  CONFIRMED
-  RELEASED
-  CONSUMED
+/// Lifecycle of a `BookingServiceResource`'s commitment — PLANNED means nothing is reserved yet
+/// (just a known need); RESERVED/IN_USE count as active commitments against availability; RETURNED
+/// and RELEASED both free the stock back up (RETURNED after physical use, RELEASED as a plain exit
+/// before or after reserving, folding what used to be a separate "cancelled" outcome into the same
+/// terminal state).
+enum ResourceAllocationStatus {
+  PLANNED
+  RESERVED
+  IN_USE
   RETURNED
-  CANCELLED
+  RELEASED
 }
 
 /// The inventory movement ledger's event types — "what physically happened," independent of a
@@ -230,16 +232,16 @@ model Booking {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
-  tenant               Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client               Client                              @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  space                Space                               @relation(fields: [spaceId], references: [id], onDelete: Restrict)
-  event                Event?
-  bookingServices      BookingService[]
-  bookingPackages      BookingPackage[]
-  resourceRequirements BookingServiceResourceRequirement[]
-  paymentPlans         PaymentPlan[]
-  scheduledPayments    ScheduledPayment[]
-  paymentTransactions  PaymentTransaction[]
+  tenant              Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client              Client                   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  space               Space                    @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+  event               Event?
+  bookingServices     BookingService[]
+  bookingPackages     BookingPackage[]
+  resources           BookingServiceResource[]
+  paymentPlans        PaymentPlan[]
+  scheduledPayments   ScheduledPayment[]
+  paymentTransactions PaymentTransaction[]
 
   @@index([tenantId])
   @@index([clientId])
@@ -266,7 +268,6 @@ model Event {
   bookingServices       BookingService[]
   guests                Guest[]
   expenses              Expense[]
-  inventoryReservations InventoryReservation[]
   inventoryTransactions InventoryTransaction[]
   statusOverrides       EventStatusOverride[]
 
@@ -317,7 +318,7 @@ model AuditLog {
 }
 
 model Service {
-  id                  String        @id @default(cuid())
+  id                  String         @id @default(cuid())
   tenantId            String
   name                String
   category            String
@@ -329,12 +330,12 @@ model Service {
   context             ServiceContext @default(BOTH)
   /// The provider type this service defaults to when added to a booking. Purely a suggested
   /// starting point — `BookingService.providerType` is the real per-booking decision and can differ.
-  defaultProviderType ExecutionType @default(INTERNAL)
-  priceType           PriceType     @default(FIXED)
-  defaultPrice        Decimal       @default(0) @db.Decimal(12, 2)
-  active              Boolean       @default(true)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  defaultProviderType ExecutionType  @default(INTERNAL)
+  priceType           PriceType      @default(FIXED)
+  defaultPrice        Decimal        @default(0) @db.Decimal(12, 2)
+  active              Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   tenant                Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bookingServices       BookingService[]
@@ -498,8 +499,7 @@ model BookingService {
 
   serviceTasks          BookingServiceTask[]
   staffAssignments      BookingServiceStaff[]
-  inventoryReservations InventoryReservation[]
-  resourceRequirements  BookingServiceResourceRequirement[]
+  resources             BookingServiceResource[]
   inventoryTransactions InventoryTransaction[]
   expenses              Expense[]
   sourcePackageItems    BookingPackageItem[]
@@ -606,47 +606,6 @@ model BookingServiceStaff {
   @@map("booking_service_staff")
 }
 
-model InventoryReservation {
-  id                                  String            @id @default(cuid())
-  eventId                             String
-  bookingServiceId                    String
-  inventoryItemId                     String
-  /// Decimal, not Int — matches every other operational quantity in the inventory model, since the
-  /// business may eventually reserve fractional units (kg, litres, metres, hours).
-  quantity                            Decimal           @db.Decimal(12, 2)
-  startAt                             DateTime
-  endAt                               DateTime
-  /// Commitment lifecycle — only HELD/CONFIRMED/CONSUMED count toward availability. Defaults to HELD,
-  /// matching every reservation's implicit state before this field existed.
-  status                              ReservationStatus @default(HELD)
-  /// Which BookingServiceResourceRequirement row this reservation fulfills, when it was created through
-  /// that flow rather than the older direct work-order reservation route. Nullable — every reservation
-  /// created before this phase, and any created outside the requirement flow, leaves this null.
-  bookingServiceResourceRequirementId String?
-  createdAt                           DateTime          @default(now())
-
-  /// Snapshot of `InventoryItem.name` at reservation time — protects historical records if the
-  /// item is later renamed or deactivated.
-  itemNameSnapshot String
-
-  event                Event                               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  bookingService       BookingService                      @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
-  inventoryItem        InventoryItem                       @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
-  resourceRequirement  BookingServiceResourceRequirement?  @relation(fields: [bookingServiceResourceRequirementId], references: [id], onDelete: SetNull)
-  /// Every BookingServiceResourceRequirement (typically on a different, later-added service) that reuses
-  /// this reservation's already-committed stock instead of creating a duplicate one — see
-  /// `assertReuseQuantityAvailable` for the guard that keeps their combined reuse within `quantity`.
-  reusedByRequirements BookingServiceResourceRequirement[] @relation("ReusedReservation")
-  transactions         InventoryTransaction[]
-
-  @@index([bookingServiceId])
-  @@index([inventoryItemId])
-  @@index([startAt, endAt])
-  @@index([status])
-  @@index([bookingServiceResourceRequirementId])
-  @@map("inventory_reservations")
-}
-
 model Supplier {
   id        String   @id @default(cuid())
   tenantId  String
@@ -715,11 +674,10 @@ model InventoryItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant              Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category            InventoryCategory                   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  reservations        InventoryReservation[]
+  tenant              Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category            InventoryCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   serviceRequirements ServiceInventoryRequirement[]
-  bookingRequirements BookingServiceResourceRequirement[]
+  bookingResources    BookingServiceResource[]
   transactions        InventoryTransaction[]
 
   @@index([tenantId])
@@ -747,11 +705,11 @@ model ServiceInventoryRequirement {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  service            Service                             @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  inventoryItem      InventoryItem?                      @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
-  category           InventoryCategory?                  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  /// Every per-booking requirement row seeded from this template across every booking it's been applied to.
-  seededRequirements BookingServiceResourceRequirement[]
+  service         Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem?           @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  category        InventoryCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  /// Every per-booking resource row seeded from this template across every booking it's been applied to.
+  seededResources BookingServiceResource[]
 
   @@index([serviceId])
   @@index([inventoryItemId])
@@ -759,75 +717,95 @@ model ServiceInventoryRequirement {
   @@map("service_inventory_requirements")
 }
 
-/// Per-booking snapshot/override of a resource need — "this booking actually requires X," independent of
-/// whatever the Service template says today (§29-30: editing the template never retroactively changes an
-/// existing booking). `inventoryItemId` is the resolved/chosen variant; null while a category-based
-/// requirement hasn't had a specific item picked yet. `providedQuantity`/`reuseReservationId` let this
-/// requirement be satisfied (fully or partially) by a reservation another service on the same booking
-/// already holds, instead of double-reserving the same physical stock — `additionalQuantity` is always
-/// `requiredQuantity - providedQuantity`, computed on read, never stored.
-model BookingServiceResourceRequirement {
-  id                  String       @id @default(cuid())
-  tenantId            String
-  bookingId           String
-  bookingServiceId    String
-  inventoryItemId     String?
+/// The single source of truth for one physical resource attached to one `BookingService` — required,
+/// reserved, and used quantities plus lifecycle status all live on the same row, reachable from any
+/// booking regardless of whether it has an Event (no `eventId` anywhere on this model — that's the
+/// whole point). Created at `PLANNED` when a service with `ServiceInventoryRequirement` templates is
+/// added to a booking (§16: never reserves anything by itself); `inventoryItemId` is the
+/// resolved/chosen variant, null while a category-based requirement hasn't had a specific item
+/// picked yet. `reservedQuantity` is "how much of `requiredQuantity` is actually covered" — whether
+/// by a direct reservation or by reusing another row's already-committed stock (see
+/// `reusedFromResourceId`) — so `additionalQuantity` (required minus reserved) is always computable
+/// on read, never stored.
+model BookingServiceResource {
+  id               String  @id @default(cuid())
+  tenantId         String
+  bookingId        String
+  bookingServiceId String
+  inventoryItemId  String?
   /// Set once inventoryItemId is resolved; null while a category-based requirement is unresolved.
-  itemNameSnapshot    String?
-  requiredQuantity    Decimal      @db.Decimal(12, 2)
-  providedQuantity    Decimal      @default(0) @db.Decimal(12, 2)
-  quantityType        QuantityType @default(FIXED)
+  itemNameSnapshot String?
+
+  requiredQuantity Decimal      @db.Decimal(12, 2)
+  reservedQuantity Decimal      @default(0) @db.Decimal(12, 2)
+  usedQuantity     Decimal      @default(0) @db.Decimal(12, 2)
+  quantityType     QuantityType @default(FIXED)
+
+  /// The window this resource is needed for — defaults to the parent Booking's own span when the row
+  /// is seeded (before anything is actually reserved), refined to a narrower window at reserve time
+  /// when the resource's real need window differs from the full booking.
+  startAt DateTime
+  endAt   DateTime
+  status  ResourceAllocationStatus @default(PLANNED)
+
   /// Which ServiceInventoryRequirement this was seeded from; null if added ad hoc directly on the booking.
-  sourceRequirementId String?
-  /// An existing InventoryReservation being reused instead of creating a fresh one for this requirement.
-  reuseReservationId  String?
-  notes               String?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  sourceRequirementId  String?
+  /// Set when this row's `reservedQuantity` is fulfilled by claiming another row's already-reserved
+  /// stock instead of committing fresh inventory — e.g. an Event service reusing what a Space service
+  /// already reserved on the same booking. The combined reservedQuantity of every row pointing at the
+  /// same target can never exceed the target's own reservedQuantity — see `assertReuseQuantityAvailable`.
+  reusedFromResourceId String?
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  booking                Booking                      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  bookingService         BookingService               @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
-  inventoryItem          InventoryItem?               @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
-  sourceRequirement      ServiceInventoryRequirement? @relation(fields: [sourceRequirementId], references: [id], onDelete: SetNull)
-  reuseReservation       InventoryReservation?        @relation("ReusedReservation", fields: [reuseReservationId], references: [id], onDelete: SetNull)
-  /// Reservation(s) created specifically to fulfill this requirement (as opposed to `reuseReservation`,
-  /// which points the other way — at a reservation created for a *different* requirement being reused here).
-  fulfillingReservations InventoryReservation[]
+  booking           Booking                      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingService    BookingService               @relation(fields: [bookingServiceId], references: [id], onDelete: Cascade)
+  inventoryItem     InventoryItem?               @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  sourceRequirement ServiceInventoryRequirement? @relation(fields: [sourceRequirementId], references: [id], onDelete: SetNull)
+  reusedFrom        BookingServiceResource?      @relation("Reuse", fields: [reusedFromResourceId], references: [id], onDelete: SetNull)
+  /// Every other row (typically on a different, later-added service) that reuses this row's already-
+  /// committed stock instead of creating a duplicate reservation.
+  reusedBy          BookingServiceResource[]     @relation("Reuse")
+  transactions      InventoryTransaction[]
 
+  @@index([tenantId])
   @@index([bookingId])
   @@index([bookingServiceId])
   @@index([inventoryItemId])
   @@index([sourceRequirementId])
-  @@index([reuseReservationId])
-  @@map("booking_service_resource_requirements")
+  @@index([reusedFromResourceId])
+  @@index([status])
+  @@index([inventoryItemId, startAt, endAt])
+  @@map("booking_service_resources")
 }
 
 /// The inventory movement ledger — "what physically happened," independent of a reservation's commitment
 /// status (§32). Never rewritten to hide history; a correction is a new row, not an edit.
 model InventoryTransaction {
-  id               String                   @id @default(cuid())
-  tenantId         String
-  inventoryItemId  String
-  eventId          String?
-  bookingServiceId String?
-  reservationId    String?
-  type             InventoryTransactionType
-  quantity         Decimal                  @db.Decimal(12, 2)
-  reference        String?
-  notes            String?
-  createdBy        String
-  createdAt        DateTime                 @default(now())
+  id                       String                   @id @default(cuid())
+  tenantId                 String
+  inventoryItemId          String
+  eventId                  String?
+  bookingServiceId         String?
+  bookingServiceResourceId String?
+  type                     InventoryTransactionType
+  quantity                 Decimal                  @db.Decimal(12, 2)
+  reference                String?
+  notes                    String?
+  createdBy                String
+  createdAt                DateTime                 @default(now())
 
-  inventoryItem  InventoryItem         @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
-  event          Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  bookingService BookingService?       @relation(fields: [bookingServiceId], references: [id], onDelete: SetNull)
-  reservation    InventoryReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  inventoryItem  InventoryItem           @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  event          Event?                  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  bookingService BookingService?         @relation(fields: [bookingServiceId], references: [id], onDelete: SetNull)
+  resource       BookingServiceResource? @relation(fields: [bookingServiceResourceId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([inventoryItemId])
   @@index([eventId])
   @@index([bookingServiceId])
-  @@index([reservationId])
+  @@index([bookingServiceResourceId])
   @@map("inventory_transactions")
 }
 

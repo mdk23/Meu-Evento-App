@@ -192,7 +192,9 @@ export async function PATCH(
       // set regardless of whether this booking has an Event, so this applies equally to SPACE and
       // EVENT bookings (a SPACE booking's lines are commercial-only: no `eventId`).
       if (isEdit && selectedServices && Array.isArray(selectedServices)) {
-        // Delete old services
+        // Delete old services — cascades to their auto-seeded BookingServiceResource rows too
+        // (rebuilt fresh below per surviving line, same "full edit replaces the whole line list"
+        // reasoning as everything else here).
         await tx.bookingService.deleteMany({
           where: { bookingId: existingBooking.id }
         });
@@ -200,11 +202,6 @@ export async function PATCH(
         // list from scratch, so any package attribution is rebuilt fresh below too, from whatever
         // package-tagged lines are still in the submitted cart (cascades to BookingPackageItem).
         await tx.bookingPackage.deleteMany({
-          where: { bookingId: existingBooking.id }
-        });
-        // ...and their auto-seeded resource requirements — rebuilt fresh below per surviving line,
-        // same "full edit replaces the whole line list" reasoning as BookingPackage above.
-        await tx.bookingServiceResourceRequirement.deleteMany({
           where: { bookingId: existingBooking.id }
         });
 
@@ -308,6 +305,8 @@ export async function PATCH(
                 serviceId: catalogServiceId,
                 guestCount: guestCount !== undefined ? parseInt(guestCount, 10) : existingBooking.guestCount,
                 unitCount: itemQuantity,
+                startAt: existingBooking.startAt,
+                endAt: existingBooking.endAt,
               });
             }
 

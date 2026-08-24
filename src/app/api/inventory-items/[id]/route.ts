@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
     }
 
-    const stockSummary = computeInventoryStockSummary(item.totalQuantity, item.reservations, item.transactions);
+    const stockSummary = computeInventoryStockSummary(item.totalQuantity, item.bookingResources, item.transactions);
 
     return NextResponse.json(serializeDecimals({ item, stockSummary }));
   } catch (error: unknown) {

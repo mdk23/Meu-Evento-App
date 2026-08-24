@@ -17,10 +17,15 @@ import Topbar from '@/components/aurelia/Topbar';
 type ItemDetail = DecimalToNumber<Prisma.InventoryItemGetPayload<{
   include: {
     category: true;
-    reservations: {
+    bookingResources: {
       include: {
-        event: { select: { name: true } };
-        bookingService: { select: { service: { select: { name: true } }; serviceNameSnapshot: true } };
+        bookingService: {
+          select: {
+            service: { select: { name: true } };
+            serviceNameSnapshot: true;
+            event: { select: { name: true } };
+          };
+        };
       };
     };
     transactions: {
@@ -48,12 +53,11 @@ interface InventoryItemDetailClientProps {
 }
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
-  HELD: 'b-warn',
-  CONFIRMED: 'b-ok',
-  CONSUMED: 'b-info',
+  PLANNED: 'b-mute',
+  RESERVED: 'b-warn',
+  IN_USE: 'b-info',
   RETURNED: 'b-mute',
   RELEASED: 'b-mute',
-  CANCELLED: 'b-bad',
 };
 
 const TRANSACTION_LABEL: Record<string, string> = {
@@ -72,6 +76,13 @@ const TRANSACTION_LABEL: Record<string, string> = {
 function serviceLabel(row: { event: { name: string } | null; bookingService: { service: { name: string } | null; serviceNameSnapshot: string | null } | null }): string {
   const service = row.bookingService?.service?.name || row.bookingService?.serviceNameSnapshot || 'Service';
   return row.event ? `${service} — ${row.event.name}` : service;
+}
+
+function resourceServiceLabel(row: {
+  bookingService: { service: { name: string } | null; serviceNameSnapshot: string | null; event: { name: string } | null } | null;
+}): string {
+  const service = row.bookingService?.service?.name || row.bookingService?.serviceNameSnapshot || 'Service';
+  return row.bookingService?.event ? `${service} — ${row.bookingService.event.name}` : service;
 }
 
 export default function InventoryItemDetailClient({ item, stockSummary }: InventoryItemDetailClientProps) {
@@ -157,7 +168,7 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
 
           <div>
             <h4 className="label" style={{ marginBottom: 12 }}>Reservations</h4>
-            {item.reservations.length === 0 ? (
+            {item.bookingResources.length === 0 ? (
               <p className="mini dim">No reservations yet.</p>
             ) : (
               <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
@@ -166,16 +177,18 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
                     <thead>
                       <tr>
                         <th>For</th>
-                        <th className="r">Quantity</th>
+                        <th className="r">Required</th>
+                        <th className="r">Reserved</th>
                         <th>Window</th>
                         <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {item.reservations.map((r) => (
+                      {item.bookingResources.map((r) => (
                         <tr key={r.id}>
-                          <td>{serviceLabel(r)}</td>
-                          <td className="r num">{r.quantity}</td>
+                          <td>{resourceServiceLabel(r)}</td>
+                          <td className="r num">{r.requiredQuantity}</td>
+                          <td className="r num">{r.reservedQuantity}</td>
                           <td className="mini dim">
                             {new Date(r.startAt).toLocaleDateString()} – {new Date(r.endAt).toLocaleDateString()}
                           </td>

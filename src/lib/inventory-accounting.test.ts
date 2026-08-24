@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { computeInventoryStockSummary } from './inventory-accounting';
 
 describe('computeInventoryStockSummary', () => {
-  it('reservedQuantity sums only active-status reservations', () => {
+  it('reservedQuantity sums only active-status, non-reused resources', () => {
     const summary = computeInventoryStockSummary(
       500,
       [
-        { quantity: 300, status: 'HELD' },
-        { quantity: 100, status: 'CONFIRMED' },
-        { quantity: 50, status: 'RELEASED' },
-        { quantity: 20, status: 'CANCELLED' },
+        { reservedQuantity: 300, status: 'RESERVED', reusedFromResourceId: null },
+        { reservedQuantity: 100, status: 'IN_USE', reusedFromResourceId: null },
+        { reservedQuantity: 50, status: 'RELEASED', reusedFromResourceId: null },
+        { reservedQuantity: 20, status: 'RESERVED', reusedFromResourceId: 'other-resource' },
       ],
       []
     );
@@ -18,7 +18,7 @@ describe('computeInventoryStockSummary', () => {
   });
 
   it('availableQuantity never goes negative even if overbooked', () => {
-    const summary = computeInventoryStockSummary(100, [{ quantity: 150, status: 'HELD' }], []);
+    const summary = computeInventoryStockSummary(100, [{ reservedQuantity: 150, status: 'RESERVED', reusedFromResourceId: null }], []);
     expect(summary.availableQuantity.toNumber()).toBe(0);
   });
 

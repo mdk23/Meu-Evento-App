@@ -1,7 +1,7 @@
-import { ExecutionType, Prisma, ReservationStatus } from '@prisma/client';
+import { ExecutionType, Prisma, ResourceAllocationStatus } from '@prisma/client';
 
-/** Reservation statuses that still count as an active commitment against available stock. */
-export const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = ['HELD', 'CONFIRMED', 'CONSUMED'];
+/** Resource statuses that still count as an active commitment against available stock. */
+export const ACTIVE_RESOURCE_STATUSES: ResourceAllocationStatus[] = ['RESERVED', 'IN_USE'];
 
 /** Default reservation span for staff/inventory when no explicit time range is given — the whole calendar day of the event. */
 export function fullDaySpan(date: Date): { startAt: Date; endAt: Date } {
@@ -80,9 +80,10 @@ export async function assertStaffAvailable(
 /**
  * Throws `InventoryConflictError` if reserving `quantity` of `inventoryItemId` in the given
  * time range would exceed the item's total stock, once summed against every other overlapping
- * *active* reservation (`HELD`/`CONFIRMED`/`CONSUMED` — a `RELEASED`/`RETURNED`/`CANCELLED`
- * reservation no longer holds stock and is excluded). Must run inside the same transaction as
- * the reservation's `create`.
+ * *active* resource (`RESERVED`/`IN_USE` — `PLANNED`/`RETURNED`/`RELEASED` no longer hold stock and
+ * are excluded). A row whose `reusedFromResourceId` is set is also excluded from this sum — it's a
+ * claim against another row's commitment, not a fresh one, so counting it would double-count the
+ * same physical stock. Must run inside the same transaction as the write that reserves it.
  *
  * Row-locks the `InventoryItem` first (`SELECT ... FOR UPDATE`) so two concurrent requests for
  * the last few units of the same item serialize instead of both reading "available" and both
@@ -95,7 +96,7 @@ export async function assertInventoryAvailable(
   quantity: number,
   startAt: Date,
   endAt: Date,
-  excludeReservationId?: string
+  excludeResourceId?: string
 ): Promise<void> {
   const locked = await tx.$queryRaw<{ id: string; name: string; totalQuantity: number }[]>`
     SELECT "id", "name", "totalQuantity" FROM "inventory_items" WHERE "id" = ${inventoryItemId} FOR UPDATE
@@ -105,17 +106,18 @@ export async function assertInventoryAvailable(
     throw new InventoryConflictError('Inventory item not found.');
   }
 
-  const overlapping = await tx.inventoryReservation.findMany({
+  const overlapping = await tx.bookingServiceResource.findMany({
     where: {
       inventoryItemId,
-      status: { in: ACTIVE_RESERVATION_STATUSES },
+      status: { in: ACTIVE_RESOURCE_STATUSES },
+      reusedFromResourceId: null,
       startAt: { lt: endAt },
       endAt: { gt: startAt },
-      ...(excludeReservationId ? { id: { not: excludeReservationId } } : {}),
+      ...(excludeResourceId ? { id: { not: excludeResourceId } } : {}),
     },
   });
 
-  const alreadyReserved = overlapping.reduce((sum, r) => sum.plus(r.quantity), new Prisma.Decimal(0));
+  const alreadyReserved = overlapping.reduce((sum, r) => sum.plus(r.reservedQuantity), new Prisma.Decimal(0));
   const requested = new Prisma.Decimal(quantity);
   if (alreadyReserved.plus(requested).greaterThan(item.totalQuantity)) {
     const available = new Prisma.Decimal(item.totalQuantity).minus(alreadyReserved);
@@ -126,58 +128,58 @@ export async function assertInventoryAvailable(
 }
 
 /**
- * Pure function behind `assertReuseQuantityAvailable` below — a reservation's stock can be
- * reused by any number of `BookingServiceResourceRequirement` rows, but their combined reuse can
- * never exceed the reservation's own `quantity` (§7/§29). Split out so the worked examples from
+ * Pure function behind `assertReuseQuantityAvailable` below — a resource's committed stock can be
+ * reused by any number of other `BookingServiceResource` rows, but their combined reuse can never
+ * exceed the target row's own `reservedQuantity` (§7/§29). Split out so the worked examples from
  * the spec can be unit-tested without a database.
  */
 export function computeReuseAllocation(
-  reservationQuantity: number,
+  reservedQuantity: number,
   alreadyReusedSum: number,
   requestedReuse: number
 ): { allowed: boolean; availableToReuse: number } {
-  const availableToReuse = Math.max(reservationQuantity - alreadyReusedSum, 0);
+  const availableToReuse = Math.max(reservedQuantity - alreadyReusedSum, 0);
   return { allowed: requestedReuse <= availableToReuse, availableToReuse };
 }
 
 /**
- * Throws `InventoryConflictError` if reusing `requestedQuantity` of `reservationId` would exceed
- * how much of that reservation isn't already claimed by other requirements' `providedQuantity`.
- * Row-locks the `InventoryReservation` first, same race-safety reasoning as
+ * Throws `InventoryConflictError` if reusing `requestedQuantity` of `targetResourceId` would exceed
+ * how much of that row's `reservedQuantity` isn't already claimed by other rows reusing it.
+ * Row-locks the target `BookingServiceResource` first, same race-safety reasoning as
  * `assertInventoryAvailable`. Must run inside the same transaction as the write that sets
- * `reuseReservationId`.
+ * `reusedFromResourceId`.
  *
- * Sums every requirement's claim on this reservation, *including the caller's own* prior claim if
- * any — the caller (`POST .../inventory/reuse`) increments `providedQuantity` rather than replacing
- * it, so a second reuse call against the same pair must be capped by what's left after that same
- * requirement's earlier claim too, not just everyone else's.
+ * Sums every row's claim on this target, *including the caller's own* prior claim if any — the
+ * caller (`POST .../inventory/reuse`) increments `reservedQuantity` rather than replacing it, so a
+ * second reuse call against the same pair must be capped by what's left after that same row's
+ * earlier claim too, not just everyone else's.
  */
 export async function assertReuseQuantityAvailable(
   tx: Prisma.TransactionClient,
-  reservationId: string,
+  targetResourceId: string,
   requestedQuantity: number
 ): Promise<void> {
-  const locked = await tx.$queryRaw<{ id: string; quantity: Prisma.Decimal }[]>`
-    SELECT "id", "quantity" FROM "inventory_reservations" WHERE "id" = ${reservationId} FOR UPDATE
+  const locked = await tx.$queryRaw<{ id: string; reservedQuantity: Prisma.Decimal }[]>`
+    SELECT "id", "reservedQuantity" FROM "booking_service_resources" WHERE "id" = ${targetResourceId} FOR UPDATE
   `;
-  const reservation = locked[0];
-  if (!reservation) {
-    throw new InventoryConflictError('Reservation not found.');
+  const target = locked[0];
+  if (!target) {
+    throw new InventoryConflictError('Resource not found.');
   }
 
-  const existingReuse = await tx.bookingServiceResourceRequirement.findMany({
-    where: { reuseReservationId: reservationId },
+  const existingReuse = await tx.bookingServiceResource.findMany({
+    where: { reusedFromResourceId: targetResourceId },
   });
-  const alreadyReused = existingReuse.reduce((sum, r) => sum.plus(r.providedQuantity), new Prisma.Decimal(0));
+  const alreadyReused = existingReuse.reduce((sum, r) => sum.plus(r.reservedQuantity), new Prisma.Decimal(0));
 
   const { allowed, availableToReuse } = computeReuseAllocation(
-    Number(reservation.quantity),
+    Number(target.reservedQuantity),
     Number(alreadyReused),
     requestedQuantity
   );
   if (!allowed) {
     throw new InventoryConflictError(
-      `Only ${availableToReuse} of this reservation's ${reservation.quantity} units are still available to reuse (requested ${requestedQuantity}).`
+      `Only ${availableToReuse} of this resource's ${target.reservedQuantity} reserved units are still available to reuse (requested ${requestedQuantity}).`
     );
   }
 }

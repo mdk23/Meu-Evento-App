@@ -75,7 +75,7 @@ export default function ServicesTab({ eventServices, onOpenWorkOrder, onOpenAddS
           {eventServices.map((es) => {
             const isInternal = es.providerType === 'INTERNAL';
             const staffCount = es.staffAssignments.length;
-            const inventoryCount = es.inventoryReservations.length;
+            const inventoryCount = es.resources.filter((r) => r.status === 'RESERVED' || r.status === 'IN_USE').length;
             const taskTotal = es.serviceTasks.length;
             const taskDone = es.serviceTasks.filter((t) => t.status === 'DONE').length;
             return (

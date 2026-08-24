@@ -289,6 +289,8 @@ export async function POST(request: Request) {
             serviceId: catalogServiceId,
             guestCount: parsedGuestCount,
             unitCount: itemQuantity,
+            startAt: booking.startAt,
+            endAt: booking.endAt,
           });
 
           if (bookingPackageId) {

@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { resolveReservationTransition, ReservationAction } from '@/lib/inventory-lifecycle';
 
-const VALID_ACTIONS: ReservationAction[] = ['CONFIRM', 'ALLOCATE', 'USE', 'RETURN', 'RELEASE', 'CANCEL'];
+const VALID_ACTIONS: ReservationAction[] = ['ALLOCATE', 'USE', 'RETURN', 'RELEASE'];
 
-async function loadScopedReservation(eventId: string, eventServiceId: string, reservationId: string) {
-  const existing = await prisma.inventoryReservation.findUnique({
-    where: { id: reservationId },
+async function loadScopedResource(eventId: string, eventServiceId: string, resourceId: string) {
+  const existing = await prisma.bookingServiceResource.findUnique({
+    where: { id: resourceId },
     include: { bookingService: true },
   });
   if (!existing || existing.bookingServiceId !== eventServiceId || existing.bookingService.eventId !== eventId) {
@@ -15,9 +15,11 @@ async function loadScopedReservation(eventId: string, eventServiceId: string, re
   return existing;
 }
 
-/** Advances a reservation through the Hold→Confirm→Allocate→Use→Return lifecycle (Phase 15) —
- * validates the transition, updates `status` when the action changes it, and logs the matching
- * `InventoryTransaction` row. See `resolveReservationTransition` for the full state machine. */
+/** Advances a resource through the Reserve→Allocate→Use→Return lifecycle — validates the
+ * transition, updates `status` when the action changes it, and logs the matching
+ * `InventoryTransaction` row. See `resolveReservationTransition` for the full state machine.
+ * "Reserve" itself isn't exposed here — a resource becomes RESERVED via `POST .../inventory`,
+ * which sets both the reserved quantity and the status together in one write. */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; eventServiceId: string; reservationId: string }> }
@@ -31,9 +33,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    const existing = await loadScopedReservation(eventId, eventServiceId, reservationId);
+    const existing = await loadScopedResource(eventId, eventServiceId, reservationId);
     if (!existing) {
-      return NextResponse.json({ error: 'Reservation not found for this event service' }, { status: 404 });
+      return NextResponse.json({ error: 'Resource not found for this event service' }, { status: 404 });
     }
 
     const transition = resolveReservationTransition(existing.status, action);
@@ -47,39 +49,58 @@ export async function PATCH(
     }
 
     const updated = await prismaTransaction.$transaction(async (tx) => {
-      const reservation = transition.nextStatus
-        ? await tx.inventoryReservation.update({ where: { id: reservationId }, data: { status: transition.nextStatus } })
+      const resource = transition.nextStatus
+        ? await tx.bookingServiceResource.update({
+            where: { id: reservationId },
+            data: {
+              status: transition.nextStatus,
+              // USE marks the full reserved commitment as now in active use; RETURN closes it back
+              // out — the row's own history (requiredQuantity/reservedQuantity) is never touched by
+              // either, only this informational counter.
+              usedQuantity: action === 'USE' ? existing.reservedQuantity : action === 'RETURN' ? 0 : undefined,
+            },
+          })
         : existing;
 
-      if (transition.transactionType) {
+      // A row only reaches RESERVED/IN_USE (the only statuses these actions run from) via the
+      // reserve endpoint, which always resolves inventoryItemId first — so it's guaranteed set here.
+      if (transition.transactionType && existing.inventoryItemId) {
         await tx.inventoryTransaction.create({
           data: {
             tenantId: tenant.id,
             inventoryItemId: existing.inventoryItemId,
             eventId,
             bookingServiceId: eventServiceId,
-            reservationId,
+            bookingServiceResourceId: reservationId,
             type: transition.transactionType,
-            quantity: existing.quantity,
+            quantity: existing.reservedQuantity,
             createdBy: 'Staff',
           },
         });
       }
 
-      return reservation;
+      return resource;
     });
 
-    return NextResponse.json({ success: true, reservation: { ...updated, quantity: updated.quantity.toString() } });
+    return NextResponse.json({
+      success: true,
+      reservation: {
+        ...updated,
+        requiredQuantity: updated.requiredQuantity.toString(),
+        reservedQuantity: updated.reservedQuantity.toString(),
+        usedQuantity: updated.usedQuantity.toString(),
+      },
+    });
   } catch (error: unknown) {
     console.error('Failed to transition inventory reservation:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-/** Releasing a reservation is a status change (RELEASED), never a hard delete — the whole point of
- * Phase 13's status/ledger design is that a reservation's history survives it no longer being active.
- * Kept as DELETE (not folded into the PATCH action set above) since this is what the existing "remove"
- * button in the work order UI already calls; its *meaning* changed, not its route shape. */
+/** Releasing a resource is a status change (RELEASED), never a hard delete — its history (and
+ * anything reusing its stock) survives it no longer being active. Kept as DELETE (not folded into
+ * the PATCH action set above) since this is what the existing "remove" button in the work order UI
+ * already calls; its *meaning* changed, not its route shape. */
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string; eventServiceId: string; reservationId: string }> }
@@ -87,9 +108,9 @@ export async function DELETE(
   try {
     const { id: eventId, eventServiceId, reservationId } = await params;
 
-    const existing = await loadScopedReservation(eventId, eventServiceId, reservationId);
+    const existing = await loadScopedResource(eventId, eventServiceId, reservationId);
     if (!existing) {
-      return NextResponse.json({ error: 'Reservation not found for this event service' }, { status: 404 });
+      return NextResponse.json({ error: 'Resource not found for this event service' }, { status: 404 });
     }
 
     const transition = resolveReservationTransition(existing.status, 'RELEASE');
@@ -103,19 +124,21 @@ export async function DELETE(
     }
 
     await prismaTransaction.$transaction(async (tx) => {
-      await tx.inventoryReservation.update({ where: { id: reservationId }, data: { status: 'RELEASED' } });
-      await tx.inventoryTransaction.create({
-        data: {
-          tenantId: tenant.id,
-          inventoryItemId: existing.inventoryItemId,
-          eventId,
-          bookingServiceId: eventServiceId,
-          reservationId,
-          type: 'RELEASE',
-          quantity: existing.quantity,
-          createdBy: 'Staff',
-        },
-      });
+      await tx.bookingServiceResource.update({ where: { id: reservationId }, data: { status: 'RELEASED' } });
+      if (existing.inventoryItemId) {
+        await tx.inventoryTransaction.create({
+          data: {
+            tenantId: tenant.id,
+            inventoryItemId: existing.inventoryItemId,
+            eventId,
+            bookingServiceId: eventServiceId,
+            bookingServiceResourceId: reservationId,
+            type: 'RELEASE',
+            quantity: existing.reservedQuantity,
+            createdBy: 'Staff',
+          },
+        });
+      }
     });
 
     return NextResponse.json({ success: true });

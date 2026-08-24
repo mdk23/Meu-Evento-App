@@ -262,13 +262,16 @@ export async function POST() {
         endAt: cateringSpan.endAt,
       },
     });
-    await prisma.inventoryReservation.create({
+    await prisma.bookingServiceResource.create({
       data: {
-        eventId: event1.id,
+        tenantId: tenant.id,
+        bookingId: booking1.id,
         bookingServiceId: eventServiceCatering.id,
         inventoryItemId: itemChafingDishes.id,
         itemNameSnapshot: itemChafingDishes.name,
-        quantity: 24,
+        requiredQuantity: 24,
+        reservedQuantity: 24,
+        status: 'RESERVED',
         startAt: cateringSpan.startAt,
         endAt: cateringSpan.endAt,
       },
@@ -307,23 +310,29 @@ export async function POST() {
         endAt: decorationSpan.endAt,
       },
     });
-    await prisma.inventoryReservation.createMany({
+    await prisma.bookingServiceResource.createMany({
       data: [
         {
-          eventId: event1.id,
+          tenantId: tenant.id,
+          bookingId: booking1.id,
           bookingServiceId: eventServiceDecoration.id,
           inventoryItemId: itemTables.id,
           itemNameSnapshot: itemTables.name,
-          quantity: 30,
+          requiredQuantity: 30,
+          reservedQuantity: 30,
+          status: 'RESERVED',
           startAt: decorationSpan.startAt,
           endAt: decorationSpan.endAt,
         },
         {
-          eventId: event1.id,
+          tenantId: tenant.id,
+          bookingId: booking1.id,
           bookingServiceId: eventServiceDecoration.id,
           inventoryItemId: itemChairs.id,
           itemNameSnapshot: itemChairs.name,
-          quantity: 250,
+          requiredQuantity: 250,
+          reservedQuantity: 250,
+          status: 'RESERVED',
           startAt: decorationSpan.startAt,
           endAt: decorationSpan.endAt,
         },

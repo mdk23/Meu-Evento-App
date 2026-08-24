@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { serializeDecimals } from '@/lib/money';
 import { computeReuseCandidatesForRequirement } from '@/lib/reuse-candidates';
 import { computeEventResourceSummary } from '@/lib/event-resource-summary';
-import { ACTIVE_RESERVATION_STATUSES } from '@/lib/resource-conflict';
+import { ACTIVE_RESOURCE_STATUSES } from '@/lib/resource-conflict';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,10 +26,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             supplier: true,
             serviceTasks: true,
             staffAssignments: { include: { staff: true } },
-            inventoryReservations: { include: { inventoryItem: true, transactions: true } },
-            resourceRequirements: {
+            resources: {
               include: {
                 inventoryItem: true,
+                transactions: true,
                 sourceRequirement: { select: { categoryId: true, category: { select: { name: true } } } },
               },
             },
@@ -51,71 +51,69 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // Reuse candidates (Phase 17) are computed here, not fetched via a Prisma include — they're a
-    // cross-service comparison (§20-21's "Space already reserved this, reuse it?"), not a relation.
-    // Flatten once across the whole event so `computeReuseCandidatesForRequirement` can compare each
-    // requirement against every *other* service's active reservations for the same item.
-    const allReservations = event.bookingServices.flatMap((bs) =>
-      bs.inventoryReservations.map((r) => ({
+    // Reuse candidates are computed here, not fetched via a Prisma include — they're a cross-service
+    // comparison ("Space already reserved this, reuse it?"), not a relation. Flatten once across the
+    // whole event so `computeReuseCandidatesForRequirement` can compare each row against every
+    // *other* service's active resources for the same item.
+    const allResources = event.bookingServices.flatMap((bs) =>
+      bs.resources.map((r) => ({
         id: r.id,
-        inventoryItemId: r.inventoryItemId,
         bookingServiceId: r.bookingServiceId,
-        quantity: Number(r.quantity),
-        status: r.status,
+        inventoryItemId: r.inventoryItemId,
         itemNameSnapshot: r.itemNameSnapshot,
-      }))
-    );
-    const allRequirements = event.bookingServices.flatMap((bs) =>
-      bs.resourceRequirements.map((req) => ({
-        id: req.id,
-        bookingServiceId: req.bookingServiceId,
-        inventoryItemId: req.inventoryItemId,
-        itemNameSnapshot: req.itemNameSnapshot,
-        categoryName: req.sourceRequirement?.category?.name ?? null,
-        reuseReservationId: req.reuseReservationId,
-        requiredQuantity: Number(req.requiredQuantity),
-        providedQuantity: Number(req.providedQuantity),
+        categoryName: r.sourceRequirement?.category?.name ?? null,
+        requiredQuantity: Number(r.requiredQuantity),
+        reservedQuantity: Number(r.reservedQuantity),
+        status: r.status,
+        reusedFromResourceId: r.reusedFromResourceId,
       }))
     );
     const serviceLabels = Object.fromEntries(
       event.bookingServices.map((bs) => [bs.id, bs.service?.name || bs.serviceNameSnapshot || 'Service'])
     );
 
-    // Event Resources tab (Phase 18) needs tenant-wide availability per resolved item — not just
-    // this event's own reservations — so a shortage can be told apart from a coverable gap. Batched
-    // into 2 queries regardless of how many distinct items this event's requirements reference.
-    const resolvedItemIds = Array.from(new Set(allRequirements.map((r) => r.inventoryItemId).filter((v): v is string => !!v)));
-    const [itemsForAvailability, reservationsForAvailability] = await Promise.all([
+    // Event Resources tab needs tenant-wide availability per resolved item — not just this event's
+    // own resources — so a shortage can be told apart from a coverable gap. Batched into 2 queries
+    // regardless of how many distinct items this event's resources reference.
+    const resolvedItemIds = Array.from(new Set(allResources.map((r) => r.inventoryItemId).filter((v): v is string => !!v)));
+    const [itemsForAvailability, resourcesForAvailability] = await Promise.all([
       resolvedItemIds.length > 0
         ? prisma.inventoryItem.findMany({ where: { id: { in: resolvedItemIds } }, select: { id: true, totalQuantity: true } })
         : Promise.resolve([]),
       resolvedItemIds.length > 0
-        ? prisma.inventoryReservation.findMany({
-            where: { inventoryItemId: { in: resolvedItemIds }, status: { in: ACTIVE_RESERVATION_STATUSES } },
-            select: { inventoryItemId: true, quantity: true },
+        ? prisma.bookingServiceResource.findMany({
+            where: { inventoryItemId: { in: resolvedItemIds }, status: { in: ACTIVE_RESOURCE_STATUSES }, reusedFromResourceId: null },
+            select: { inventoryItemId: true, reservedQuantity: true },
           })
         : Promise.resolve([]),
     ]);
     const availableByItemId: Record<string, number> = {};
     for (const item of itemsForAvailability) {
-      const reservedElsewhere = reservationsForAvailability
+      const reservedElsewhere = resourcesForAvailability
         .filter((r) => r.inventoryItemId === item.id)
-        .reduce((sum, r) => sum + Number(r.quantity), 0);
+        .reduce((sum, r) => sum + Number(r.reservedQuantity), 0);
       availableByItemId[item.id] = Math.max(item.totalQuantity - reservedElsewhere, 0);
     }
 
-    const resourceSummary = computeEventResourceSummary(allRequirements, allReservations, availableByItemId, serviceLabels);
+    const resourceSummary = computeEventResourceSummary(allResources, availableByItemId, serviceLabels);
 
     const eventWithReuseCandidates = {
       ...event,
       bookingServices: event.bookingServices.map((bs) => ({
         ...bs,
-        resourceRequirements: bs.resourceRequirements.map((req) => ({
-          ...req,
+        resources: bs.resources.map((r) => ({
+          ...r,
           reuseCandidates: computeReuseCandidatesForRequirement(
-            { id: req.id, bookingServiceId: req.bookingServiceId, inventoryItemId: req.inventoryItemId, reuseReservationId: req.reuseReservationId, providedQuantity: Number(req.providedQuantity) },
-            allReservations,
-            allRequirements,
+            {
+              id: r.id,
+              bookingServiceId: r.bookingServiceId,
+              inventoryItemId: r.inventoryItemId,
+              itemNameSnapshot: r.itemNameSnapshot,
+              reservedQuantity: Number(r.reservedQuantity),
+              status: r.status,
+              reusedFromResourceId: r.reusedFromResourceId,
+            },
+            allResources,
             serviceLabels
           ),
         })),

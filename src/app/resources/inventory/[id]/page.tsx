@@ -15,13 +15,18 @@ export default async function InventoryItemDetailPage({ params }: InventoryItemD
   const item = await InventoryItemRepository.getItemDetail(id);
   if (!item) notFound();
 
-  const stockSummary = computeInventoryStockSummary(item.totalQuantity, item.reservations, item.transactions);
+  const stockSummary = computeInventoryStockSummary(item.totalQuantity, item.bookingResources, item.transactions);
 
   return (
     <InventoryItemDetailClient
       item={{
         ...item,
-        reservations: item.reservations.map((r) => ({ ...r, quantity: toDisplayNumber(r.quantity) })),
+        bookingResources: item.bookingResources.map((r) => ({
+          ...r,
+          requiredQuantity: toDisplayNumber(r.requiredQuantity),
+          reservedQuantity: toDisplayNumber(r.reservedQuantity),
+          usedQuantity: toDisplayNumber(r.usedQuantity),
+        })),
         transactions: item.transactions.map((t) => ({ ...t, quantity: toDisplayNumber(t.quantity) })),
       }}
       stockSummary={{

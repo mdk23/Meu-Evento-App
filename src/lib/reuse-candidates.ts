@@ -1,72 +1,64 @@
-import { ReservationStatus } from '@prisma/client';
-import { ACTIVE_RESERVATION_STATUSES, computeReuseAllocation } from './resource-conflict';
+import { ResourceAllocationStatus } from '@prisma/client';
+import { ACTIVE_RESOURCE_STATUSES, computeReuseAllocation } from './resource-conflict';
 
-export interface ReservationForReuse {
-  id: string;
-  inventoryItemId: string;
-  bookingServiceId: string;
-  quantity: number;
-  status: ReservationStatus;
-  itemNameSnapshot: string;
-}
-
-export interface RequirementForReuse {
+export interface ResourceForReuse {
   id: string;
   bookingServiceId: string;
   inventoryItemId: string | null;
-  reuseReservationId: string | null;
-  providedQuantity: number;
+  itemNameSnapshot: string | null;
+  reservedQuantity: number;
+  status: ResourceAllocationStatus;
+  reusedFromResourceId: string | null;
 }
 
 export interface ReuseCandidate {
-  reservationId: string;
+  resourceId: string;
   itemName: string;
   serviceName: string;
   availableToReuse: number;
 }
 
 /**
- * Finds every *other* service's already-active reservation for the same item this requirement needs
- * (§20-21/§38: "an Event service reusing the Space package's already-reserved chairs instead of
- * double-reserving") and how much of each is still free to reuse — a reservation's stock can be
- * claimed by any number of requirements, but their combined `providedQuantity` claims against it can
- * never exceed its own `quantity` (Phase 13/15's `computeReuseAllocation`).
+ * Finds every *other* service's already-active resource for the same item this row needs (the
+ * cross-workspace "an Event service reusing the Space package's already-reserved chairs instead of
+ * double-reserving" scenario) and how much of each is still free to reuse — a resource's committed
+ * stock can be claimed by any number of other rows, but their combined `reservedQuantity` claims
+ * against it can never exceed its own `reservedQuantity` (`computeReuseAllocation`).
  *
- * Returns nothing for a category-based requirement that hasn't resolved to a specific item yet
+ * Returns nothing for a category-based row that hasn't resolved to a specific item yet
  * (`inventoryItemId: null`) — there's nothing concrete to match against until it has. Pure — no DB
- * access — so it can run over an already-fetched event payload and be unit-tested directly.
+ * access — so it can run over an already-fetched event/booking payload and be unit-tested directly.
  */
 export function computeReuseCandidatesForRequirement(
-  requirement: RequirementForReuse,
-  allReservations: ReservationForReuse[],
-  allRequirements: RequirementForReuse[],
+  resource: ResourceForReuse,
+  allResources: ResourceForReuse[],
   serviceLabels: Record<string, string>
 ): ReuseCandidate[] {
-  if (!requirement.inventoryItemId) return [];
+  if (!resource.inventoryItemId) return [];
 
-  const candidates = allReservations.filter(
+  const candidates = allResources.filter(
     (r) =>
-      r.inventoryItemId === requirement.inventoryItemId &&
-      r.bookingServiceId !== requirement.bookingServiceId &&
-      ACTIVE_RESERVATION_STATUSES.includes(r.status)
+      r.inventoryItemId === resource.inventoryItemId &&
+      r.bookingServiceId !== resource.bookingServiceId &&
+      ACTIVE_RESOURCE_STATUSES.includes(r.status) &&
+      r.reusedFromResourceId === null
   );
 
   const result: ReuseCandidate[] = [];
-  for (const reservation of candidates) {
-    // Includes this same requirement's own prior claim on this reservation, if any — reuse is an
-    // increment (see the `/inventory/reuse` route), so a second claim against the same reservation
-    // must be capped by what's left *after* this requirement's own earlier claim too, not just
-    // everyone else's.
-    const alreadyReused = allRequirements
-      .filter((req) => req.reuseReservationId === reservation.id)
-      .reduce((sum, req) => sum + req.providedQuantity, 0);
+  for (const target of candidates) {
+    // Includes this same row's own prior claim on this target, if any — reuse is an increment (see
+    // the `/inventory/reuse` route), so a second claim against the same target must be capped by
+    // what's left *after* this row's own earlier claim too, not just everyone else's.
+    const alreadyReused = allResources
+      .filter((r) => r.reusedFromResourceId === target.id)
+      .reduce((sum, r) => sum + r.reservedQuantity, 0);
 
-    const { availableToReuse } = computeReuseAllocation(reservation.quantity, alreadyReused, 0);
+    const { availableToReuse } = computeReuseAllocation(target.reservedQuantity, alreadyReused, 0);
     if (availableToReuse > 0) {
       result.push({
-        reservationId: reservation.id,
-        itemName: reservation.itemNameSnapshot,
-        serviceName: serviceLabels[reservation.bookingServiceId] || 'Another service',
+        resourceId: target.id,
+        itemName: target.itemNameSnapshot || 'Item',
+        serviceName: serviceLabels[target.bookingServiceId] || 'Another service',
         availableToReuse,
       });
     }

@@ -1,19 +1,15 @@
-import { ReservationStatus } from '@prisma/client';
-import { ACTIVE_RESERVATION_STATUSES } from './resource-conflict';
+import { ResourceAllocationStatus } from '@prisma/client';
+import { ACTIVE_RESOURCE_STATUSES } from './resource-conflict';
 
-export interface RequirementForSummary {
+export interface ResourceForSummary {
   bookingServiceId: string;
   inventoryItemId: string | null;
   itemNameSnapshot: string | null;
   categoryName: string | null;
   requiredQuantity: number;
-  providedQuantity: number;
-}
-
-export interface ReservationForSummary {
-  inventoryItemId: string;
-  quantity: number;
-  status: ReservationStatus;
+  reservedQuantity: number;
+  status: ResourceAllocationStatus;
+  reusedFromResourceId: string | null;
 }
 
 export type ResourceRowStatus = 'FULFILLED' | 'PENDING' | 'SHORTAGE' | 'UNRESOLVED';
@@ -33,47 +29,47 @@ export interface EventResourceSummaryRow {
 }
 
 /**
- * The event-wide "operational loading list" (§24/Phase 18) — every resource requirement across
- * every service on the event (Space, Event, direct, or package-sourced — this doesn't care which),
- * grouped by the physical item it targets, showing Required/Provided/Additional/Reserved/
- * Available/Source/Status in one place. Pure — no DB access — the caller supplies the event-scoped
- * requirements/reservations and a tenant-wide availability lookup already fetched.
+ * The event-wide "operational loading list" — every resource requirement across every service on
+ * the event (Space, Event, direct, or package-sourced — this doesn't care which), grouped by the
+ * physical item it targets, showing Required/Provided/Additional/Reserved/Available/Source/Status
+ * in one place. "Provided" is each row's own `reservedQuantity` (however it got covered — a direct
+ * reservation or reusing another row's stock); "Reserved" is the *fresh* physical commitment against
+ * the item tenant-wide, which excludes reused rows so the same stock isn't counted twice. Pure — no
+ * DB access — the caller supplies the event-scoped resources and a tenant-wide availability lookup
+ * already fetched.
  */
 export function computeEventResourceSummary(
-  requirements: RequirementForSummary[],
-  reservations: ReservationForSummary[],
+  resources: ResourceForSummary[],
   availableByItemId: Record<string, number>,
   serviceLabels: Record<string, string>
 ): EventResourceSummaryRow[] {
-  const groups = new Map<string, { itemId: string | null; label: string; requirements: RequirementForSummary[] }>();
+  const groups = new Map<string, { itemId: string | null; label: string; rows: ResourceForSummary[] }>();
 
-  for (const req of requirements) {
-    const key = req.inventoryItemId || (req.categoryName ? `category:${req.categoryName}` : 'unresolved');
+  for (const r of resources) {
+    const key = r.inventoryItemId || (r.categoryName ? `category:${r.categoryName}` : 'unresolved');
     if (!groups.has(key)) {
       groups.set(key, {
-        itemId: req.inventoryItemId,
-        label: req.itemNameSnapshot || (req.categoryName ? `Any ${req.categoryName}` : 'Unresolved item'),
-        requirements: [],
+        itemId: r.inventoryItemId,
+        label: r.itemNameSnapshot || (r.categoryName ? `Any ${r.categoryName}` : 'Unresolved item'),
+        rows: [],
       });
     }
-    groups.get(key)!.requirements.push(req);
+    groups.get(key)!.rows.push(r);
   }
 
   const rows: EventResourceSummaryRow[] = [];
   for (const [key, group] of groups) {
-    const required = group.requirements.reduce((sum, r) => sum + r.requiredQuantity, 0);
-    const provided = group.requirements.reduce((sum, r) => sum + r.providedQuantity, 0);
+    const required = group.rows.reduce((sum, r) => sum + r.requiredQuantity, 0);
+    const provided = group.rows.reduce((sum, r) => sum + r.reservedQuantity, 0);
     const additional = Math.max(required - provided, 0);
 
-    const reserved = group.itemId
-      ? reservations
-          .filter((r) => r.inventoryItemId === group.itemId && ACTIVE_RESERVATION_STATUSES.includes(r.status))
-          .reduce((sum, r) => sum + r.quantity, 0)
-      : 0;
+    const reserved = group.rows
+      .filter((r) => ACTIVE_RESOURCE_STATUSES.includes(r.status) && r.reusedFromResourceId === null)
+      .reduce((sum, r) => sum + r.reservedQuantity, 0);
 
     const available = group.itemId ? availableByItemId[group.itemId] ?? 0 : null;
 
-    const sources = Array.from(new Set(group.requirements.map((r) => serviceLabels[r.bookingServiceId] || 'Service')));
+    const sources = Array.from(new Set(group.rows.map((r) => serviceLabels[r.bookingServiceId] || 'Service')));
 
     let status: ResourceRowStatus;
     if (!group.itemId) {

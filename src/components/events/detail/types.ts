@@ -16,10 +16,10 @@ type RawEventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
         supplier: true;
         serviceTasks: true;
         staffAssignments: { include: { staff: true } };
-        inventoryReservations: { include: { inventoryItem: true; transactions: true } };
-        resourceRequirements: {
+        resources: {
           include: {
             inventoryItem: true;
+            transactions: true;
             sourceRequirement: { select: { categoryId: true; category: { select: { name: true } } } };
           };
         };
@@ -33,15 +33,14 @@ type RawEventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
 
 type RawEventServiceWithRelations = RawEventDetailPayload['bookingServices'][number];
 
-// `reuseCandidates` (Phase 17) is computed server-side in `GET /api/events/[id]` — a cross-service
-// comparison, not a Prisma relation — so it's added here by intersection rather than in the `include`
-// shape above.
-export type ResourceRequirement = RawEventServiceWithRelations['resourceRequirements'][number] & {
+// `reuseCandidates` is computed server-side in `GET /api/events/[id]` — a cross-service comparison,
+// not a Prisma relation — so it's added here by intersection rather than in the `include` shape above.
+export type BookingServiceResource = RawEventServiceWithRelations['resources'][number] & {
   reuseCandidates: ReuseCandidate[];
 };
 
-export type EventServiceWithRelations = Omit<RawEventServiceWithRelations, 'resourceRequirements'> & {
-  resourceRequirements: ResourceRequirement[];
+export type EventServiceWithRelations = Omit<RawEventServiceWithRelations, 'resources'> & {
+  resources: BookingServiceResource[];
 };
 
 export type EventDetailPayload = Omit<RawEventDetailPayload, 'bookingServices'> & {
@@ -50,7 +49,6 @@ export type EventDetailPayload = Omit<RawEventDetailPayload, 'bookingServices'> 
 
 export type WorkOrderTask = EventServiceWithRelations['serviceTasks'][number];
 export type StaffAssignment = EventServiceWithRelations['staffAssignments'][number];
-export type InventoryReservation = EventServiceWithRelations['inventoryReservations'][number];
 
 export interface EventDetailApiResponse {
   event: EventDetailPayload;

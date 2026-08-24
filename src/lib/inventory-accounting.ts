@@ -1,8 +1,9 @@
 import { Prisma } from '@prisma/client';
 
 export interface ReservationLike {
-  quantity: number | Prisma.Decimal;
-  status: 'HELD' | 'CONFIRMED' | 'RELEASED' | 'CONSUMED' | 'RETURNED' | 'CANCELLED';
+  reservedQuantity: number | Prisma.Decimal;
+  status: 'PLANNED' | 'RESERVED' | 'IN_USE' | 'RETURNED' | 'RELEASED';
+  reusedFromResourceId: string | null;
 }
 
 export interface TransactionLike {
@@ -30,7 +31,7 @@ export interface InventoryStockSummary {
   lostQuantity: Prisma.Decimal;
 }
 
-const ACTIVE_RESERVATION_STATUSES = new Set(['HELD', 'CONFIRMED', 'CONSUMED']);
+const ACTIVE_RESERVATION_STATUSES = new Set(['RESERVED', 'IN_USE']);
 
 function sumBy<T>(items: T[], predicate: (item: T) => boolean, quantityOf: (item: T) => number | Prisma.Decimal): Prisma.Decimal {
   return items
@@ -52,7 +53,11 @@ export function computeInventoryStockSummary(
   transactions: TransactionLike[]
 ): InventoryStockSummary {
   const total = new Prisma.Decimal(totalQuantity);
-  const reservedQuantity = sumBy(reservations, (r) => ACTIVE_RESERVATION_STATUSES.has(r.status), (r) => r.quantity);
+  const reservedQuantity = sumBy(
+    reservations,
+    (r) => ACTIVE_RESERVATION_STATUSES.has(r.status) && r.reusedFromResourceId === null,
+    (r) => r.reservedQuantity
+  );
   const availableQuantity = Prisma.Decimal.max(total.minus(reservedQuantity), 0);
 
   const allocated = sumBy(transactions, (t) => t.type === 'ALLOCATE', (t) => t.quantity);

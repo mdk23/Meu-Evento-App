@@ -15,14 +15,14 @@ const STATUS_BADGE: Record<string, { className: string; label: string }> = {
   UNRESOLVED: { className: 'b-mute', label: 'Unresolved' },
 };
 
-/** The event-wide operational loading list (Phase 18) — every resource requirement across every
- * service on this event (Space, Event, direct, or package-sourced — doesn't matter which),
- * aggregated per physical item into Required/Provided/Additional/Reserved/Available/Source/Status.
- * A raw per-reservation list (§9-equivalent detail view) stays below for drill-down into exactly
- * which reservation covers what, unchanged from before this phase. */
+/** The event-wide operational loading list — every resource requirement across every service on
+ * this event (Space, Event, direct, or package-sourced — doesn't matter which), aggregated per
+ * physical item into Required/Provided/Additional/Reserved/Available/Source/Status. A raw per-row
+ * list of everything actually reserved stays below for drill-down into exactly which commitment
+ * covers what. */
 export default function ResourcesTab({ eventServices, resourceSummary, onOpenWorkOrder }: ResourcesTabProps) {
   const reservations = eventServices.flatMap((es) =>
-    es.inventoryReservations.map((r) => ({ ...r, service: es }))
+    es.resources.filter((r) => Number(r.reservedQuantity) > 0).map((r) => ({ ...r, service: es }))
   );
 
   const shortageCount = resourceSummary.filter((r) => r.status === 'SHORTAGE').length;
@@ -134,7 +134,7 @@ export default function ResourcesTab({ eventServices, resourceSummary, onOpenWor
                   {reservations.map((r) => (
                     <tr key={r.id} onClick={() => onOpenWorkOrder(r.service)} style={{ cursor: 'pointer' }}>
                       <td style={{ fontWeight: 600 }}>{r.itemNameSnapshot || r.inventoryItem?.name || 'Item'}</td>
-                      <td className="r num">{r.quantity}</td>
+                      <td className="r num">{r.reservedQuantity}</td>
                       <td>{r.service.service?.name || r.service.serviceNameSnapshot || 'Service'}</td>
                       <td className="mini dim">
                         {new Date(r.startAt).toLocaleDateString()} &ndash; {new Date(r.endAt).toLocaleDateString()}
