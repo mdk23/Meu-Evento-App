@@ -60,7 +60,7 @@ export async function PATCH(
               serviceId: id,
               inventoryItemId: r.inventoryItemId || null,
               categoryId: r.categoryId || null,
-              quantity: parseFloat(String(r.quantity ?? 1)) || 1,
+              quantity: parseInt(String(r.quantity ?? 1), 10) || 1,
               quantityType: resolveQuantityType(r.quantityType),
               optional: !!r.optional,
               notes: r.notes || null,

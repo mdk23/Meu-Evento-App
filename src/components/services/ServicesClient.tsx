@@ -71,7 +71,7 @@ function toRequirementPayload(rows: RequirementRow[]) {
     .map((r) => ({
       inventoryItemId: r.targetType === 'ITEM' ? r.inventoryItemId : null,
       categoryId: r.targetType === 'CATEGORY' ? r.categoryId : null,
-      quantity: parseFloat(r.quantity || '1') || 1,
+      quantity: parseInt(r.quantity || '1', 10) || 1,
       quantityType: r.quantityType,
       optional: r.optional,
       notes: r.notes.trim() || undefined,
@@ -536,16 +536,6 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                           </button>
                         </div>
                         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={row.quantity}
-                            onChange={(e) => updateRequirementRow(index, { quantity: e.target.value })}
-                            placeholder="Quantity"
-                            className="input"
-                            style={{ padding: '8px 10px', fontSize: 12 }}
-                          />
                           <select
                             value={row.quantityType}
                             onChange={(e) => updateRequirementRow(index, { quantityType: e.target.value as QuantityTypeOption })}
@@ -556,6 +546,16 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             <option value="PER_GUEST">Per guest</option>
                             <option value="PER_UNIT">Per unit</option>
                           </select>
+                          <input
+                            type="number"
+                            min={0}
+                            step="1"
+                            value={row.quantity}
+                            onChange={(e) => updateRequirementRow(index, { quantity: e.target.value.replace(/[^0-9]/g, '') })}
+                            placeholder="Quantity"
+                            className="input"
+                            style={{ padding: '8px 10px', fontSize: 12 }}
+                          />
                           <label className="mini row" style={{ gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
                             <input
                               type="checkbox"
