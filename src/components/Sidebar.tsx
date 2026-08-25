@@ -67,7 +67,6 @@ export function Sidebar() {
   };
 
   const spaceNavItems = [
-    { label: 'Space Bookings', href: '/bookings?context=SPACE', icon: BookmarkCheck },
     { label: 'Space Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
     { label: 'Space Services', href: '/services?scope=SPACE', icon: Briefcase },
   ];
@@ -80,16 +79,21 @@ export function Sidebar() {
 
   const navGroups = [
     {
+      label: '',
+      items: [
+        { label: 'Overview', href: workspace === 'SPACE' ? '/overview?context=SPACE' : '/overview?context=EVENT', icon: LayoutDashboard },
+        { label: 'Calendar', href: '/calendar', icon: CalendarDays },
+        { label: 'All Bookings', href: workspace === 'SPACE' ? '/bookings?context=SPACE' : '/bookings', icon: BookmarkCheck },
+        { label: 'Waiting List', href: '/bookings?status=WAITING_LIST', icon: Clock },
+      ],
+    },
+    {
       label: workspace === 'SPACE' ? 'Space Workspace' : 'Event Workspace',
       items: workspace === 'SPACE' ? spaceNavItems : eventNavItems,
     },
     {
       label: 'Shared',
       items: [
-        { label: 'Overview', href: workspace === 'SPACE' ? '/overview?context=SPACE' : '/overview?context=EVENT', icon: LayoutDashboard },
-        { label: 'Calendar', href: '/calendar', icon: CalendarDays },
-        { label: 'All Bookings', href: '/bookings', icon: BookmarkCheck },
-        { label: 'Waiting List', href: '/bookings?status=WAITING_LIST', icon: Clock },
         { label: 'Clients', href: '/clients', icon: Users },
         { label: 'Services', href: '/services', icon: Briefcase },
         { label: 'Resources', href: '/resources', icon: Boxes },
@@ -135,7 +139,7 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 overflow-y-auto">
         {navGroups.map((group) => (
           <div key={group.label}>
-            {!isCollapsed && <div className="nav-sec label">{group.label}</div>}
+            {!isCollapsed && group.label && <div className="nav-sec label">{group.label}</div>}
             {group.items.map((item) => {
               const Icon = item.icon;
               const isActive = isItemActive(item.href);

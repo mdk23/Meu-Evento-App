@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { CalendarBookingDTO } from '@/types/dtos';
@@ -8,6 +8,7 @@ import { bookingsOverlap } from '@/lib/booking-conflict';
 import DayDetailModal from './DayDetailModal';
 import Topbar from '@/components/aurelia/Topbar';
 import { statusChipStyle } from './statusColors';
+import { getActiveWorkspace, Workspace } from '@/lib/workspace';
 
 interface CalendarClientProps {
   initialBookings: CalendarBookingDTO[];
@@ -18,12 +19,22 @@ export default function CalendarClient({
 }: CalendarClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // Starts null so server-rendered markup doesn't guess a workspace the client hasn't read from
+  // localStorage yet — same reasoning as Sidebar. Used only to stamp "New Booking" links with the
+  // right `context` so a booking created from Calendar lands in the workspace you're actually in,
+  // instead of always defaulting to EVENT.
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+
+  useEffect(() => {
+    setWorkspace(getActiveWorkspace() ?? 'EVENT');
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weekRows = Math.ceil((firstDayOfMonth + daysInMonth) / 7);
 
   const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -63,16 +74,19 @@ export default function CalendarClient({
           <button onClick={handleNextMonth} className="icon-btn"><ChevronRight className="w-4 h-4" /></button>
         </div>
 
-        <Link href="/bookings/create" className="btn primary sm">
+        <Link href={`/bookings/create?context=${workspace ?? 'EVENT'}`} className="btn primary sm">
           <Plus className="w-3.5 h-3.5" /> New Booking Terminal
         </Link>
       </Topbar>
 
-      {/* CALENDAR GRID */}
-      <div className="flex-1 overflow-auto page">
-        <div className="card">
+      {/* CALENDAR GRID — fills the remaining viewport height (row count sized to this month's week
+          count) on screens tall enough for it; `.card`'s own minHeight guarantees every day cell
+          stays readable, and the wrapper falls back to scrolling rather than clipping days off the
+          bottom on shorter screens. */}
+      <div className="flex-1 overflow-auto" style={{ display: 'flex', flexDirection: 'column', padding: '20px 24px' }}>
+        <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: weekRows * 64 + 60 }}>
           {/* WEEKDAY HEADERS */}
-          <div className="cal" style={{ marginBottom: 16, textAlign: 'center' }}>
+          <div className="cal" style={{ marginBottom: 16, textAlign: 'center', flexShrink: 0 }}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
               <div key={day} className="label">
                 {day}
@@ -81,7 +95,7 @@ export default function CalendarClient({
           </div>
 
           {/* DAYS GRID */}
-          <div className="cal">
+          <div className="cal" style={{ flex: 1, minHeight: 0, gridTemplateRows: `repeat(${weekRows}, 1fr)` }}>
             {/* Empty slots for days before 1st of month */}
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
               <div key={`empty-${i}`} className="cal-day is-empty" />
@@ -130,6 +144,7 @@ export default function CalendarClient({
         date={selectedDate}
         bookings={selectedDate ? getBookingsForTimeline(selectedDate) : []}
         onClose={() => setSelectedDate(null)}
+        workspace={workspace ?? 'EVENT'}
       />
     </main>
   );

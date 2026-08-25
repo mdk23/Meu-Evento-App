@@ -924,7 +924,7 @@
   gap: 8px;
 }
 .cal-day {
-  height: 128px;
+  min-height: 64px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: var(--surface-solid);

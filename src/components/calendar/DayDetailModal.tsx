@@ -5,12 +5,14 @@ import { X, Plus, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { CalendarBookingDTO } from '@/types/dtos';
 import { bookingsOverlap } from '@/lib/booking-conflict';
 import { statusChipStyle } from './statusColors';
+import { Workspace } from '@/lib/workspace';
 
 interface DayDetailModalProps {
   isOpen: boolean;
   date: Date | null;
   bookings: CalendarBookingDTO[];
   onClose: () => void;
+  workspace: Workspace;
 }
 
 const HOUR_HEIGHT = 56;
@@ -97,7 +99,7 @@ function formatDateParam(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export default function DayDetailModal({ isOpen, date, bookings, onClose }: DayDetailModalProps) {
+export default function DayDetailModal({ isOpen, date, bookings, onClose, workspace }: DayDetailModalProps) {
   if (!isOpen || !date) return null;
 
   // Timeline's whole purpose is showing occupancy — a cancelled booking doesn't occupy anything.
@@ -124,7 +126,7 @@ export default function DayDetailModal({ isOpen, date, bookings, onClose }: DayD
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/bookings/create?date=${formatDateParam(date)}`} className="btn primary sm">
+            <Link href={`/bookings/create?date=${formatDateParam(date)}&context=${workspace}`} className="btn primary sm">
               <Plus className="w-3.5 h-3.5" /> New Booking
             </Link>
             <button onClick={onClose} className="icon-btn">
