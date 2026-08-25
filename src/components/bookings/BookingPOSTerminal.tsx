@@ -22,11 +22,9 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
     <div className="aurelia-shell flex-1 flex flex-col h-full w-full font-sans overflow-hidden">
       {/* TOP HEADER BAR */}
       <POSTerminalHeader
-        onReset={pos.resetForm}
         isEdit={isEdit}
         bookingId={props.initialBookingData?.id}
         bookingKind={props.initialBookingData?.context}
-        booking={props.initialBookingData}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         hasPaymentsTab={!!props.paymentsTabComponent}

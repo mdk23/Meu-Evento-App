@@ -547,16 +547,6 @@ export function useBookingPOS({
     }
   };
 
-  const resetForm = () => {
-    setClientName('');
-    setClientPhone('');
-    setClientEmail('');
-    setEventTitle('');
-    setSelectedItems([]);
-    setDiscount(0);
-    toast.info('Form reset.');
-  };
-
   return {
     // State
     selectedClientId,
@@ -646,7 +636,6 @@ export function useBookingPOS({
     isPackageApplied,
     removeItemFromCart,
     handleSubmitPOS,
-    resetForm,
     isEdit,
   };
 }
