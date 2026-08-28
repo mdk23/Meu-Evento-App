@@ -1,5 +1,5 @@
 /**
- * Capacity rule (Phase 8): guestCount > space.capacity is a soft warning by default — it only
+ * Capacity rule (Phase 8): guestCount > venue.capacity is a soft warning by default — it only
  * blocks the booking from being CONFIRMED, and only until an override reason is recorded.
  */
 export function isOverCapacity(guestCount: number, venueCapacity: number): boolean {

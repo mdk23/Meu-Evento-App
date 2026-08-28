@@ -2,8 +2,8 @@ import { prisma } from '@/lib/prisma';
 
 export class ResourceRepository {
   static async getResourcesData() {
-    const [space, inventory, staff, suppliers, inventoryCategories] = await Promise.all([
-      prisma.space.findFirst({
+    const [venue, inventory, staff, suppliers, inventoryCategories] = await Promise.all([
+      prisma.venue.findFirst({
         select: { id: true, name: true, capacity: true, address: true, description: true },
       }),
       prisma.inventoryItem.findMany({
@@ -26,6 +26,6 @@ export class ResourceRepository {
       }),
     ]);
 
-    return { space, inventory, staff, suppliers, inventoryCategories };
+    return { venue, inventory, staff, suppliers, inventoryCategories };
   }
 }

@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const tenant = await prisma.tenant.findFirst({
       include: {
-        space: true,
+        venue: true,
         inventoryItems: { where: { active: true }, orderBy: { name: 'asc' }, include: { category: true } },
         staff: { orderBy: { name: 'asc' } },
         suppliers: { orderBy: { name: 'asc' } },
@@ -13,7 +13,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      space: tenant?.space,
+      venue: tenant?.venue,
       inventoryItems: (tenant?.inventoryItems || []).map((item) => ({ ...item, category: item.category.name })),
       staff: tenant?.staff || [],
       suppliers: tenant?.suppliers || [],
@@ -35,19 +35,19 @@ export async function POST(request: Request) {
     }
 
     if (resourceType === 'VENUE') {
-      let space = await prisma.space.findUnique({ where: { tenantId: tenant.id } });
-      if (space) {
-        space = await prisma.space.update({
+      let venue = await prisma.venue.findUnique({ where: { tenantId: tenant.id } });
+      if (venue) {
+        venue = await prisma.venue.update({
           where: { tenantId: tenant.id },
           data: {
-            name: data.name || space.name,
-            capacity: data.capacity ? parseInt(data.capacity, 10) : space.capacity,
-            address: data.address || space.address,
-            description: data.description || space.description,
+            name: data.name || venue.name,
+            capacity: data.capacity ? parseInt(data.capacity, 10) : venue.capacity,
+            address: data.address || venue.address,
+            description: data.description || venue.description,
           },
         });
       } else {
-        space = await prisma.space.create({
+        venue = await prisma.venue.create({
           data: {
             tenantId: tenant.id,
             name: data.name || 'Royal Events Venue',
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
           },
         });
       }
-      return NextResponse.json({ success: true, space });
+      return NextResponse.json({ success: true, venue });
     }
 
     if (resourceType === 'INVENTORY') {

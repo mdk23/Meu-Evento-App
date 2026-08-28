@@ -7,14 +7,14 @@ import ThemeSwitch from '@/components/aurelia/ThemeSwitch';
 export const dynamic = 'force-dynamic';
 
 export default async function WorkspacePickerPage() {
-  const [space, event, tenant] = await Promise.all([
+  const [venue, event, tenant] = await Promise.all([
     WorkspaceRepository.getWorkspaceSummary('VENUE'),
     WorkspaceRepository.getWorkspaceSummary('EVENT'),
-    prisma.tenant.findFirst({ include: { space: true } }),
+    prisma.tenant.findFirst({ include: { venue: true } }),
   ]);
 
-  const venueName = tenant?.space?.name || 'Main Venue';
-  const city = tenant?.space?.address?.split(',').pop()?.trim() || tenant?.name || 'Aurelia';
+  const venueName = tenant?.venue?.name || 'Main Venue';
+  const city = tenant?.venue?.address?.split(',').pop()?.trim() || tenant?.name || 'Aurelia';
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-y-auto">
@@ -65,7 +65,7 @@ export default async function WorkspacePickerPage() {
             href="/bookings?context=VENUE"
             primaryStatLabel="Venue bookings"
             midStatLabel="Dates held ahead"
-            summary={space}
+            summary={venue}
             pills={[
               {
                 label: 'Venue Details',

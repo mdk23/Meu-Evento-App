@@ -47,7 +47,7 @@ export async function PATCH(
 
     const existingBooking = await prisma.booking.findUnique({
       where: { id },
-      include: { event: true, client: true, space: true },
+      include: { event: true, client: true, venue: true },
     });
 
     if (!existingBooking) {
@@ -108,7 +108,7 @@ export async function PATCH(
     if (resolvedStatus === BookingStatus.CONFIRMED) {
       const resolvedGuestCount = guestCount !== undefined ? parseInt(guestCount, 10) : existingBooking.guestCount;
       const resolvedOverrideReason = capacityOverrideReason !== undefined ? capacityOverrideReason : existingBooking.capacityOverrideReason;
-      assertCapacityForConfirmation(resolvedGuestCount, existingBooking.space.capacity, resolvedOverrideReason);
+      assertCapacityForConfirmation(resolvedGuestCount, existingBooking.venue.capacity, resolvedOverrideReason);
     }
 
     // Update booking + client + event + services + payment schedule atomically —

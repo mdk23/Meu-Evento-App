@@ -27,9 +27,9 @@ export async function GET() {
 
     const clients = await prisma.client.findMany({ orderBy: { name: 'asc' } });
     const services = await prisma.service.findMany({ orderBy: { name: 'asc' } });
-    const spaces = await prisma.space.findMany({ orderBy: { name: 'asc' } });
+    const venues = await prisma.venue.findMany({ orderBy: { name: 'asc' } });
 
-    return NextResponse.json(serializeDecimals({ bookings, clients, services, spaces }));
+    return NextResponse.json(serializeDecimals({ bookings, clients, services, venues }));
   } catch (error: unknown) {
     console.error('Failed to fetch bookings:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -94,8 +94,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cliente selecionado não foi encontrado' }, { status: 404 });
     }
 
-    const space = await prisma.space.findUnique({ where: { tenantId: tenant.id } });
-    if (!space) {
+    const venue = await prisma.venue.findUnique({ where: { tenantId: tenant.id } });
+    if (!venue) {
       return NextResponse.json({ error: 'No venue configured for this tenant' }, { status: 400 });
     }
 
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
 
     // Capacity is a soft warning below CONFIRMED — only confirming actually blocks without an override reason.
     if (finalStatus === BookingStatus.CONFIRMED) {
-      assertCapacityForConfirmation(parsedGuestCount, space.capacity, capacityOverrideReason);
+      assertCapacityForConfirmation(parsedGuestCount, venue.capacity, capacityOverrideReason);
     }
 
     // Defaults to EVENT so every existing caller (which never sends `kind`) keeps today's exact
@@ -150,9 +150,9 @@ export async function POST(request: Request) {
     // a partial failure here must not leave a Booking/Event without its services or payments.
     const { booking, event } = await prismaTransaction.$transaction(async (tx) => {
       // Only WAITING_LIST bookings are allowed to overlap an already-booked window —
-      // any other status must have the space free for its whole [startAt, endAt) window.
+      // any other status must have the venue free for its whole [startAt, endAt) window.
       if (finalStatus !== BookingStatus.WAITING_LIST) {
-        await assertNoBookingConflict(tx, space.id, parsedStartAt, parsedEndAt);
+        await assertNoBookingConflict(tx, venue.id, parsedStartAt, parsedEndAt);
       }
 
       // 1. Create Booking
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
         data: {
           tenantId: tenant.id,
           clientId: targetClientId,
-          venueId: space.id,
+          venueId: venue.id,
           bookingType: bookingType || BookingType.VENUE_AND_SERVICES,
           context: resolvedKind,
           eventDate: parsedDate,

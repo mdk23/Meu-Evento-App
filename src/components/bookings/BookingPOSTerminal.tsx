@@ -100,7 +100,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
           <POSExtractSummarySection
             selectedItems={pos.selectedItems}
             removeItemFromCart={pos.removeItemFromCart}
-            spaceServicesTotal={pos.spaceServicesTotal}
+            venueServicesTotal={pos.venueServicesTotal}
             eventServicesTotal={pos.eventServicesTotal}
             internalRevenue={pos.internalRevenue}
             externalRepass={pos.externalRepass}
@@ -134,7 +134,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
         {props.initialBookingData && (
           <>
             <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'overview' ? 'block' : 'hidden'}`}>
-              <BookingOverviewTab booking={props.initialBookingData} spaces={props.initialVenues || []} />
+              <BookingOverviewTab booking={props.initialBookingData} venues={props.initialVenues || []} />
             </main>
             <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'contract' ? 'block' : 'hidden'}`}>
               <BookingContractTab booking={props.initialBookingData} />

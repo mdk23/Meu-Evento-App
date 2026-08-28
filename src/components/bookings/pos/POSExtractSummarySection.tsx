@@ -6,7 +6,7 @@ import { DEPOSIT_PERCENT_OPTIONS, PAYMENT_PLAN_OPTIONS, MilestoneDraft, PaymentP
 interface POSExtractSummarySectionProps {
   selectedItems: CartItem[];
   removeItemFromCart: (id: string) => void;
-  spaceServicesTotal: number;
+  venueServicesTotal: number;
   eventServicesTotal: number;
   internalRevenue: number;
   externalRepass: number;
@@ -30,7 +30,7 @@ interface POSExtractSummarySectionProps {
 export default function POSExtractSummarySection({
   selectedItems,
   removeItemFromCart,
-  spaceServicesTotal,
+  venueServicesTotal,
   eventServicesTotal,
   internalRevenue,
   externalRepass,
@@ -110,7 +110,7 @@ export default function POSExtractSummarySection({
           <div className="stack" style={{ gap: 10, padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
             <div className="between mini">
               <span>Venue Services:</span>
-              <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{spaceServicesTotal.toLocaleString()} MT</span>
+              <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{venueServicesTotal.toLocaleString()} MT</span>
             </div>
 
             <div className="between mini">

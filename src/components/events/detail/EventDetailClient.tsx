@@ -30,7 +30,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
     );
   }
 
-  const { event, space, suppliers, catalogServices, staff, inventoryItems, resourceSummary } = detail.data;
+  const { event, venue, suppliers, catalogServices, staff, inventoryItems, resourceSummary } = detail.data;
 
   return (
     <>
@@ -39,7 +39,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
         <EventDetailTabs activeTab={detail.activeTab} onTabChange={detail.setActiveTab} />
 
         <div className={`flex-1 overflow-auto${detail.activeTab === 'payments' ? '' : ' page'}`}>
-          {detail.activeTab === 'overview' && <OverviewTab event={event} space={space} onNavigateTab={detail.setActiveTab} />}
+          {detail.activeTab === 'overview' && <OverviewTab event={event} venue={venue} onNavigateTab={detail.setActiveTab} />}
           {detail.activeTab === 'services' && (
             <ServicesTab
               eventServices={event.bookingServices}

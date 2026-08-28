@@ -27,7 +27,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
     orderBy: { name: 'asc' },
     select: { id: true, name: true, category: true, context: true, defaultProviderType: true, defaultPrice: true, priceType: true },
   });
-  const spaces = await prisma.space.findMany({
+  const venues = await prisma.venue.findMany({
     orderBy: { name: 'asc' },
     select: { id: true, name: true, capacity: true, description: true },
   });
@@ -49,7 +49,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
     <BookingPOSTerminal
       initialClients={clients}
       initialServices={serializeDecimals(services)}
-      initialVenues={spaces}
+      initialVenues={venues}
       initialBookings={bookings}
       initialPackages={packages}
       initialDate={initialDate}

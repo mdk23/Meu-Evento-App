@@ -3,7 +3,7 @@ export type WorkspaceKind = 'VENUE' | 'EVENT';
 
 /** Whether a catalog item (Service or Package) scoped `scope` should be selectable from a booking
  * in workspace `kind`. Event is the superset workspace — an Event booking legitimately needs the
- * venue too (its own example: "an event uses an event package and a space package"), so it sees
+ * venue too (its own example: "an event uses an event package and a venue package"), so it sees
  * everything. A Venue booking is commercial-only and only ever sees Venue + Both-scoped items. */
 export function isScopeAllowedForKind(scope: CatalogScope, kind: WorkspaceKind): boolean {
   if (kind === 'EVENT') return true;

@@ -53,7 +53,7 @@ export type StaffAssignment = EventServiceWithRelations['staffAssignments'][numb
 export interface EventDetailApiResponse {
   event: EventDetailPayload;
   resourceSummary?: EventResourceSummaryRow[];
-  space?: Venue | null;
+  venue?: Venue | null;
   suppliers?: Supplier[];
   staff?: Staff[];
   catalogServices?: SerializedService[];

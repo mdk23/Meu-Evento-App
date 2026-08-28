@@ -108,7 +108,7 @@ export function useBookingPOS({
   const [endTime, setEndTime] = useState('02:00');
   const [capacityOverrideReason, setCapacityOverrideReason] = useState('');
 
-  // Real reservation window for the space — combines the event date with the selected start/end
+  // Real reservation window for the venue — combines the event date with the selected start/end
   // time, wrapping to the next calendar day when the end time is earlier than the start time
   // (e.g. an 18:00–02:00 range spans midnight).
   const { startAt, endAt } = useMemo(() => {
@@ -134,7 +134,7 @@ export function useBookingPOS({
       : defaultVenues;
   }, [initialVenues]);
 
-  // Selected space
+  // Selected venue
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
 
   // There's one real Venue per tenant — its capacity is what guestCount is checked against.
@@ -182,7 +182,7 @@ export function useBookingPOS({
           id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
           serviceId: es.serviceId,
           name: es.service?.name || 'Service',
-          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'Venue Rental' || es.service?.category === 'VENUE') ? 'VENUE' : 'EVENT',
+          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'VENUE') ? 'VENUE' : 'EVENT',
           providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
           priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'PER_HOUR' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
@@ -317,7 +317,7 @@ export function useBookingPOS({
   };
 
   // Calculations
-  const spaceServicesTotal = useMemo(() => {
+  const venueServicesTotal = useMemo(() => {
     return selectedItems.filter(i => i.category === 'VENUE').reduce((acc, curr) => acc + curr.totalPrice, 0);
   }, [selectedItems]);
 
@@ -333,7 +333,7 @@ export function useBookingPOS({
     return selectedItems.filter(i => i.providerType === 'EXTERNAL').reduce((acc, curr) => acc + curr.totalPrice, 0);
   }, [selectedItems]);
 
-  const subtotalBeforeDiscount = spaceServicesTotal + eventServicesTotal;
+  const subtotalBeforeDiscount = venueServicesTotal + eventServicesTotal;
   const grandTotal = Math.max(0, subtotalBeforeDiscount - discount);
 
   // Payment plan: a preset plan (Full / 3 / 6 / 10 / 12) derives its milestone list live from
@@ -617,7 +617,7 @@ export function useBookingPOS({
 
     // Derived
     filteredCatalog,
-    spaceServicesTotal,
+    venueServicesTotal,
     eventServicesTotal,
     internalRevenue,
     externalRepass,

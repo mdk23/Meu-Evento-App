@@ -329,7 +329,7 @@ export class DashboardRepository {
         take: 6,
         select: { id: true, guestCount: true, status: true, eventDate: true, client: { select: { name: true } } },
       }),
-      prisma.tenant.findFirst({ include: { space: true } }),
+      prisma.tenant.findFirst({ include: { venue: true } }),
     ]);
 
     const revenue = toDisplayNumber(calculateRevenue(bookingServicesAll, discountAgg._sum.discount));
@@ -353,7 +353,7 @@ export class DashboardRepository {
         eventDate: b.eventDate.toISOString(),
         status: b.status,
       })),
-      space: tenant?.space ? { name: tenant.space.name, capacity: tenant.space.capacity, address: tenant.space.address } : null,
+      venue: tenant?.venue ? { name: tenant.venue.name, capacity: tenant.venue.capacity, address: tenant.venue.address } : null,
     };
   }
 }

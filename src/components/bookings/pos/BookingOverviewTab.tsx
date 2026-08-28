@@ -3,7 +3,7 @@ import { BookingPOSInitialData, CatalogVenue } from './types';
 
 interface BookingOverviewTabProps {
   booking: BookingPOSInitialData;
-  spaces: CatalogVenue[];
+  venues: CatalogVenue[];
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -14,8 +14,8 @@ const STATUS_BADGE: Record<string, string> = {
   WAITING_LIST: 'b-mute',
 };
 
-export default function BookingOverviewTab({ booking, spaces }: BookingOverviewTabProps) {
-  const space = spaces.find((s) => s.id === booking.venueId);
+export default function BookingOverviewTab({ booking, venues }: BookingOverviewTabProps) {
+  const venue = venues.find((s) => s.id === booking.venueId);
   const statusBadge = STATUS_BADGE[booking.status] || 'b-mute';
 
   return (
@@ -50,7 +50,7 @@ export default function BookingOverviewTab({ booking, spaces }: BookingOverviewT
           <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <MapPin className="w-3.5 h-3.5" /> Venue
           </span>
-          <div className="val" style={{ fontSize: 20 }}>{space?.name || 'N/A'}</div>
+          <div className="val" style={{ fontSize: 20 }}>{venue?.name || 'N/A'}</div>
         </div>
       </div>
 

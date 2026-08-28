@@ -57,7 +57,7 @@ export interface VenueDashboardDTO {
     eventDate: string;
     status: string;
   }>;
-  space: { name: string; capacity: number; address: string | null } | null;
+  venue: { name: string; capacity: number; address: string | null } | null;
 }
 
 export interface BookingListPageDTO {

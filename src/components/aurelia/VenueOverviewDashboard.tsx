@@ -24,7 +24,7 @@ interface VenueOverviewDashboardProps {
  * supplier panel here (see `EventOverviewDashboard` for that side). Reads straight off `Booking`
  * rather than `Event`, since VENUE-kind bookings never have one. */
 export default function VenueOverviewDashboard({ data }: VenueOverviewDashboardProps) {
-  const { kpis, todaysBookings, upcomingBookings, space } = data;
+  const { kpis, todaysBookings, upcomingBookings, venue } = data;
   const collectedPercent = kpis.pendingAmount + kpis.totalCollected > 0
     ? Math.round((kpis.totalCollected / (kpis.pendingAmount + kpis.totalCollected)) * 100)
     : 0;
@@ -92,7 +92,7 @@ export default function VenueOverviewDashboard({ data }: VenueOverviewDashboardP
             </h3>
 
             {todaysBookings.length === 0 ? (
-              <p className="mini dim" style={{ padding: '16px 0' }}>No space hand-overs scheduled for today.</p>
+              <p className="mini dim" style={{ padding: '16px 0' }}>No venue hand-overs scheduled for today.</p>
             ) : (
               <div className="space-y-3">
                 {todaysBookings.map((b) => (
@@ -158,17 +158,17 @@ export default function VenueOverviewDashboard({ data }: VenueOverviewDashboardP
             <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Venue &amp; Capacity
             </h3>
-            {space ? (
+            {venue ? (
               <>
-                <p className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{space.name}</p>
-                <p className="mini dim">{space.address || 'No address on file'}</p>
+                <p className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{venue.name}</p>
+                <p className="mini dim">{venue.address || 'No address on file'}</p>
                 <div className="kv">
                   <span className="k">Capacity</span>
-                  <span className="v">{space.capacity} Guests</span>
+                  <span className="v">{venue.capacity} Guests</span>
                 </div>
               </>
             ) : (
-              <p className="mini dim">No space configured yet.</p>
+              <p className="mini dim">No venue configured yet.</p>
             )}
           </div>
 

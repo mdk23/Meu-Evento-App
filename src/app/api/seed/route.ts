@@ -21,7 +21,7 @@ export async function POST() {
     });
 
     // 2. Create Single Event Venue
-    const space = await prisma.space.create({
+    const venue = await prisma.venue.create({
       data: {
         tenantId: tenant.id,
         name: 'Royal Events Main Venue',
@@ -190,7 +190,7 @@ export async function POST() {
       data: {
         tenantId: tenant.id,
         clientId: client1.id,
-        venueId: space.id,
+        venueId: venue.id,
         bookingType: BookingType.VENUE_AND_SERVICES,
         eventDate: eventDate1,
         startAt: booking1Span.startAt,
@@ -396,7 +396,7 @@ export async function POST() {
       data: {
         tenantId: tenant.id,
         clientId: client2.id,
-        venueId: space.id,
+        venueId: venue.id,
         bookingType: BookingType.VENUE_AND_SERVICES,
         eventDate: eventDate2,
         startAt: booking2Span.startAt,

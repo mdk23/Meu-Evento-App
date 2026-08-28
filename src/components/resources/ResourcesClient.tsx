@@ -20,7 +20,7 @@ interface InventoryCategoryOption {
 
 interface ResourcesClientProps {
   initialData: {
-    space: ResourceVenue | null;
+    venue: ResourceVenue | null;
     inventory: ResourceInventoryItem[];
     staff: ResourceStaff[];
     suppliers: ResourceSupplier[];
@@ -30,7 +30,7 @@ interface ResourcesClientProps {
 
 export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('space');
+  const [activeTab, setActiveTab] = useState('venue');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState(initialData.inventoryCategories[0]?.name || '');
@@ -150,7 +150,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
     }
   };
 
-  const { space, inventory, staff, suppliers, inventoryCategories } = initialData;
+  const { venue, inventory, staff, suppliers, inventoryCategories } = initialData;
 
   // Grouped by category, both the group order and the items within each group alphabetical —
   // `inventory` already arrives name-sorted from the repository, so grouping preserves that order.
@@ -176,7 +176,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         {/* RESOURCE TAB NAV */}
         <div className="tabs" style={{ padding: '0 34px' }}>
           {[
-            { id: 'space', label: 'Main Venue', icon: Building2 },
+            { id: 'venue', label: 'Main Venue', icon: Building2 },
             { id: 'inventory', label: 'Inventory Items', icon: Package },
             { id: 'staff', label: 'Internal Staff', icon: Users },
             { id: 'suppliers', label: 'External Suppliers', icon: Truck },
@@ -203,12 +203,12 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         <div className={`flex-1 overflow-auto page${activeTab === 'inventory' ? ' full-bleed' : ''}`}>
 
           {/* TAB 1: VENUE */}
-          {activeTab === 'space' && (
+          {activeTab === 'venue' && (
             <div className="card plain stack" style={{ maxWidth: 640 }}>
               <div className="between" style={{ alignItems: 'flex-start' }}>
                 <div>
-                  <h3 className="h-md">{space?.name || 'Royal Events Main Venue'}</h3>
-                  <p className="mini dim" style={{ marginTop: 4 }}>{space?.address || '100 Grand Boulevard, Maputo'}</p>
+                  <h3 className="h-md">{venue?.name || 'Royal Events Main Venue'}</h3>
+                  <p className="mini dim" style={{ marginTop: 4 }}>{venue?.address || '100 Grand Boulevard, Maputo'}</p>
                 </div>
                 <span className="badge b-ok">Single Venue Configured</span>
               </div>
@@ -216,7 +216,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
               <div className="grid g2" style={{ padding: 16, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
                 <div>
                   <span className="label">Max Capacity</span>
-                  <div className="val" style={{ fontSize: 24 }}>{space?.capacity || 500} Guests</div>
+                  <div className="val" style={{ fontSize: 24 }}>{venue?.capacity || 500} Guests</div>
                 </div>
                 <div>
                   <span className="label">Venue Type</span>
@@ -224,7 +224,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                 </div>
               </div>
 
-              <p className="mini dim">{space?.description}</p>
+              <p className="mini dim">{venue?.description}</p>
             </div>
           )}
 
@@ -356,7 +356,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
             </div>
 
             <form onSubmit={handleCreateResource} className="stack" style={{ marginTop: 20 }}>
-              {activeTab === 'space' ? (
+              {activeTab === 'venue' ? (
                 <>
                   <div className="field">
                     <label className="label">Venue Name</label>

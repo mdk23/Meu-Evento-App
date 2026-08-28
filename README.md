@@ -30,7 +30,7 @@ An event-venue booking and operations platform: manage client bookings, event ex
    npx prisma db push
    ```
 
-4. Seed demo data (creates a demo tenant, space, clients, services, etc. — only runs if the database has no tenants yet):
+4. Seed demo data (creates a demo tenant, venue, clients, services, etc. — only runs if the database has no tenants yet):
 
    ```bash
    curl -X POST http://localhost:3000/api/seed

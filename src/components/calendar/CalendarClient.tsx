@@ -65,7 +65,7 @@ export default function CalendarClient({
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-      <Topbar crumb="Event Calendar" note="Every booking on the space, month by month.">
+      <Topbar crumb="Event Calendar" note="Every booking on the venue, month by month.">
         <div className="flex items-center gap-2">
           <button onClick={handlePrevMonth} className="icon-btn"><ChevronLeft className="w-4 h-4" /></button>
           <span className="label" style={{ padding: '0 6px', whiteSpace: 'nowrap' }}>

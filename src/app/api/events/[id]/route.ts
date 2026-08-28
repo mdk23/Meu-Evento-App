@@ -125,7 +125,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // include above, since that's a live join on whatever is actually assigned, not this picker list.
     const tenant = await prisma.tenant.findFirst({
       include: {
-        space: true,
+        venue: true,
         suppliers: { where: { active: true } },
         staff: { where: { active: true } },
         inventoryItems: { where: { active: true } },
@@ -136,7 +136,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json(serializeDecimals({
       event: eventWithReuseCandidates,
       resourceSummary,
-      space: tenant?.space,
+      venue: tenant?.venue,
       suppliers: tenant?.suppliers,
       staff: tenant?.staff,
       catalogServices: tenant?.services,

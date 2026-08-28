@@ -19,7 +19,7 @@ import { eventStatusBadgeClass } from '../statusStyles';
 
 interface OverviewTabProps {
   event: EventDetailPayload;
-  space?: Venue | null;
+  venue?: Venue | null;
   onNavigateTab?: (tab: TabId) => void;
 }
 
@@ -29,7 +29,7 @@ function formatTime(date: Date | string): string {
   return new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export default function OverviewTab({ event, space, onNavigateTab }: OverviewTabProps) {
+export default function OverviewTab({ event, venue, onNavigateTab }: OverviewTabProps) {
   // Execution progress (Phase 10): completed service value / total active service value.
   // Mirrors src/lib/event-progress.ts's server-side calculation, using the plain numbers this
   // payload already carries (Decimal never survives the API boundary — see src/lib/money.ts).
@@ -61,7 +61,7 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
       ? `In ${dayDiff} day${dayDiff === 1 ? '' : 's'}`
       : `${Math.abs(dayDiff)} day${Math.abs(dayDiff) === 1 ? '' : 's'} ago`;
 
-  const capacity = space?.capacity || 0;
+  const capacity = venue?.capacity || 0;
   const isOverCapacity = capacity > 0 && event.guestCount > capacity;
   const capacityPercent = capacity > 0 ? Math.min(100, Math.round((event.guestCount / capacity) * 100)) : 0;
 
@@ -209,8 +209,8 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
               <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Venue & Capacity
             </h3>
             <div>
-              <p className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{space?.name || 'No venue assigned'}</p>
-              <p className="mini dim">{space?.address || 'No address on file'}</p>
+              <p className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{venue?.name || 'No venue assigned'}</p>
+              <p className="mini dim">{venue?.address || 'No address on file'}</p>
             </div>
             {capacity > 0 && (
               <div className="stack" style={{ gap: 6 }}>
