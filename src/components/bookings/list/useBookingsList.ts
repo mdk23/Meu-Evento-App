@@ -48,7 +48,7 @@ export function useBookingsList(bookings: BookingListDTO[]) {
         toast.success(
           direction === 'PROMOTE'
             ? 'Booking promoted to the Event workspace.'
-            : 'Booking demoted to Space — its Event record was kept, not deleted.'
+            : 'Booking demoted to Venue — its Event record was kept, not deleted.'
         );
         router.refresh();
       } else {

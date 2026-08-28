@@ -48,7 +48,7 @@ export default function BookingOverviewTab({ booking, spaces }: BookingOverviewT
         </div>
         <div className="card kpi plain">
           <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <MapPin className="w-3.5 h-3.5" /> Space
+            <MapPin className="w-3.5 h-3.5" /> Venue
           </span>
           <div className="val" style={{ fontSize: 20 }}>{space?.name || 'N/A'}</div>
         </div>

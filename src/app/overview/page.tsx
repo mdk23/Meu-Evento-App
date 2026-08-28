@@ -12,7 +12,7 @@ interface OverviewPageProps {
   searchParams: Promise<{ context?: string }>;
 }
 
-/** "Overview" is workspace-scoped: reached from the Space workspace it shows only Space bookings,
+/** "Overview" is workspace-scoped: reached from the Venue workspace it shows only Venue bookings,
  * from the Event workspace only Events — matching the rule that every screen in a workspace shows
  * that workspace's world, not everything at once. The one exception is the unscoped entry point
  * (no `?context=`, linked from the workspace picker's "cross-workspace Business Overview") which keeps
@@ -24,7 +24,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
     const data = await DashboardService.getSpaceDashboardSummary();
     return (
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-        <Topbar crumb="Space Overview" note="Bookings, hand-overs and collection for the Space workspace.">
+        <Topbar crumb="Venue Overview" note="Bookings, hand-overs and collection for the Venue workspace.">
           <Link href="/bookings/create?context=SPACE" className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> New Booking
           </Link>
@@ -51,7 +51,7 @@ export default async function OverviewPage({ searchParams }: OverviewPageProps) 
   const data = await DashboardService.getDashboardSummary();
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-      <Topbar crumb="Business Overview" note="Cross-workspace KPIs — the one screen that answers &ldquo;what needs me today,&rdquo; regardless of Space or Event.">
+      <Topbar crumb="Business Overview" note="Cross-workspace KPIs — the one screen that answers &ldquo;what needs me today,&rdquo; regardless of Venue or Event.">
         <Link href="/bookings/create" className="btn primary sm">
           <Plus className="w-3.5 h-3.5" /> New Booking
         </Link>

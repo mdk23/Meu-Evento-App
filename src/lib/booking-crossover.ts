@@ -30,7 +30,7 @@ export async function promoteBookingToEvent(
   });
   if (!booking) throw new InvalidCrossoverError('Booking not found.');
   if (booking.context !== BookingContext.SPACE) {
-    throw new InvalidCrossoverError('Only a Space booking can be promoted to an Event.');
+    throw new InvalidCrossoverError('Only a Venue booking can be promoted to an Event.');
   }
 
   const reusedExistingEvent = !!booking.event;
@@ -83,7 +83,7 @@ export async function demoteBookingToSpace(
   const booking = await tx.booking.findUnique({ where: { id: bookingId } });
   if (!booking) throw new InvalidCrossoverError('Booking not found.');
   if (booking.context !== BookingContext.EVENT) {
-    throw new InvalidCrossoverError('Only an Event booking can be demoted to Space.');
+    throw new InvalidCrossoverError('Only an Event booking can be demoted to Venue.');
   }
 
   await tx.booking.update({ where: { id: bookingId }, data: { context: BookingContext.SPACE } });
@@ -94,7 +94,7 @@ export async function demoteBookingToSpace(
       entity: 'Booking',
       entityId: booking.id,
       action: 'DEMOTE',
-      detail: 'Demoted to Space workspace — Event record kept, not deleted, so it can be reactivated by a later promote.',
+      detail: 'Demoted to Venue workspace — Event record kept, not deleted, so it can be reactivated by a later promote.',
       actor,
     },
   });

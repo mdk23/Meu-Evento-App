@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
     const space = await prisma.space.findUnique({ where: { tenantId: tenant.id } });
     if (!space) {
-      return NextResponse.json({ error: 'No space configured for this venue' }, { status: 400 });
+      return NextResponse.json({ error: 'No venue configured for this tenant' }, { status: 400 });
     }
 
     const parsedDate = new Date(eventDate);

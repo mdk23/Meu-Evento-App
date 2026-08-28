@@ -138,7 +138,7 @@ export default function DayDetailModal({ isOpen, date, bookings, onClose, worksp
         {activeBookings.length === 0 ? (
           <div className="empty" style={{ margin: 20, border: 'none' }}>
             <p className="mini" style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>No bookings scheduled this day</p>
-            <p className="mini dim">The space is free all day — use &quot;New Booking&quot; above to book this date.</p>
+            <p className="mini dim">The venue is free all day — use &quot;New Booking&quot; above to book this date.</p>
           </div>
         ) : (
           <div className="overflow-y-auto flex-1">

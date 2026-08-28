@@ -136,9 +136,9 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
               disabled={updating}
               onClick={() => onCrossover(b.id, 'DEMOTE')}
               className="btn ghost sm"
-              title="Demote to a Space booking — the Event record is kept, not deleted"
+              title="Demote to a Venue booking — the Event record is kept, not deleted"
             >
-              <ArrowDownLeft className="w-3.5 h-3.5" /> Demote to Space
+              <ArrowDownLeft className="w-3.5 h-3.5" /> Demote to Venue
             </button>
           )}
 

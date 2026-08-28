@@ -129,7 +129,7 @@ export function useBookingPOS({
           name: s.name,
           capacity: s.capacity || 200,
           price: 50000,
-          description: s.description || 'Exclusive space for events.',
+          description: s.description || 'Exclusive venue for events.',
         }))
       : defaultSpaces;
   }, [initialSpaces]);
@@ -182,7 +182,7 @@ export function useBookingPOS({
           id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
           serviceId: es.serviceId,
           name: es.service?.name || 'Service',
-          category: (es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
+          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
           providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
           priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'PER_HOUR' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
@@ -472,7 +472,7 @@ export function useBookingPOS({
     const finalStatus = (hasConflict && isWaitingList) ? 'WAITING_LIST' : targetStatus;
 
     if (finalStatus === 'CONFIRMED' && overCapacity && !capacityOverrideReason.trim()) {
-      toast.error(`Guest count (${guestCount}) exceeds the space's capacity (${spaceCapacity}). Provide an override reason to confirm.`);
+      toast.error(`Guest count (${guestCount}) exceeds the venue's capacity (${spaceCapacity}). Provide an override reason to confirm.`);
       return;
     }
 

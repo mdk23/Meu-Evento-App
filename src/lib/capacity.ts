@@ -9,7 +9,7 @@ export function isOverCapacity(guestCount: number, spaceCapacity: number): boole
 export class CapacityExceededError extends Error {
   constructor(guestCount: number, spaceCapacity: number) {
     super(
-      `Guest count (${guestCount}) exceeds the space's capacity (${spaceCapacity}). Provide a capacity override reason to confirm this booking anyway.`
+      `Guest count (${guestCount}) exceeds the venue's capacity (${spaceCapacity}). Provide a capacity override reason to confirm this booking anyway.`
     );
     this.name = 'CapacityExceededError';
   }

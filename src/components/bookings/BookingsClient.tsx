@@ -12,7 +12,7 @@ import Topbar from '@/components/aurelia/Topbar';
 interface BookingsClientProps {
   data: BookingListPageDTO;
   statusFilter: string;
-  /** Set when reached from the Space or Event workspace nav — scopes the list to that kind. */
+  /** Set when reached from the Venue or Event workspace nav — scopes the list to that kind. */
   contextFilter?: 'SPACE' | 'EVENT';
 }
 
@@ -31,7 +31,7 @@ export default function BookingsClient({ data, statusFilter, contextFilter }: Bo
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
       <Topbar
-        crumb={contextFilter === 'SPACE' ? 'Space Bookings' : contextFilter === 'EVENT' ? 'Event Bookings' : 'Commercial Bookings'}
+        crumb={contextFilter === 'SPACE' ? 'Venue Bookings' : contextFilter === 'EVENT' ? 'Event Bookings' : 'Commercial Bookings'}
         note={
           contextFilter === 'SPACE'
             ? 'Venue-rental bookings — commercial-only, no Event workspace.'

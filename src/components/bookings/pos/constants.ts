@@ -5,7 +5,7 @@ import { SpaceItem, ServiceItem } from './types';
 export const defaultSpaces: SpaceItem[] = [
   {
     id: 'sp-1',
-    name: 'Main Event Space',
+    name: 'Main Venue',
     capacity: 200,
     price: 50000,
     description: 'Exclusive use of the venue for your event.',
@@ -15,7 +15,7 @@ export const defaultSpaces: SpaceItem[] = [
 export const defaultCatalogServices: ServiceItem[] = [
   {
     id: 'srv-1',
-    name: 'Venue Space Rental',
+    name: 'Venue Rental',
     category: 'SPACE',
     providerType: 'INTERNAL',
     providerName: 'Internal Venue',

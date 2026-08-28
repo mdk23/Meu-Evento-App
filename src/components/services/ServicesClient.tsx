@@ -32,7 +32,7 @@ interface InventoryCategoryOption {
 
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
-  /** Deep-linked from the Space/Event workspace nav via `?scope=` — defaults to showing everything. */
+  /** Deep-linked from the Venue/Event workspace nav via `?scope=` — defaults to showing everything. */
   initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
   inventoryItems: InventoryItemOption[];
   inventoryCategories: InventoryCategoryOption[];
@@ -83,7 +83,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
   // Filter state: 'ALL', 'INTERNAL', 'EXTERNAL'
   const [executionFilter, setExecutionFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
-  // Workspace scope is set only by which link brought you here (sidebar's Space/Event Services, or the
+  // Workspace scope is set only by which link brought you here (sidebar's Venue/Event Services, or the
   // unscoped catalog) — no in-page tab to switch it, since the Workspace column already shows it per row.
   const scopeFilter = initialScopeFilter;
 
@@ -262,7 +262,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     }
   };
 
-  // Apply filters — scope first (Space/Event/Both), then execution mode
+  // Apply filters — scope first (Venue/Event/Both), then execution mode
   const scopedServices = scopeFilter === 'ALL'
     ? initialServices
     : initialServices.filter((s) => s.context === scopeFilter || s.context === 'BOTH');
@@ -274,7 +274,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
   // the workspace you're in" rule, same reasoning as PackagesClient.
   const isScoped = initialScopeFilter !== 'ALL';
-  const pageTitle = scopeFilter === 'SPACE' ? 'Space services' : scopeFilter === 'EVENT' ? 'Event services' : 'Services catalog';
+  const pageTitle = scopeFilter === 'SPACE' ? 'Venue services' : scopeFilter === 'EVENT' ? 'Event services' : 'Services catalog';
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
@@ -352,7 +352,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                         {!isScoped && (
                           <td>
                             <span className={`badge ${s.context === 'SPACE' ? 'b-accent' : s.context === 'EVENT' ? 'b-info' : 'b-mute'}`}>
-                              {s.context === 'BOTH' ? 'Space & Event' : s.context === 'SPACE' ? 'Space' : 'Event'}
+                              {s.context === 'BOTH' ? 'Venue & Event' : s.context === 'SPACE' ? 'Venue' : 'Event'}
                             </span>
                           </td>
                         )}
@@ -441,7 +441,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
               <div className="field">
                 <label className="label">Workspace</label>
                 <select value={context} onChange={(e) => setContext(e.target.value as 'SPACE' | 'EVENT' | 'BOTH')} className="input">
-                  <option value="SPACE">Space only (venue-rental bookings)</option>
+                  <option value="SPACE">Venue only (rental bookings)</option>
                   <option value="EVENT">Event only (full-occasion bookings)</option>
                   <option value="BOTH">Both — usable from either workspace</option>
                 </select>

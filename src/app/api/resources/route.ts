@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         space = await prisma.space.create({
           data: {
             tenantId: tenant.id,
-            name: data.name || 'Royal Events Space',
+            name: data.name || 'Royal Events Venue',
             capacity: parseInt(data.capacity || '500', 10),
             address: data.address || '',
             description: data.description || '',

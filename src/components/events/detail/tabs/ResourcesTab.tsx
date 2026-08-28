@@ -16,7 +16,7 @@ const STATUS_BADGE: Record<string, { className: string; label: string }> = {
 };
 
 /** The event-wide operational loading list — every resource requirement across every service on
- * this event (Space, Event, direct, or package-sourced — doesn't matter which), aggregated per
+ * this event (Venue, Event, direct, or package-sourced — doesn't matter which), aggregated per
  * physical item into Required/Provided/Additional/Reserved/Available/Source/Status. A raw per-row
  * list of everything actually reserved stays below for drill-down into exactly which commitment
  * covers what. */
@@ -35,7 +35,7 @@ export default function ResourcesTab({ eventServices, resourceSummary, onOpenWor
           <h3 className="h-md">Resource Requirements</h3>
           <p className="mini dim">
             Every resource this event&apos;s services need, aggregated across every service that needs it —
-            regardless of whether it came from a Space package, an Event package, or a direct add.
+            regardless of whether it came from a Venue package, an Event package, or a direct add.
           </p>
         </div>
 

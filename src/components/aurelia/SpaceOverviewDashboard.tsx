@@ -20,7 +20,7 @@ interface SpaceOverviewDashboardProps {
   data: SpaceDashboardDTO;
 }
 
-/** Space-workspace "Overview" — commercial-only by design, so there's no service-execution or
+/** Venue-workspace "Overview" — commercial-only by design, so there's no service-execution or
  * supplier panel here (see `EventOverviewDashboard` for that side). Reads straight off `Booking`
  * rather than `Event`, since SPACE-kind bookings never have one. */
 export default function SpaceOverviewDashboard({ data }: SpaceOverviewDashboardProps) {
@@ -116,7 +116,7 @@ export default function SpaceOverviewDashboard({ data }: SpaceOverviewDashboardP
           <div className="card">
             <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
               <h3 className="h-md">Upcoming Booking Schedule</h3>
-              <Link href="/bookings?context=SPACE" className="mini" style={{ color: 'var(--accent)' }}>View All Space Bookings</Link>
+              <Link href="/bookings?context=SPACE" className="mini" style={{ color: 'var(--accent)' }}>View All Venue Bookings</Link>
             </div>
 
             <div className="space-y-4">
@@ -156,7 +156,7 @@ export default function SpaceOverviewDashboard({ data }: SpaceOverviewDashboardP
           {/* SPACE & CAPACITY */}
           <div className="card space-y-4">
             <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Space &amp; Capacity
+              <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Venue &amp; Capacity
             </h3>
             {space ? (
               <>

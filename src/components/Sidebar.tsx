@@ -27,7 +27,7 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Starts null so server-rendered markup doesn't guess a workspace the client hasn't read from
   // localStorage yet — same reasoning as ThemeSwitch. Defaults to EVENT once hydrated, since that's
-  // the workspace every booking belonged to before Space bookings existed.
+  // the workspace every booking belonged to before Venue bookings existed.
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function Sidebar() {
 
   /** A link with a query string (e.g. `?context=SPACE`) is only "active" when every one of its
    * params matches the current URL — otherwise the generic `/bookings` link would also light up
-   * while viewing the Space-filtered list, and vice versa. */
+   * while viewing the Venue-filtered list, and vice versa. */
   const isItemActive = (href: string): boolean => {
     const [hrefPath, hrefQuery] = href.split('?');
     const pathMatches = pathname === hrefPath || (hrefPath !== '/' && pathname.startsWith(hrefPath));
@@ -67,8 +67,8 @@ export function Sidebar() {
   };
 
   const spaceNavItems = [
-    { label: 'Space Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
-    { label: 'Space Services', href: '/services?scope=SPACE', icon: Briefcase },
+    { label: 'Venue Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
+    { label: 'Venue Services', href: '/services?scope=SPACE', icon: Briefcase },
   ];
 
   const eventNavItems = [
@@ -88,7 +88,7 @@ export function Sidebar() {
       ],
     },
     {
-      label: workspace === 'SPACE' ? 'Space Workspace' : 'Event Workspace',
+      label: workspace === 'SPACE' ? 'Venue Workspace' : 'Event Workspace',
       items: workspace === 'SPACE' ? spaceNavItems : eventNavItems,
     },
     {
@@ -124,7 +124,7 @@ export function Sidebar() {
             className={`pill${workspace === 'SPACE' ? ' active' : ''}`}
             style={{ flex: 1, justifyContent: 'center' }}
           >
-            Space
+            Venue
           </button>
           <button
             onClick={() => switchWorkspace('EVENT')}

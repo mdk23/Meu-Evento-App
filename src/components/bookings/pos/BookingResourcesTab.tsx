@@ -9,7 +9,7 @@ interface BookingResourcesTabProps {
 }
 
 /** Booking-scoped Resources tab — reachable from any booking's detail/edit screen regardless of
- * whether it has an Event, so a Space-only booking gets the exact same resource-reservation
+ * whether it has an Event, so a Venue-only booking gets the exact same resource-reservation
  * capability an Event booking gets, with no "Promote to Event" step required anywhere in this
  * path. Lists every INTERNAL service line on the booking with its own resource panel; EXTERNAL
  * lines never hold internal inventory (`assertInternalProvider`), so they're not shown here. */
@@ -40,7 +40,7 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
         <h3 className="h-md">Resources</h3>
         <p className="mini dim">
           Reserve and track inventory against this booking&apos;s services — works the same whether
-          this is a Space booking or a full Event, no promotion required.
+          this is a Venue booking or a full Event, no promotion required.
         </p>
       </div>
 

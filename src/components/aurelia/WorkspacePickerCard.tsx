@@ -8,6 +8,7 @@ import { WorkspaceSummaryDTO } from '@/types/dtos';
 export interface WorkspacePickerPill {
   label: string;
   href: string;
+  description?: string;
 }
 
 interface WorkspacePickerCardProps {
@@ -68,17 +69,23 @@ export default function WorkspacePickerCard({
         </div>
       </Link>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 24 }}>
+      <div className="stack" style={{ gap: 0, marginTop: 24, borderTop: '1px solid var(--rule)' }}>
         {pills.map((pill) => (
           <Link
             key={pill.href}
             href={pill.href}
             onClick={() => setActiveWorkspace(kind)}
-            className="pill"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none' }}
+            style={{ display: 'block', padding: '13px 0', borderBottom: '1px solid var(--rule)', textDecoration: 'none', color: 'inherit' }}
           >
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
-            <span className="label" style={{ color: 'inherit' }}>{pill.label}</span>
+            <div className="row" style={{ gap: 7, alignItems: 'center' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
+              <span className="label" style={{ color: 'var(--ink)' }}>{pill.label}</span>
+            </div>
+            {pill.description && (
+              <p className="mini dim" style={{ lineHeight: 1.55, marginTop: 5, marginLeft: 12 }}>
+                {pill.description}
+              </p>
+            )}
           </Link>
         ))}
       </div>

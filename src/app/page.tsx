@@ -13,7 +13,7 @@ export default async function WorkspacePickerPage() {
     prisma.tenant.findFirst({ include: { space: true } }),
   ]);
 
-  const spaceName = tenant?.space?.name || 'Main Space';
+  const spaceName = tenant?.space?.name || 'Main Venue';
   const city = tenant?.space?.address?.split(',').pop()?.trim() || tenant?.name || 'Aurelia';
 
   return (
@@ -59,18 +59,34 @@ export default async function WorkspacePickerPage() {
         <div className="grid g2" style={{ maxWidth: 980, width: '100%', gap: 24 }}>
           <WorkspacePickerCard
             kind="SPACE"
-            title="Space"
+            title="Venue"
             subtitle={spaceName}
-            description="The client rents the room. We hand over a space — with our furniture, climate and cleaning if they want them. No operational plan needed."
+            description="The client rents the room. We hand over the venue — with our furniture, climate and cleaning if they want them. No operational plan needed."
             href="/bookings?context=SPACE"
-            primaryStatLabel="Space bookings"
+            primaryStatLabel="Venue bookings"
             midStatLabel="Dates held ahead"
             summary={space}
             pills={[
-              { label: 'Space Details', href: '/resources' },
-              { label: 'Bookings', href: '/bookings?context=SPACE' },
-              { label: 'Space Packages', href: '/services/packages?scope=SPACE' },
-              { label: 'Space Services', href: '/services?scope=SPACE' },
+              {
+                label: 'Venue Details',
+                href: '/resources',
+                description: 'The room itself — capacity, layout, address and photos, plus the furniture, climate and cleaning resources that come with it.',
+              },
+              {
+                label: 'Bookings',
+                href: '/bookings?context=SPACE',
+                description: 'Dates the venue is held or confirmed for a client, with the contract value and payment status for each.',
+              },
+              {
+                label: 'Venue Packages',
+                href: '/services/packages?scope=SPACE',
+                description: 'Fixed-price bundles of the venue plus its add-ons, ready to quote without building a full plan.',
+              },
+              {
+                label: 'Venue Services',
+                href: '/services?scope=SPACE',
+                description: 'The individual add-ons a client can attach to a rental — furniture, climate control, cleaning, on-site staff.',
+              },
             ]}
           />
           <WorkspacePickerCard
@@ -83,9 +99,21 @@ export default async function WorkspacePickerPage() {
             midStatLabel="Upcoming"
             summary={event}
             pills={[
-              { label: 'Event Details', href: '/events' },
-              { label: 'Event Services', href: '/services?scope=EVENT' },
-              { label: 'Event Packages', href: '/services/packages?scope=EVENT' },
+              {
+                label: 'Event Details',
+                href: '/events',
+                description: 'Each occasion end to end — date, headcount, timeline, and whether it runs at our venue or an external one.',
+              },
+              {
+                label: 'Event Services',
+                href: '/services?scope=EVENT',
+                description: 'The catering, décor, staffing and supplier line items booked to deliver a specific event.',
+              },
+              {
+                label: 'Event Packages',
+                href: '/services/packages?scope=EVENT',
+                description: 'Pre-built combinations of event services you can drop onto a plan and adjust from there.',
+              },
             ]}
           />
         </div>

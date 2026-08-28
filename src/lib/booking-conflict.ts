@@ -44,7 +44,7 @@ export async function assertNoBookingConflict(
 
   if (conflict) {
     throw new BookingConflictError(
-      `This space is already booked during that time (${conflict.client?.name || 'another client'}). Choose a different date/time, or submit this booking to the waiting list.`
+      `This venue is already booked during that time (${conflict.client?.name || 'another client'}). Choose a different date/time, or submit this booking to the waiting list.`
     );
   }
 }

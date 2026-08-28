@@ -68,9 +68,9 @@ export default function BookingHandoverTab({ booking }: BookingHandoverTabProps)
         <div className="avatar" style={{ width: 48, height: 48, margin: '0 auto' }}>
           <PackageCheck className="w-5 h-5" />
         </div>
-        <h3 className="h-md">No Hand-over yet — this is a Space booking</h3>
+        <h3 className="h-md">No Hand-over yet — this is a Venue booking</h3>
         <p className="mini dim">
-          Space bookings are commercial-only: no tasks or staff assignments exist for them by design —
+          Venue bookings are commercial-only: no tasks or staff assignments exist for them by design —
           but resources can still be reserved from the Resources tab on this screen, no promotion
           needed. Promote to an Event to unlock the full operational workspace (tasks, staff, suppliers,
           execution) — the contract, payments and any reserved stock carry across untouched.

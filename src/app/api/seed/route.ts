@@ -20,11 +20,11 @@ export async function POST() {
       },
     });
 
-    // 2. Create Single Event Space
+    // 2. Create Single Event Venue
     const space = await prisma.space.create({
       data: {
         tenantId: tenant.id,
-        name: 'Royal Events Main Space',
+        name: 'Royal Events Main Venue',
         capacity: 500,
         address: '100 Grand Boulevard, Maputo',
         description: 'Luxury high-ceiling event hall with private garden terrace and state-of-the-art climate control.',
@@ -129,8 +129,8 @@ export async function POST() {
     const serviceVenue = await prisma.service.create({
       data: {
         tenantId: tenant.id,
-        name: 'Venue Space Rental',
-        category: 'Space Rental',
+        name: 'Venue Rental',
+        category: 'Venue Rental',
         defaultProviderType: ExecutionType.INTERNAL,
         priceType: 'FIXED',
         defaultPrice: 60000,

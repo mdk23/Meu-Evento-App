@@ -167,7 +167,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   return (
     <>
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-        <Topbar crumb="Resource Operations Portal" note="Manage main Space, Inventory, Staff team, and Supplier partners.">
+        <Topbar crumb="Resource Operations Portal" note="Manage main Venue, Inventory, Staff team, and Supplier partners.">
           <button onClick={() => setIsModalOpen(true)} className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> Add {activeTab.slice(0, 1).toUpperCase() + activeTab.slice(1)}
           </button>
@@ -176,7 +176,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         {/* RESOURCE TAB NAV */}
         <div className="tabs" style={{ padding: '0 34px' }}>
           {[
-            { id: 'space', label: 'Main Space', icon: Building2 },
+            { id: 'space', label: 'Main Venue', icon: Building2 },
             { id: 'inventory', label: 'Inventory Items', icon: Package },
             { id: 'staff', label: 'Internal Staff', icon: Users },
             { id: 'suppliers', label: 'External Suppliers', icon: Truck },
@@ -207,10 +207,10 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
             <div className="card plain stack" style={{ maxWidth: 640 }}>
               <div className="between" style={{ alignItems: 'flex-start' }}>
                 <div>
-                  <h3 className="h-md">{space?.name || 'Royal Events Main Space'}</h3>
+                  <h3 className="h-md">{space?.name || 'Royal Events Main Venue'}</h3>
                   <p className="mini dim" style={{ marginTop: 4 }}>{space?.address || '100 Grand Boulevard, Maputo'}</p>
                 </div>
-                <span className="badge b-ok">Single Space Configured</span>
+                <span className="badge b-ok">Single Venue Configured</span>
               </div>
 
               <div className="grid g2" style={{ padding: 16, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
@@ -359,8 +359,8 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
               {activeTab === 'space' ? (
                 <>
                   <div className="field">
-                    <label className="label">Space Name</label>
-                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="Royal Events Main Space" className="input" />
+                    <label className="label">Venue Name</label>
+                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="Royal Events Main Venue" className="input" />
                   </div>
                   <div className="field">
                     <label className="label">Max Guest Capacity</label>

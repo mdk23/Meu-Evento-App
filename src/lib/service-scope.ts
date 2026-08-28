@@ -35,7 +35,7 @@ export class ServiceScopeError extends Error {
 export function assertServiceScopeAllowed(scope: CatalogScope, kind: WorkspaceKind, serviceName?: string): void {
   if (!isScopeAllowedForKind(scope, kind)) {
     throw new ServiceScopeError(
-      `"${serviceName || 'This service'}" isn't available in the ${kind === 'SPACE' ? 'Space' : 'Event'} workspace.`
+      `"${serviceName || 'This service'}" isn't available in the ${kind === 'SPACE' ? 'Venue' : 'Event'} workspace.`
     );
   }
 }

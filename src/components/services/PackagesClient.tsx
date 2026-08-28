@@ -14,7 +14,7 @@ const MT = (n: number) => n.toLocaleString('pt-MZ');
 interface PackagesClientProps {
   initialPackages: PackageCardDTO[];
   initialServices: ServiceCardDTO[];
-  /** Deep-linked from the Space/Event workspace nav via `?scope=` — defaults to showing everything. */
+  /** Deep-linked from the Venue/Event workspace nav via `?scope=` — defaults to showing everything. */
   initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
 }
 
@@ -211,7 +211,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   // the workspace you're in" rule. The tabs (and the ability to switch scopeFilter at all) only
   // exist on the generic, unscoped `/services/packages` entry point.
   const isScoped = initialScopeFilter !== 'ALL';
-  const pageTitle = scopeFilter === 'SPACE' ? 'Space packages' : scopeFilter === 'EVENT' ? 'Event packages' : 'All packages';
+  const pageTitle = scopeFilter === 'SPACE' ? 'Venue packages' : scopeFilter === 'EVENT' ? 'Event packages' : 'All packages';
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-y-auto">
@@ -251,7 +251,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
               >
                 <span>
                   {filterOpt === 'ALL' && 'All Packages'}
-                  {filterOpt === 'SPACE' && 'Space Packages'}
+                  {filterOpt === 'SPACE' && 'Venue Packages'}
                   {filterOpt === 'EVENT' && 'Event Packages'}
                 </span>
                 <span className="badge b-mute">{count}</span>
@@ -281,7 +281,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                     <div>
                       {!isScoped && (
                         <span className={`badge ${pkg.context === 'SPACE' ? 'b-accent' : 'b-info'}`} style={{ marginBottom: 8 }}>
-                          {pkg.context === 'SPACE' ? 'Space' : 'Event'}
+                          {pkg.context === 'SPACE' ? 'Venue' : 'Event'}
                         </span>
                       )}
                       <h3 className="h-md">{pkg.name}</h3>
@@ -378,7 +378,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
               <div className="field">
                 <label className="label">Workspace</label>
                 <select value={scope} onChange={(e) => handleScopeChange(e.target.value as 'SPACE' | 'EVENT')} className="input">
-                  <option value="SPACE">Space (venue-rental bundle)</option>
+                  <option value="SPACE">Venue (rental bundle)</option>
                   <option value="EVENT">Event (full-occasion bundle)</option>
                 </select>
               </div>

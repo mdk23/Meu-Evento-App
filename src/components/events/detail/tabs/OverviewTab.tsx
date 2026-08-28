@@ -206,10 +206,10 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
           {/* SPACE & CAPACITY */}
           <div className="card plain stack">
             <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Space & Capacity
+              <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Venue & Capacity
             </h3>
             <div>
-              <p className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{space?.name || 'No space assigned'}</p>
+              <p className="mini" style={{ color: 'var(--ink)', fontWeight: 700 }}>{space?.name || 'No venue assigned'}</p>
               <p className="mini dim">{space?.address || 'No address on file'}</p>
             </div>
             {capacity > 0 && (
