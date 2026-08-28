@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Client, ServiceItem, CartItem, CatalogPackage, BookingPOSTerminalProps } from './types';
-import { defaultSpaces, defaultCatalogServices } from './constants';
+import { defaultVenues, defaultCatalogServices } from './constants';
 import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
 import { isOverCapacity } from '@/lib/capacity';
 
@@ -17,7 +17,7 @@ function combineDateAndTime(dateStr: string, timeStr: string): Date {
 export function useBookingPOS({
   initialClients = [],
   initialServices = [],
-  initialSpaces = [],
+  initialVenues = [],
   initialBookings = [],
   initialBookingData = null,
   initialPackages = [],
@@ -122,24 +122,24 @@ export function useBookingPOS({
   }, [eventDate, startTime, endTime]);
 
   // Spaces List
-  const spacesList = useMemo(() => {
-    return initialSpaces.length > 0
-      ? initialSpaces.map(s => ({
+  const venuesList = useMemo(() => {
+    return initialVenues.length > 0
+      ? initialVenues.map(s => ({
           id: s.id,
           name: s.name,
           capacity: s.capacity || 200,
           price: 50000,
           description: s.description || 'Exclusive venue for events.',
         }))
-      : defaultSpaces;
-  }, [initialSpaces]);
+      : defaultVenues;
+  }, [initialVenues]);
 
   // Selected space
-  const [selectedSpaceId, setSelectedSpaceId] = useState<string>('');
+  const [selectedVenueId, setSelectedVenueId] = useState<string>('');
 
   // There's one real Space per tenant — its capacity is what guestCount is checked against.
-  const spaceCapacity = spacesList[0]?.capacity || 0;
-  const overCapacity = isOverCapacity(guestCount, spaceCapacity);
+  const venueCapacity = venuesList[0]?.capacity || 0;
+  const overCapacity = isOverCapacity(guestCount, venueCapacity);
 
   // 2. Catalog Services State
   const catalogServices = useMemo(() => {
@@ -150,7 +150,7 @@ export function useBookingPOS({
       // A BOTH-context service is bucketed into whichever workspace this booking is for, since the
       // existing Space/Event cost-total split only has two buckets and "shared, but counted here in
       // this booking" is the correct read of BOTH.
-      category: (s.context === 'BOTH' ? initialKind : s.context) as 'SPACE' | 'EVENT',
+      category: (s.context === 'BOTH' ? initialKind : s.context) as 'VENUE' | 'EVENT',
       providerType: (s.defaultProviderType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
       providerName: s.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
       priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'PER_HOUR' ? 'PER_HOUR' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'PER_HOUR',
@@ -160,13 +160,13 @@ export function useBookingPOS({
   }, [initialServices, initialKind]);
 
   // Space Services derived directly from catalogServices (Category: SPACE)
-  const spaceServices = useMemo(() => {
-    return catalogServices.filter(s => s.category === 'SPACE');
+  const venueServices = useMemo(() => {
+    return catalogServices.filter(s => s.category === 'VENUE');
   }, [catalogServices]);
 
   // Search & Filter state for catalog
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'SPACE' | 'EVENT'>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VENUE' | 'EVENT'>('ALL');
   const [originFilter, setOriginFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
 
   // 3. POS Cart State (Selected items)
@@ -182,7 +182,7 @@ export function useBookingPOS({
           id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
           serviceId: es.serviceId,
           name: es.service?.name || 'Service',
-          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'Space Rental' || es.service?.category === 'SPACE') ? 'SPACE' : 'EVENT',
+          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'Space Rental' || es.service?.category === 'VENUE') ? 'VENUE' : 'EVENT',
           providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
           priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'PER_HOUR' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
@@ -202,8 +202,8 @@ export function useBookingPOS({
   const [submitting, setSubmitting] = useState(false);
 
   // Sync Space Selection with Cart Item using real catalog service
-  const handleSelectSpace = (service: ServiceItem) => {
-    setSelectedSpaceId(service.id);
+  const handleSelectVenue = (service: ServiceItem) => {
+    setSelectedVenueId(service.id);
     toggleCatalogService(service);
   };
 
@@ -318,7 +318,7 @@ export function useBookingPOS({
 
   // Calculations
   const spaceServicesTotal = useMemo(() => {
-    return selectedItems.filter(i => i.category === 'SPACE').reduce((acc, curr) => acc + curr.totalPrice, 0);
+    return selectedItems.filter(i => i.category === 'VENUE').reduce((acc, curr) => acc + curr.totalPrice, 0);
   }, [selectedItems]);
 
   const eventServicesTotal = useMemo(() => {
@@ -472,7 +472,7 @@ export function useBookingPOS({
     const finalStatus = (hasConflict && isWaitingList) ? 'WAITING_LIST' : targetStatus;
 
     if (finalStatus === 'CONFIRMED' && overCapacity && !capacityOverrideReason.trim()) {
-      toast.error(`Guest count (${guestCount}) exceeds the venue's capacity (${spaceCapacity}). Provide an override reason to confirm.`);
+      toast.error(`Guest count (${guestCount}) exceeds the venue's capacity (${venueCapacity}). Provide an override reason to confirm.`);
       return;
     }
 
@@ -583,14 +583,14 @@ export function useBookingPOS({
     setEndTime,
     startAt,
     endAt,
-    spaceCapacity,
+    venueCapacity,
     overCapacity,
     capacityOverrideReason,
     setCapacityOverrideReason,
-    selectedSpaceId,
-    spacesList,
+    selectedVenueId,
+    venuesList,
     catalogServices,
-    spaceServices,
+    venueServices,
     packages: initialPackages,
     searchTerm,
     setSearchTerm,
@@ -630,7 +630,7 @@ export function useBookingPOS({
     selectedDateBookings,
     bookingsOnSelectedDate,
 
-    handleSelectSpace,
+    handleSelectVenue,
     toggleCatalogService,
     applyPackage,
     isPackageApplied,

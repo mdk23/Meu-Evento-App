@@ -1,9 +1,9 @@
 import { Calendar, Users, MapPin, User } from 'lucide-react';
-import { BookingPOSInitialData, CatalogSpace } from './types';
+import { BookingPOSInitialData, CatalogVenue } from './types';
 
 interface BookingOverviewTabProps {
   booking: BookingPOSInitialData;
-  spaces: CatalogSpace[];
+  spaces: CatalogVenue[];
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -15,7 +15,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function BookingOverviewTab({ booking, spaces }: BookingOverviewTabProps) {
-  const space = spaces.find((s) => s.id === booking.spaceId);
+  const space = spaces.find((s) => s.id === booking.venueId);
   const statusBadge = STATUS_BADGE[booking.status] || 'b-mute';
 
   return (

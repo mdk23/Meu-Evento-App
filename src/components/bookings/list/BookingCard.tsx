@@ -36,7 +36,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-2">
-            <span className="badge b-accent">{b.bookingType?.replace('_', ' ') || 'SPACE AND SERVICES'}</span>
+            <span className="badge b-accent">{b.bookingType?.replace('_', ' ') || 'VENUE AND SERVICES'}</span>
             <span className={`badge ${b.kind === 'EVENT' ? 'b-info' : 'b-mute'}`}>{b.kind}</span>
           </div>
           <span className={`badge ${statusBadge}`}>{b.status || 'RESERVED'}</span>
@@ -122,7 +122,7 @@ export default function BookingCard({ booking: b, isDeleting, updating, onUpdate
             </button>
           )}
 
-          {b.kind === 'SPACE' ? (
+          {b.kind === 'VENUE' ? (
             <button
               disabled={updating}
               onClick={() => onCrossover(b.id, 'PROMOTE')}

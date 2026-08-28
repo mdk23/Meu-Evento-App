@@ -4,7 +4,7 @@ import { ExecutionType, ServiceContext, PriceType, QuantityType } from '@prisma/
 import { serializeDecimals } from '@/lib/money';
 
 function resolveContext(value: unknown): ServiceContext {
-  return value === 'SPACE' || value === 'EVENT' ? (value as ServiceContext) : ServiceContext.BOTH;
+  return value === 'VENUE' || value === 'EVENT' ? (value as ServiceContext) : ServiceContext.BOTH;
 }
 
 function resolvePriceType(value: unknown): PriceType {

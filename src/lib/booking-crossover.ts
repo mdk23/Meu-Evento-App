@@ -75,7 +75,7 @@ export async function promoteBookingToEvent(
  * longer the booking's active workspace. Nothing about the contract, payments, or reserved stock
  * changes; `context` is the only field this touches on `Booking`.
  */
-export async function demoteBookingToSpace(
+export async function demoteBookingToVenue(
   tx: TransactionClient,
   bookingId: string,
   actor = 'Staff'

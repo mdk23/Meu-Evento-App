@@ -48,10 +48,10 @@ export function Sidebar() {
   const switchWorkspace = (next: Workspace) => {
     setActiveWorkspace(next);
     setWorkspace(next);
-    router.push(next === 'SPACE' ? '/bookings?context=SPACE' : '/events');
+    router.push(next === 'VENUE' ? '/bookings?context=VENUE' : '/events');
   };
 
-  /** A link with a query string (e.g. `?context=SPACE`) is only "active" when every one of its
+  /** A link with a query string (e.g. `?context=VENUE`) is only "active" when every one of its
    * params matches the current URL — otherwise the generic `/bookings` link would also light up
    * while viewing the Venue-filtered list, and vice versa. */
   const isItemActive = (href: string): boolean => {
@@ -66,9 +66,9 @@ export function Sidebar() {
     return true;
   };
 
-  const spaceNavItems = [
-    { label: 'Venue Packages', href: '/services/packages?scope=SPACE', icon: Boxes },
-    { label: 'Venue Services', href: '/services?scope=SPACE', icon: Briefcase },
+  const venueNavItems = [
+    { label: 'Venue Packages', href: '/services/packages?scope=VENUE', icon: Boxes },
+    { label: 'Venue Services', href: '/services?scope=VENUE', icon: Briefcase },
   ];
 
   const eventNavItems = [
@@ -81,15 +81,15 @@ export function Sidebar() {
     {
       label: '',
       items: [
-        { label: 'Overview', href: workspace === 'SPACE' ? '/overview?context=SPACE' : '/overview?context=EVENT', icon: LayoutDashboard },
+        { label: 'Overview', href: workspace === 'VENUE' ? '/overview?context=VENUE' : '/overview?context=EVENT', icon: LayoutDashboard },
         { label: 'Calendar', href: '/calendar', icon: CalendarDays },
-        { label: 'All Bookings', href: workspace === 'SPACE' ? '/bookings?context=SPACE' : '/bookings', icon: BookmarkCheck },
+        { label: 'All Bookings', href: workspace === 'VENUE' ? '/bookings?context=VENUE' : '/bookings', icon: BookmarkCheck },
         { label: 'Waiting List', href: '/bookings?status=WAITING_LIST', icon: Clock },
       ],
     },
     {
-      label: workspace === 'SPACE' ? 'Venue Workspace' : 'Event Workspace',
-      items: workspace === 'SPACE' ? spaceNavItems : eventNavItems,
+      label: workspace === 'VENUE' ? 'Venue Workspace' : 'Event Workspace',
+      items: workspace === 'VENUE' ? venueNavItems : eventNavItems,
     },
     {
       label: 'Shared',
@@ -120,8 +120,8 @@ export function Sidebar() {
       {!isCollapsed && workspace && (
         <div className="row" style={{ gap: 4, padding: '0 8px' }}>
           <button
-            onClick={() => switchWorkspace('SPACE')}
-            className={`pill${workspace === 'SPACE' ? ' active' : ''}`}
+            onClick={() => switchWorkspace('VENUE')}
+            className={`pill${workspace === 'VENUE' ? ' active' : ''}`}
             style={{ flex: 1, justifyContent: 'center' }}
           >
             Venue

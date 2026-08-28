@@ -123,7 +123,7 @@ export async function PATCH(
       if (resolvedStatus !== BookingStatus.CANCELLED && resolvedStatus !== BookingStatus.WAITING_LIST) {
         const startAtToCheck = startAt ? new Date(startAt) : existingBooking.startAt;
         const endAtToCheck = endAt ? new Date(endAt) : existingBooking.endAt;
-        await assertNoBookingConflict(tx, existingBooking.spaceId, startAtToCheck, endAtToCheck, id);
+        await assertNoBookingConflict(tx, existingBooking.venueId, startAtToCheck, endAtToCheck, id);
       }
 
       // Update Client info if provided
@@ -210,7 +210,7 @@ export async function PATCH(
 
         for (const item of selectedServices) {
           let catalogServiceId = item.serviceId;
-          let serviceScope: 'SPACE' | 'EVENT' | 'BOTH' | undefined;
+          let serviceScope: 'VENUE' | 'EVENT' | 'BOTH' | undefined;
           let servicePriceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT' | undefined;
 
           if (!catalogServiceId && tenantId) {

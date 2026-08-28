@@ -8,7 +8,7 @@ export type POSTab = 'overview' | 'details' | 'contract' | 'resources' | 'handov
 interface POSTerminalHeaderProps {
   isEdit?: boolean;
   bookingId?: string;
-  bookingKind?: 'SPACE' | 'EVENT';
+  bookingKind?: 'VENUE' | 'EVENT';
   activeTab?: POSTab;
   setActiveTab?: (tab: POSTab) => void;
   hasPaymentsTab?: boolean;

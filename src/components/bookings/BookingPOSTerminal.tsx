@@ -73,7 +73,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             setStartTime={pos.setStartTime}
             endTime={pos.endTime}
             setEndTime={pos.setEndTime}
-            spaceCapacity={pos.spaceCapacity}
+            venueCapacity={pos.venueCapacity}
             overCapacity={pos.overCapacity}
             capacityOverrideReason={pos.capacityOverrideReason}
             setCapacityOverrideReason={pos.setCapacityOverrideReason}
@@ -134,7 +134,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
         {props.initialBookingData && (
           <>
             <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'overview' ? 'block' : 'hidden'}`}>
-              <BookingOverviewTab booking={props.initialBookingData} spaces={props.initialSpaces || []} />
+              <BookingOverviewTab booking={props.initialBookingData} spaces={props.initialVenues || []} />
             </main>
             <main className={`absolute inset-0 overflow-y-auto w-full h-full ${activeTab === 'contract' ? 'block' : 'hidden'}`}>
               <BookingContractTab booking={props.initialBookingData} />

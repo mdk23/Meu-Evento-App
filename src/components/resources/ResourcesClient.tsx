@@ -8,7 +8,7 @@ import { Building2, Package, Users, Truck, Plus, Loader2, X, Edit3, Trash2, Save
 import { Prisma } from '@prisma/client';
 import Topbar from '@/components/aurelia/Topbar';
 
-type ResourceSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
+type ResourceVenue = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
 type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; categoryId: true; category: { select: { name: true } } } }>;
 type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
 type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
@@ -20,7 +20,7 @@ interface InventoryCategoryOption {
 
 interface ResourcesClientProps {
   initialData: {
-    space: ResourceSpace | null;
+    space: ResourceVenue | null;
     inventory: ResourceInventoryItem[];
     staff: ResourceStaff[];
     suppliers: ResourceSupplier[];

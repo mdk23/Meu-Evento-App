@@ -8,7 +8,7 @@ export interface Client {
 export interface ServiceItem {
   id: string;
   name: string;
-  category: 'SPACE' | 'EVENT';
+  category: 'VENUE' | 'EVENT';
   providerType: 'INTERNAL' | 'EXTERNAL';
   providerName?: string;
   priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR';
@@ -16,7 +16,7 @@ export interface ServiceItem {
   description: string;
 }
 
-export interface SpaceItem {
+export interface VenueItem {
   id: string;
   name: string;
   capacity: number;
@@ -28,7 +28,7 @@ export interface CartItem {
   id: string;
   serviceId: string;
   name: string;
-  category: 'SPACE' | 'EVENT';
+  category: 'VENUE' | 'EVENT';
   providerType: 'INTERNAL' | 'EXTERNAL';
   providerName: string;
   priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR';
@@ -58,10 +58,10 @@ export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
   select: { id: true; name: true; category: true; context: true; defaultProviderType: true; defaultPrice: true; priceType: true };
 }>>;
 
-export type CatalogSpace = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
+export type CatalogVenue = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
 
 export type BookingSummary = Prisma.BookingGetPayload<{
-  select: { id: true; eventDate: true; startAt: true; endAt: true; spaceId: true; status: true; client: { select: { name: true } } };
+  select: { id: true; eventDate: true; startAt: true; endAt: true; venueId: true; status: true; client: { select: { name: true } } };
 }>;
 
 /** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `bookingServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. `bookingPackages` is the frozen record of which packages produced which lines — read-only, purely for display (see `BookingContractTab`). */
@@ -81,7 +81,7 @@ export type BookingPOSInitialData = DecimalToNumber<Prisma.BookingGetPayload<{
 export interface BookingPOSTerminalProps {
   initialClients?: Client[];
   initialServices?: CatalogService[];
-  initialSpaces?: CatalogSpace[];
+  initialVenues?: CatalogVenue[];
   initialBookings?: BookingSummary[];
   initialBookingData?: BookingPOSInitialData | null;
   /** Active packages only — applying one adds its bundled services to the cart in one action. */
@@ -94,5 +94,5 @@ export interface BookingPOSTerminalProps {
    * `?context=` query string when the "New Booking" link is reached from a workspace-scoped page
    * (e.g. Space Bookings). Defaults to `EVENT` to match every existing unscoped caller. Ignored when
    * editing. */
-  initialKind?: 'SPACE' | 'EVENT';
+  initialKind?: 'VENUE' | 'EVENT';
 }

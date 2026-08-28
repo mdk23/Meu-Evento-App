@@ -51,7 +51,7 @@ export default async function EditBookingPage({
   const services = await prisma.service.findMany({
     where: {
       active: true,
-      ...(initialBookingData.context === 'SPACE' ? { context: { in: ['SPACE', 'BOTH'] } } : {}),
+      ...(initialBookingData.context === 'VENUE' ? { context: { in: ['VENUE', 'BOTH'] } } : {}),
     },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, category: true, context: true, defaultProviderType: true, defaultPrice: true, priceType: true },
@@ -68,7 +68,7 @@ export default async function EditBookingPage({
       eventDate: true,
       startAt: true,
       endAt: true,
-      spaceId: true,
+      venueId: true,
       status: true,
       client: { select: { name: true } },
     },
@@ -112,7 +112,7 @@ export default async function EditBookingPage({
     <BookingPOSTerminal
       initialClients={clients}
       initialServices={serializeDecimals(services)}
-      initialSpaces={spaces}
+      initialVenues={spaces}
       initialBookings={bookings}
       initialBookingData={serializeDecimals(initialBookingData)}
       initialKind={initialBookingData.context}

@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Backdrop />
       {!isPickerRoute && (
         // Sidebar reads useSearchParams() (to highlight the active nav item on query-string
-        // routes like `?context=SPACE`) — that requires a Suspense boundary so statically-rendered
+        // routes like `?context=VENUE`) — that requires a Suspense boundary so statically-rendered
         // pages (e.g. the 404 page) don't fail to prerender.
         <Suspense fallback={<aside className="sidebar" />}>
           <Sidebar />

@@ -1,5 +1,5 @@
-export type CatalogScope = 'SPACE' | 'EVENT' | 'BOTH';
-export type WorkspaceKind = 'SPACE' | 'EVENT';
+export type CatalogScope = 'VENUE' | 'EVENT' | 'BOTH';
+export type WorkspaceKind = 'VENUE' | 'EVENT';
 
 /** Whether a catalog item (Service or Package) scoped `scope` should be selectable from a booking
  * in workspace `kind`. Event is the superset workspace — an Event booking legitimately needs the
@@ -7,7 +7,7 @@ export type WorkspaceKind = 'SPACE' | 'EVENT';
  * everything. A Space booking is commercial-only and only ever sees Space + Both-scoped items. */
 export function isScopeAllowedForKind(scope: CatalogScope, kind: WorkspaceKind): boolean {
   if (kind === 'EVENT') return true;
-  return scope === 'SPACE' || scope === 'BOTH';
+  return scope === 'VENUE' || scope === 'BOTH';
 }
 
 /** Whether a service scoped `serviceScope` may be bundled into a package scoped `packageScope`.
@@ -15,7 +15,7 @@ export function isScopeAllowedForKind(scope: CatalogScope, kind: WorkspaceKind):
  * treatment: an EVENT package cannot bundle a SPACE-only service any more than a SPACE package can
  * bundle an EVENT-only one. Only a BOTH-scoped service (or an exact scope match) is compatible,
  * which is what keeps a package's own catalog "pure" to its declared workspace. */
-export function isServiceCompatibleWithPackageScope(serviceScope: CatalogScope, packageScope: 'SPACE' | 'EVENT'): boolean {
+export function isServiceCompatibleWithPackageScope(serviceScope: CatalogScope, packageScope: 'VENUE' | 'EVENT'): boolean {
   return serviceScope === packageScope || serviceScope === 'BOTH';
 }
 
@@ -35,7 +35,7 @@ export class ServiceScopeError extends Error {
 export function assertServiceScopeAllowed(scope: CatalogScope, kind: WorkspaceKind, serviceName?: string): void {
   if (!isScopeAllowedForKind(scope, kind)) {
     throw new ServiceScopeError(
-      `"${serviceName || 'This service'}" isn't available in the ${kind === 'SPACE' ? 'Venue' : 'Event'} workspace.`
+      `"${serviceName || 'This service'}" isn't available in the ${kind === 'VENUE' ? 'Venue' : 'Event'} workspace.`
     );
   }
 }

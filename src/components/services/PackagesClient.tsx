@@ -15,19 +15,19 @@ interface PackagesClientProps {
   initialPackages: PackageCardDTO[];
   initialServices: ServiceCardDTO[];
   /** Deep-linked from the Venue/Event workspace nav via `?scope=` — defaults to showing everything. */
-  initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
+  initialScopeFilter?: 'ALL' | 'VENUE' | 'EVENT';
 }
 
 export default function PackagesClient({ initialPackages, initialServices, initialScopeFilter = 'ALL' }: PackagesClientProps) {
   const router = useRouter();
 
-  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'SPACE' | 'EVENT'>(initialScopeFilter);
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'VENUE' | 'EVENT'>(initialScopeFilter);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageCardDTO | null>(null);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [scope, setScope] = useState<'SPACE' | 'EVENT'>('SPACE');
+  const [scope, setScope] = useState<'VENUE' | 'EVENT'>('VENUE');
   const [pricingMode, setPricingMode] = useState<'COMPUTED' | 'FIXED'>('COMPUTED');
   const [fixedPrice, setFixedPrice] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -39,7 +39,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   const openAddModal = () => {
     setName('');
     setDescription('');
-    setScope(initialScopeFilter === 'EVENT' ? 'EVENT' : 'SPACE');
+    setScope(initialScopeFilter === 'EVENT' ? 'EVENT' : 'VENUE');
     setPricingMode('COMPUTED');
     setFixedPrice('');
     setSelectedServiceIds([]);
@@ -72,7 +72,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   // service checked while scope was EVENT, now switching to SPACE) — drop it from the selection
   // right here rather than just hiding it from the now-filtered checklist below, since a hidden but
   // still-selected service would otherwise fail with a confusing error on submit.
-  const handleScopeChange = (nextScope: 'SPACE' | 'EVENT') => {
+  const handleScopeChange = (nextScope: 'VENUE' | 'EVENT') => {
     setScope(nextScope);
     const compatibleServiceIds = new Set(
       initialServices.filter((s) => isServiceCompatibleWithPackageScope(s.context, nextScope)).map((s) => s.id)
@@ -206,12 +206,12 @@ export default function PackagesClient({ initialPackages, initialServices, initi
       ? pkg.price
       : pkg.services.reduce((sum, s) => sum + (s.priceOverride ?? s.defaultPrice) * s.quantity, 0);
 
-  // Arriving via the workspace sidebar (`?scope=SPACE`/`?scope=EVENT`) already puts you inside one
+  // Arriving via the workspace sidebar (`?scope=VENUE`/`?scope=EVENT`) already puts you inside one
   // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
   // the workspace you're in" rule. The tabs (and the ability to switch scopeFilter at all) only
   // exist on the generic, unscoped `/services/packages` entry point.
   const isScoped = initialScopeFilter !== 'ALL';
-  const pageTitle = scopeFilter === 'SPACE' ? 'Venue packages' : scopeFilter === 'EVENT' ? 'Event packages' : 'All packages';
+  const pageTitle = scopeFilter === 'VENUE' ? 'Venue packages' : scopeFilter === 'EVENT' ? 'Event packages' : 'All packages';
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-y-auto">
@@ -237,7 +237,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
       {/* SCOPE FILTER TABS — unscoped entry point only */}
       {!isScoped && (
         <div className="tabs" style={{ margin: '24px 40px 0' }}>
-          {(['ALL', 'SPACE', 'EVENT'] as const).map((filterOpt) => {
+          {(['ALL', 'VENUE', 'EVENT'] as const).map((filterOpt) => {
             const count = filterOpt === 'ALL'
               ? initialPackages.length
               : initialPackages.filter((p) => p.context === filterOpt).length;
@@ -251,7 +251,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
               >
                 <span>
                   {filterOpt === 'ALL' && 'All Packages'}
-                  {filterOpt === 'SPACE' && 'Venue Packages'}
+                  {filterOpt === 'VENUE' && 'Venue Packages'}
                   {filterOpt === 'EVENT' && 'Event Packages'}
                 </span>
                 <span className="badge b-mute">{count}</span>
@@ -280,8 +280,8 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                   <div className="between" style={{ alignItems: 'flex-start' }}>
                     <div>
                       {!isScoped && (
-                        <span className={`badge ${pkg.context === 'SPACE' ? 'b-accent' : 'b-info'}`} style={{ marginBottom: 8 }}>
-                          {pkg.context === 'SPACE' ? 'Venue' : 'Event'}
+                        <span className={`badge ${pkg.context === 'VENUE' ? 'b-accent' : 'b-info'}`} style={{ marginBottom: 8 }}>
+                          {pkg.context === 'VENUE' ? 'Venue' : 'Event'}
                         </span>
                       )}
                       <h3 className="h-md">{pkg.name}</h3>
@@ -377,8 +377,8 @@ export default function PackagesClient({ initialPackages, initialServices, initi
 
               <div className="field">
                 <label className="label">Workspace</label>
-                <select value={scope} onChange={(e) => handleScopeChange(e.target.value as 'SPACE' | 'EVENT')} className="input">
-                  <option value="SPACE">Venue (rental bundle)</option>
+                <select value={scope} onChange={(e) => handleScopeChange(e.target.value as 'VENUE' | 'EVENT')} className="input">
+                  <option value="VENUE">Venue (rental bundle)</option>
                   <option value="EVENT">Event (full-occasion bundle)</option>
                 </select>
               </div>

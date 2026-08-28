@@ -24,7 +24,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Package not found' }, { status: 404 });
     }
 
-    const resolvedScope: PackageContext = scope === 'SPACE' || scope === 'EVENT' ? scope : existingPackage.context;
+    const resolvedScope: PackageContext = scope === 'VENUE' || scope === 'EVENT' ? scope : existingPackage.context;
     const resolvedPricingMode = resolvePricingMode(pricingMode) ?? existingPackage.pricingMode;
 
     if (Array.isArray(serviceIds) && serviceIds.length > 0) {

@@ -13,7 +13,7 @@ interface BookingsClientProps {
   data: BookingListPageDTO;
   statusFilter: string;
   /** Set when reached from the Venue or Event workspace nav — scopes the list to that kind. */
-  contextFilter?: 'SPACE' | 'EVENT';
+  contextFilter?: 'VENUE' | 'EVENT';
 }
 
 export default function BookingsClient({ data, statusFilter, contextFilter }: BookingsClientProps) {
@@ -31,9 +31,9 @@ export default function BookingsClient({ data, statusFilter, contextFilter }: Bo
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
       <Topbar
-        crumb={contextFilter === 'SPACE' ? 'Venue Bookings' : contextFilter === 'EVENT' ? 'Event Bookings' : 'Commercial Bookings'}
+        crumb={contextFilter === 'VENUE' ? 'Venue Bookings' : contextFilter === 'EVENT' ? 'Event Bookings' : 'Commercial Bookings'}
         note={
-          contextFilter === 'SPACE'
+          contextFilter === 'VENUE'
             ? 'Venue-rental bookings — commercial-only, no Event workspace.'
             : contextFilter === 'EVENT'
             ? 'Bookings running a full occasion, with an Event workspace attached.'

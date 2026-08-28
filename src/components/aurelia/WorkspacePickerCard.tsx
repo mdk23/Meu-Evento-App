@@ -34,7 +34,7 @@ export default function WorkspacePickerCard({
   summary,
   pills,
 }: WorkspacePickerCardProps) {
-  const Icon = kind === 'SPACE' ? Home : Star;
+  const Icon = kind === 'VENUE' ? Home : Star;
 
   return (
     <div className="card f-in" style={{ padding: 32 }}>

@@ -5,7 +5,7 @@ const STATUS_FILTERS = ['ALL', 'RESERVED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'
 interface BookingFilterTabsProps {
   statusFilter: string;
   statusCounts: Record<string, number>;
-  contextFilter?: 'SPACE' | 'EVENT';
+  contextFilter?: 'VENUE' | 'EVENT';
 }
 
 export default function BookingFilterTabs({ statusFilter, statusCounts, contextFilter }: BookingFilterTabsProps) {

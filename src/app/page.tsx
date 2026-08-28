@@ -8,12 +8,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function WorkspacePickerPage() {
   const [space, event, tenant] = await Promise.all([
-    WorkspaceRepository.getWorkspaceSummary('SPACE'),
+    WorkspaceRepository.getWorkspaceSummary('VENUE'),
     WorkspaceRepository.getWorkspaceSummary('EVENT'),
     prisma.tenant.findFirst({ include: { space: true } }),
   ]);
 
-  const spaceName = tenant?.space?.name || 'Main Venue';
+  const venueName = tenant?.space?.name || 'Main Venue';
   const city = tenant?.space?.address?.split(',').pop()?.trim() || tenant?.name || 'Aurelia';
 
   return (
@@ -31,7 +31,7 @@ export default async function WorkspacePickerPage() {
           </svg>
           <div>
             <div className="h-sm" style={{ letterSpacing: '0.16em', fontSize: 17 }}>AURELIA</div>
-            <p className="label" style={{ marginTop: 2 }}>{spaceName} &middot; {city}</p>
+            <p className="label" style={{ marginTop: 2 }}>{venueName} &middot; {city}</p>
           </div>
         </div>
 
@@ -58,11 +58,11 @@ export default async function WorkspacePickerPage() {
 
         <div className="grid g2" style={{ maxWidth: 980, width: '100%', gap: 24 }}>
           <WorkspacePickerCard
-            kind="SPACE"
+            kind="VENUE"
             title="Venue"
-            subtitle={spaceName}
+            subtitle={venueName}
             description="The client rents the room. We hand over the venue — with our furniture, climate and cleaning if they want them. No operational plan needed."
-            href="/bookings?context=SPACE"
+            href="/bookings?context=VENUE"
             primaryStatLabel="Venue bookings"
             midStatLabel="Dates held ahead"
             summary={space}
@@ -74,17 +74,17 @@ export default async function WorkspacePickerPage() {
               },
               {
                 label: 'Bookings',
-                href: '/bookings?context=SPACE',
+                href: '/bookings?context=VENUE',
                 description: 'Dates the venue is held or confirmed for a client, with the contract value and payment status for each.',
               },
               {
                 label: 'Venue Packages',
-                href: '/services/packages?scope=SPACE',
+                href: '/services/packages?scope=VENUE',
                 description: 'Fixed-price bundles of the venue plus its add-ons, ready to quote without building a full plan.',
               },
               {
                 label: 'Venue Services',
-                href: '/services?scope=SPACE',
+                href: '/services?scope=VENUE',
                 description: 'The individual add-ons a client can attach to a rental — furniture, climate control, cleaning, on-site staff.',
               },
             ]}

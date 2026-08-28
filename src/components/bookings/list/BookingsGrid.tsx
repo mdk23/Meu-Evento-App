@@ -8,7 +8,7 @@ interface BookingsGridProps {
   isEmpty: boolean;
   deletingId: string | null;
   updating: boolean;
-  contextFilter?: 'SPACE' | 'EVENT';
+  contextFilter?: 'VENUE' | 'EVENT';
   onUpdateStatus: (
     bookingId: string,
     updates: { status?: string; paymentAction?: 'MARK_DEPOSIT_PAID' | 'MARK_ALL_PAID' | 'COMPLETE_FINANCIAL_CLOSURE' }

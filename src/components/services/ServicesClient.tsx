@@ -33,7 +33,7 @@ interface InventoryCategoryOption {
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
   /** Deep-linked from the Venue/Event workspace nav via `?scope=` — defaults to showing everything. */
-  initialScopeFilter?: 'ALL' | 'SPACE' | 'EVENT';
+  initialScopeFilter?: 'ALL' | 'VENUE' | 'EVENT';
   inventoryItems: InventoryItemOption[];
   inventoryCategories: InventoryCategoryOption[];
 }
@@ -94,7 +94,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   // Form states
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Catering');
-  const [context, setContext] = useState<'SPACE' | 'EVENT' | 'BOTH'>('BOTH');
+  const [context, setContext] = useState<'VENUE' | 'EVENT' | 'BOTH'>('BOTH');
   const [executionType, setExecutionType] = useState('INTERNAL');
   const [priceType, setPriceType] = useState('FIXED');
   const [defaultPrice, setDefaultPrice] = useState('');
@@ -106,7 +106,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
   const openAddModal = () => {
     setName('');
     setCategory('Catering');
-    setContext(initialScopeFilter === 'SPACE' || initialScopeFilter === 'EVENT' ? initialScopeFilter : 'BOTH');
+    setContext(initialScopeFilter === 'VENUE' || initialScopeFilter === 'EVENT' ? initialScopeFilter : 'BOTH');
     setExecutionType('INTERNAL');
     setPriceType('FIXED');
     setDefaultPrice('');
@@ -270,11 +270,11 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     ? scopedServices
     : scopedServices.filter(s => s.defaultExecutionType === executionFilter);
 
-  // Arriving via the workspace sidebar (`?scope=SPACE`/`?scope=EVENT`) already puts you inside one
+  // Arriving via the workspace sidebar (`?scope=VENUE`/`?scope=EVENT`) already puts you inside one
   // workspace — showing a cross-workspace filter tab there would contradict the "this screen is for
   // the workspace you're in" rule, same reasoning as PackagesClient.
   const isScoped = initialScopeFilter !== 'ALL';
-  const pageTitle = scopeFilter === 'SPACE' ? 'Venue services' : scopeFilter === 'EVENT' ? 'Event services' : 'Services catalog';
+  const pageTitle = scopeFilter === 'VENUE' ? 'Venue services' : scopeFilter === 'EVENT' ? 'Event services' : 'Services catalog';
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
@@ -351,8 +351,8 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                         </td>
                         {!isScoped && (
                           <td>
-                            <span className={`badge ${s.context === 'SPACE' ? 'b-accent' : s.context === 'EVENT' ? 'b-info' : 'b-mute'}`}>
-                              {s.context === 'BOTH' ? 'Venue & Event' : s.context === 'SPACE' ? 'Venue' : 'Event'}
+                            <span className={`badge ${s.context === 'VENUE' ? 'b-accent' : s.context === 'EVENT' ? 'b-info' : 'b-mute'}`}>
+                              {s.context === 'BOTH' ? 'Venue & Event' : s.context === 'VENUE' ? 'Venue' : 'Event'}
                             </span>
                           </td>
                         )}
@@ -440,8 +440,8 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
               <div className="field">
                 <label className="label">Workspace</label>
-                <select value={context} onChange={(e) => setContext(e.target.value as 'SPACE' | 'EVENT' | 'BOTH')} className="input">
-                  <option value="SPACE">Venue only (rental bookings)</option>
+                <select value={context} onChange={(e) => setContext(e.target.value as 'VENUE' | 'EVENT' | 'BOTH')} className="input">
+                  <option value="VENUE">Venue only (rental bookings)</option>
                   <option value="EVENT">Event only (full-occasion bookings)</option>
                   <option value="BOTH">Both — usable from either workspace</option>
                 </select>

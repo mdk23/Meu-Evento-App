@@ -20,20 +20,20 @@ export function bookingsOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Da
 }
 
 /**
- * Throws `BookingConflictError` if another booking already occupies `spaceId` during
+ * Throws `BookingConflictError` if another booking already occupies `venueId` during
  * `[startAt, endAt)`. Overlap rule: `existing.startAt < endAt AND existing.endAt > startAt`
  * (see `bookingsOverlap`). Bookings that are CANCELLED or already WAITING_LIST don't block the window.
  */
 export async function assertNoBookingConflict(
   tx: Prisma.TransactionClient,
-  spaceId: string,
+  venueId: string,
   startAt: Date,
   endAt: Date,
   excludeBookingId?: string
 ): Promise<void> {
   const conflict = await tx.booking.findFirst({
     where: {
-      spaceId,
+      venueId,
       startAt: { lt: endAt },
       endAt: { gt: startAt },
       status: { notIn: NON_BLOCKING_STATUSES },

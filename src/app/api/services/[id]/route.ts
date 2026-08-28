@@ -75,7 +75,7 @@ export async function PATCH(
         data: {
           name: name !== undefined ? name : existingService.name,
           category: category !== undefined ? category : existingService.category,
-          context: context === 'SPACE' || context === 'EVENT' || context === 'BOTH' ? context : existingService.context,
+          context: context === 'VENUE' || context === 'EVENT' || context === 'BOTH' ? context : existingService.context,
           defaultProviderType:
             defaultExecutionType === 'EXTERNAL'
               ? ExecutionType.EXTERNAL

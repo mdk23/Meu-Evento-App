@@ -1,5 +1,5 @@
 import { DashboardRepository } from '@/lib/repositories/dashboard.repository';
-import { DashboardDTO, SpaceDashboardDTO } from '@/types/dtos';
+import { DashboardDTO, VenueDashboardDTO } from '@/types/dtos';
 
 export class DashboardService {
   static async getDashboardSummary(): Promise<DashboardDTO> {
@@ -10,7 +10,7 @@ export class DashboardService {
     return DashboardRepository.getEventDashboardData();
   }
 
-  static async getSpaceDashboardSummary(): Promise<SpaceDashboardDTO> {
-    return DashboardRepository.getSpaceDashboardData();
+  static async getVenueDashboardSummary(): Promise<VenueDashboardDTO> {
+    return DashboardRepository.getVenueDashboardData();
   }
 }

@@ -15,5 +15,5 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
 
   const data = await BookingService.getBookings({ page, status, kind });
 
-  return <BookingsClient data={data} statusFilter={status} contextFilter={kind === 'SPACE' || kind === 'EVENT' ? kind : undefined} />;
+  return <BookingsClient data={data} statusFilter={status} contextFilter={kind === 'VENUE' || kind === 'EVENT' ? kind : undefined} />;
 }

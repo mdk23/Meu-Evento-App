@@ -1,4 +1,4 @@
-export type Workspace = 'SPACE' | 'EVENT';
+export type Workspace = 'VENUE' | 'EVENT';
 
 const STORAGE_KEY = 'aurelia-workspace';
 
@@ -15,7 +15,7 @@ export function setActiveWorkspace(workspace: Workspace) {
 export function getActiveWorkspace(): Workspace | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'SPACE' || stored === 'EVENT' ? stored : null;
+    return stored === 'VENUE' || stored === 'EVENT' ? stored : null;
   } catch {
     return null;
   }

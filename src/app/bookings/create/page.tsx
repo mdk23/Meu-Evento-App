@@ -13,7 +13,7 @@ interface CreateBookingPageProps {
 export default async function CreateBookingPage({ searchParams }: CreateBookingPageProps) {
   const { date, context } = await searchParams;
   const initialDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
-  const initialKind = context === 'SPACE' ? 'SPACE' : 'EVENT';
+  const initialKind = context === 'VENUE' ? 'VENUE' : 'EVENT';
   const clients = await prisma.client.findMany({
     where: { active: true },
     orderBy: { name: 'asc' },
@@ -22,7 +22,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
   const services = await prisma.service.findMany({
     where: {
       active: true,
-      ...(initialKind === 'SPACE' ? { context: { in: ['SPACE', 'BOTH'] } } : {}),
+      ...(initialKind === 'VENUE' ? { context: { in: ['VENUE', 'BOTH'] } } : {}),
     },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, category: true, context: true, defaultProviderType: true, defaultPrice: true, priceType: true },
@@ -37,7 +37,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
       eventDate: true,
       startAt: true,
       endAt: true,
-      spaceId: true,
+      venueId: true,
       status: true,
       client: { select: { name: true } },
     },
@@ -49,7 +49,7 @@ export default async function CreateBookingPage({ searchParams }: CreateBookingP
     <BookingPOSTerminal
       initialClients={clients}
       initialServices={serializeDecimals(services)}
-      initialSpaces={spaces}
+      initialVenues={spaces}
       initialBookings={bookings}
       initialPackages={packages}
       initialDate={initialDate}

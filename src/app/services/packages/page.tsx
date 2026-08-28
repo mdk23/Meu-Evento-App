@@ -21,7 +21,7 @@ export default async function PackagesPage({ searchParams }: PackagesPageProps) 
     <PackagesClient
       initialPackages={packages}
       initialServices={services}
-      initialScopeFilter={scope === 'SPACE' || scope === 'EVENT' ? scope : 'ALL'}
+      initialScopeFilter={scope === 'VENUE' || scope === 'EVENT' ? scope : 'ALL'}
     />
   );
 }

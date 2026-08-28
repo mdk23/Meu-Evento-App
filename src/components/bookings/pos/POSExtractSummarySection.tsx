@@ -85,7 +85,7 @@ export default function POSExtractSummarySection({
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span className="badge b-mute" style={{ marginBottom: 4 }}>
-                      {item.category === 'SPACE' ? 'Venue' : 'Event'} • {item.providerName}
+                      {item.category === 'VENUE' ? 'Venue' : 'Event'} • {item.providerName}
                     </span>
                     <h4 style={{ fontSize: 13, fontWeight: 600 }} className="truncate">{item.name}</h4>
                     <p className="mini dim num" style={{ marginTop: 2 }}>

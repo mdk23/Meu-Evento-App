@@ -190,8 +190,8 @@ export async function POST() {
       data: {
         tenantId: tenant.id,
         clientId: client1.id,
-        spaceId: space.id,
-        bookingType: BookingType.SPACE_AND_SERVICES,
+        venueId: space.id,
+        bookingType: BookingType.VENUE_AND_SERVICES,
         eventDate: eventDate1,
         startAt: booking1Span.startAt,
         endAt: booking1Span.endAt,
@@ -396,8 +396,8 @@ export async function POST() {
       data: {
         tenantId: tenant.id,
         clientId: client2.id,
-        spaceId: space.id,
-        bookingType: BookingType.SPACE_AND_SERVICES,
+        venueId: space.id,
+        bookingType: BookingType.VENUE_AND_SERVICES,
         eventDate: eventDate2,
         startAt: booking2Span.startAt,
         endAt: booking2Span.endAt,

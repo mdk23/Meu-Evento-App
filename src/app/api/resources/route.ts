@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No tenant found' }, { status: 400 });
     }
 
-    if (resourceType === 'SPACE') {
+    if (resourceType === 'VENUE') {
       let space = await prisma.space.findUnique({ where: { tenantId: tenant.id } });
       if (space) {
         space = await prisma.space.update({

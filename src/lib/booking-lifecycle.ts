@@ -7,7 +7,7 @@ export interface LifecycleStage {
 
 export interface LifecycleInput {
   bookingStatus: string;
-  kind: 'SPACE' | 'EVENT';
+  kind: 'VENUE' | 'EVENT';
   scheduledPayments: { amount: number; paidAmount: number }[];
   eventServices: { status: string }[];
   /** Null when no Event record exists yet (a SPACE booking that's never been promoted). */
@@ -41,7 +41,7 @@ export function deriveLifecycleStages(input: LifecycleInput): LifecycleStage[] {
   // SPACE bookings have no operational workspace by design — nothing to block on, so this stage
   // never holds up a commercial-only booking's spine.
   const operationsState: LifecycleStageState =
-    kind === 'SPACE'
+    kind === 'VENUE'
       ? 'done'
       : eventStatus === 'COMPLETED'
       ? 'done'

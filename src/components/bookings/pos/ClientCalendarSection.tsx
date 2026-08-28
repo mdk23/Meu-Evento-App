@@ -54,7 +54,7 @@ interface ClientCalendarSectionProps {
   setStartTime: (time: string) => void;
   endTime: string;
   setEndTime: (time: string) => void;
-  spaceCapacity: number;
+  venueCapacity: number;
   overCapacity: boolean;
   capacityOverrideReason: string;
   setCapacityOverrideReason: (reason: string) => void;
@@ -96,7 +96,7 @@ export default function ClientCalendarSection({
   setStartTime,
   endTime,
   setEndTime,
-  spaceCapacity,
+  venueCapacity,
   overCapacity,
   capacityOverrideReason,
   setCapacityOverrideReason,
@@ -238,7 +238,7 @@ export default function ClientCalendarSection({
         {overCapacity && (
           <div className="alert warn" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
             <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12 }}>
-              <AlertTriangle className="w-3.5 h-3.5" /> Guest count exceeds venue capacity ({spaceCapacity})!
+              <AlertTriangle className="w-3.5 h-3.5" /> Guest count exceeds venue capacity ({venueCapacity})!
             </p>
             <p className="mini dim">
               Confirming this booking requires an override reason.

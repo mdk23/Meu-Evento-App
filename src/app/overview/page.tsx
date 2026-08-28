@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react';
 import { DashboardService } from '@/lib/services/dashboard.service';
 import Topbar from '@/components/aurelia/Topbar';
 import EventOverviewDashboard from '@/components/aurelia/EventOverviewDashboard';
-import SpaceOverviewDashboard from '@/components/aurelia/SpaceOverviewDashboard';
+import VenueOverviewDashboard from '@/components/aurelia/VenueOverviewDashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,16 +20,16 @@ interface OverviewPageProps {
 export default async function OverviewPage({ searchParams }: OverviewPageProps) {
   const { context } = await searchParams;
 
-  if (context === 'SPACE') {
-    const data = await DashboardService.getSpaceDashboardSummary();
+  if (context === 'VENUE') {
+    const data = await DashboardService.getVenueDashboardSummary();
     return (
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <Topbar crumb="Venue Overview" note="Bookings, hand-overs and collection for the Venue workspace.">
-          <Link href="/bookings/create?context=SPACE" className="btn primary sm">
+          <Link href="/bookings/create?context=VENUE" className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> New Booking
           </Link>
         </Topbar>
-        <SpaceOverviewDashboard data={data} />
+        <VenueOverviewDashboard data={data} />
       </main>
     );
   }

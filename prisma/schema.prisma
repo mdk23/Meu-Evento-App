@@ -10,17 +10,17 @@ generator client {
 }
 
 enum BookingType {
-  SPACE_ONLY
+  VENUE_ONLY
   SERVICES_ONLY
-  SPACE_AND_SERVICES
+  VENUE_AND_SERVICES
 }
 
-/// Which workspace a booking belongs to. SPACE = venue-rental only, no Event exists yet.
+/// Which workspace a booking belongs to. VENUE = venue-rental only, no Event exists yet.
 /// EVENT = the booking runs a full occasion. Distinct from `BookingType`, which is advisory
-/// line-composition metadata; `context` is the structural switch the Space/Event workspace split
+/// line-composition metadata; `context` is the structural switch the Venue/Event workspace split
 /// is built on.
 enum BookingContext {
-  SPACE
+  VENUE
   EVENT
 }
 
@@ -153,7 +153,7 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  space               Space?
+  venue               Venue?
   clients             Client[]
   bookings            Booking[]
   services            Service[]
@@ -170,7 +170,7 @@ model Tenant {
   @@map("tenants")
 }
 
-model Space {
+model Venue {
   id          String   @id @default(cuid())
   tenantId    String   @unique
   name        String
@@ -184,7 +184,7 @@ model Space {
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
-  @@map("spaces")
+  @@map("venues")
 }
 
 model Client {
@@ -211,13 +211,13 @@ model Booking {
   id                     String         @id @default(cuid())
   tenantId               String
   clientId               String
-  spaceId                String
-  bookingType            BookingType    @default(SPACE_AND_SERVICES)
+  venueId                String
+  bookingType            BookingType    @default(VENUE_AND_SERVICES)
   /// Structural workspace switch — see `BookingContext` doc comment. Defaults to EVENT because,
-  /// historically, every booking got an Event unconditionally; SPACE bookings are a new concept.
+  /// historically, every booking got an Event unconditionally; VENUE bookings are a new concept.
   context                BookingContext @default(EVENT)
   eventDate              DateTime
-  /// Real reservation window for the space, used for overlap-conflict checking.
+  /// Real reservation window for the venue, used for overlap-conflict checking.
   /// `eventDate` stays in sync (same calendar day as `startAt`) for existing day-level UI/queries.
   startAt                DateTime
   endAt                  DateTime
@@ -226,7 +226,7 @@ model Booking {
   notes                  String?
   depositDueDate         DateTime?
   discount               Decimal?       @default(0) @db.Decimal(12, 2)
-  /// Required to confirm a booking whose guestCount exceeds the space's capacity — otherwise
+  /// Required to confirm a booking whose guestCount exceeds the venue's capacity — otherwise
   /// confirmation is blocked. Null when capacity was never exceeded or never overridden.
   capacityOverrideReason String?
   createdAt              DateTime       @default(now())
@@ -234,7 +234,7 @@ model Booking {
 
   tenant              Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client              Client                   @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  space               Space                    @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+  venue               Venue                    @relation(fields: [venueId], references: [id], onDelete: Restrict)
   event               Event?
   bookingServices     BookingService[]
   bookingPackages     BookingPackage[]
@@ -245,7 +245,7 @@ model Booking {
 
   @@index([tenantId])
   @@index([clientId])
-  @@index([spaceId])
+  @@index([venueId])
   @@index([status])
   @@index([context])
   @@index([eventDate])
@@ -326,7 +326,7 @@ model Service {
   /// Which workspace(s) this service can be selected from — see `ServiceContext` doc comment.
   /// Defaults to `BOTH` on every pre-existing row, which preserves the exact "visible everywhere"
   /// behavior every service had before contexting existed; re-contexting real catalog rows to
-  /// SPACE-only or EVENT-only is a deliberate follow-up the catalog owner does via the Services
+  /// VENUE-only or EVENT-only is a deliberate follow-up the catalog owner does via the Services
   /// page, not something inferred automatically from name/category.
   context             ServiceContext @default(BOTH)
   /// The provider type this service defaults to when added to a booking. Purely a suggested
@@ -351,13 +351,13 @@ model Service {
   @@map("services")
 }
 
-/// Which workspace a bundle is offered in — Space packages are room-only bundles (e.g. the venue
+/// Which workspace a bundle is offered in — Venue packages are room-only bundles (e.g. the venue
 /// + furniture), Event packages bundle a full occasion's services (catering, decor, etc.). Unlike
 /// `ServiceContext`, a package never gets `BOTH` — the user's own model is that a cross-workspace need
 /// (e.g. an Event booking that also needs the venue) is met by applying two separate packages, not
 /// one mixed one; keeping packages single-workspace prevents accidental catalog mixing.
 enum PackageContext {
-  SPACE
+  VENUE
   EVENT
 }
 
@@ -370,11 +370,11 @@ enum PackagePricingMode {
 
 /// Which workspace(s) a catalog `Service` can be selected from. `BOTH` is for genuinely
 /// cross-workspace services (e.g. house cleaning, general staff) — everything else should be scoped
-/// to exactly where it's actually offered. A SPACE booking's catalog only ever shows SPACE+BOTH
+/// to exactly where it's actually offered. A VENUE booking's catalog only ever shows VENUE+BOTH
 /// services; an EVENT booking sees everything (Event is the superset workspace — it legitimately
 /// needs the venue too).
 enum ServiceContext {
-  SPACE
+  VENUE
   EVENT
   BOTH
 }
@@ -444,15 +444,15 @@ model PackageItem {
 
 model BookingService {
   id               String          @id @default(cuid())
-  /// The commercial owner of this line — always set. A space-only booking's lines have no
+  /// The commercial owner of this line — always set. A venue-only booking's lines have no
   /// `eventId`; that's how a booking can exist with commercial service lines and no Event.
   bookingId        String
-  /// Null for a SPACE booking's lines — commercial-only, no operational Event workspace exists
+  /// Null for a VENUE booking's lines — commercial-only, no operational Event workspace exists
   /// for them. Set for every EVENT booking's lines.
   eventId          String?
   serviceId        String
   /// Which workspace this specific line belongs to — independent of `Booking.context`, since one
-  /// EVENT booking can carry both space-package-sourced and event-package-sourced lines at once.
+  /// EVENT booking can carry both venue-package-sourced and event-package-sourced lines at once.
   /// Resolved at creation: from the source Package's context when `source = PACKAGE`, otherwise
   /// from whichever workspace the line was added from.
   context          ServiceContext
@@ -756,7 +756,7 @@ model BookingServiceResource {
   /// Which ServiceInventoryRequirement this was seeded from; null if added ad hoc directly on the booking.
   sourceRequirementId  String?
   /// Set when this row's `reservedQuantity` is fulfilled by claiming another row's already-reserved
-  /// stock instead of committing fresh inventory — e.g. an Event service reusing what a Space service
+  /// stock instead of committing fresh inventory — e.g. an Event service reusing what a Venue service
   /// already reserved on the same booking. The combined reservedQuantity of every row pointing at the
   /// same target can never exceed the target's own reservedQuantity — see `assertReuseQuantityAvailable`.
   reusedFromResourceId String?

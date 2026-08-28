@@ -32,7 +32,7 @@ export interface DashboardDTO {
   supplierStatusSummary: Record<string, number>;
 }
 
-export interface SpaceDashboardDTO {
+export interface VenueDashboardDTO {
   kpis: {
     /** Contracted revenue: SUM(EventService.sellingPrice) - discount for SPACE-kind bookings only. */
     revenue: number;
@@ -81,7 +81,7 @@ export interface BookingListDTO {
   status: string;
   bookingType: string;
   /** SPACE = commercial-only, no Event workspace; EVENT = has one. See promote/demote. */
-  kind: 'SPACE' | 'EVENT';
+  kind: 'VENUE' | 'EVENT';
   notes?: string | null;
   hasEvent: boolean;
   totalScheduledAmount: number;
@@ -166,7 +166,7 @@ export interface ServiceCardDTO {
   name: string;
   category: string;
   /** Which workspace(s) this service can be selected from — SPACE, EVENT, or BOTH. */
-  context: 'SPACE' | 'EVENT' | 'BOTH';
+  context: 'VENUE' | 'EVENT' | 'BOTH';
   defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
   priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
   defaultPrice: number;
@@ -183,7 +183,7 @@ export interface PackageCardDTO {
   id: string;
   name: string;
   description: string | null;
-  context: 'SPACE' | 'EVENT';
+  context: 'VENUE' | 'EVENT';
   pricingMode: 'COMPUTED' | 'FIXED';
   /** Only meaningful when `pricingMode = FIXED`. */
   price: number | null;
@@ -192,7 +192,7 @@ export interface PackageCardDTO {
     serviceId: string;
     name: string;
     category: string;
-    context: 'SPACE' | 'EVENT' | 'BOTH';
+    context: 'VENUE' | 'EVENT' | 'BOTH';
     defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
     priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
     defaultPrice: number;

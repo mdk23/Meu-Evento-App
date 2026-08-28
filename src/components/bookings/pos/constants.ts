@@ -1,8 +1,8 @@
-import { SpaceItem, ServiceItem } from './types';
+import { VenueItem, ServiceItem } from './types';
 
 // There's one Space per tenant (see the `Space` model) — this fallback only renders if that
 // real record somehow fails to load, so it deliberately doesn't invent named sub-venues.
-export const defaultSpaces: SpaceItem[] = [
+export const defaultVenues: VenueItem[] = [
   {
     id: 'sp-1',
     name: 'Main Venue',
@@ -16,7 +16,7 @@ export const defaultCatalogServices: ServiceItem[] = [
   {
     id: 'srv-1',
     name: 'Venue Rental',
-    category: 'SPACE',
+    category: 'VENUE',
     providerType: 'INTERNAL',
     providerName: 'Internal Venue',
     priceType: 'FIXED',
@@ -26,7 +26,7 @@ export const defaultCatalogServices: ServiceItem[] = [
   {
     id: 'srv-4',
     name: 'LED & Architectural Scenic Lighting',
-    category: 'SPACE',
+    category: 'VENUE',
     providerType: 'INTERNAL',
     providerName: 'Internal Venue',
     priceType: 'FIXED',
@@ -36,7 +36,7 @@ export const defaultCatalogServices: ServiceItem[] = [
   {
     id: 'srv-5',
     name: '150 kVA Silent Power Generator',
-    category: 'SPACE',
+    category: 'VENUE',
     providerType: 'EXTERNAL',
     providerName: 'VOLTA GENERATORS INC.',
     priceType: 'FIXED',

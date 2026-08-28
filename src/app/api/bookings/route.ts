@@ -121,7 +121,7 @@ export async function POST(request: Request) {
 
     // Defaults to EVENT so every existing caller (which never sends `kind`) keeps today's exact
     // behavior — a linked Event is created automatically. SPACE bookings are opt-in.
-    const resolvedKind: BookingContext = kind === 'SPACE' ? BookingContext.SPACE : BookingContext.EVENT;
+    const resolvedKind: BookingContext = kind === 'VENUE' ? BookingContext.SPACE : BookingContext.EVENT;
 
     const discountVal = parseFloat(discount || '0');
     const totalAmountVal = parseFloat(totalAmount || '0');
@@ -160,8 +160,8 @@ export async function POST(request: Request) {
         data: {
           tenantId: tenant.id,
           clientId: targetClientId,
-          spaceId: space.id,
-          bookingType: bookingType || BookingType.SPACE_AND_SERVICES,
+          venueId: space.id,
+          bookingType: bookingType || BookingType.VENUE_AND_SERVICES,
           context: resolvedKind,
           eventDate: parsedDate,
           startAt: parsedStartAt,
@@ -199,7 +199,7 @@ export async function POST(request: Request) {
 
         for (const item of selectedServices) {
           let catalogServiceId = item.serviceId;
-          let serviceScope: 'SPACE' | 'EVENT' | 'BOTH';
+          let serviceScope: 'VENUE' | 'EVENT' | 'BOTH';
           let servicePriceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
 
           if (!catalogServiceId) {

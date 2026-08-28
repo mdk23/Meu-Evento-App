@@ -127,7 +127,7 @@ export class BookingRepository {
       ...(status && status !== 'ALL' && Object.values(BookingStatus).includes(status as BookingStatus)
         ? { status: status as BookingStatus }
         : {}),
-      ...(kind === 'SPACE' || kind === 'EVENT' ? { context: kind } : {}),
+      ...(kind === 'VENUE' || kind === 'EVENT' ? { context: kind } : {}),
     };
 
     // Tab badge counts must reflect every status regardless of the current *status* filter/page, so
@@ -146,7 +146,7 @@ export class BookingRepository {
       prisma.booking.groupBy({
         by: ['status'],
         _count: { status: true },
-        where: kind === 'SPACE' || kind === 'EVENT' ? { context: kind } : {},
+        where: kind === 'VENUE' || kind === 'EVENT' ? { context: kind } : {},
       }),
     ]);
 

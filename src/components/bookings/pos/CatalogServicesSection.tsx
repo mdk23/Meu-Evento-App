@@ -5,8 +5,8 @@ import { ServiceItem, CartItem, CatalogPackage } from './types';
 interface CatalogServicesSectionProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  categoryFilter: 'ALL' | 'SPACE' | 'EVENT';
-  setCategoryFilter: (cat: 'ALL' | 'SPACE' | 'EVENT') => void;
+  categoryFilter: 'ALL' | 'VENUE' | 'EVENT';
+  setCategoryFilter: (cat: 'ALL' | 'VENUE' | 'EVENT') => void;
   originFilter: 'ALL' | 'INTERNAL' | 'EXTERNAL';
   setOriginFilter: (origin: 'ALL' | 'INTERNAL' | 'EXTERNAL') => void;
   catalogServices: ServiceItem[];
@@ -113,12 +113,12 @@ export default function CatalogServicesSection({
 
           <button
             type="button"
-            onClick={() => setCategoryFilter('SPACE')}
-            className={`tab ${categoryFilter === 'SPACE' ? 'active' : ''}`}
+            onClick={() => setCategoryFilter('VENUE')}
+            className={`tab ${categoryFilter === 'VENUE' ? 'active' : ''}`}
           >
             Venue ({viewMode === 'services'
-              ? catalogServices.filter(s => s.category === 'SPACE').length
-              : packages.filter(p => p.context === 'SPACE').length})
+              ? catalogServices.filter(s => s.category === 'VENUE').length
+              : packages.filter(p => p.context === 'VENUE').length})
           </button>
 
           <button
@@ -174,7 +174,7 @@ export default function CatalogServicesSection({
                     >
                       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                         <span className="badge b-accent">
-                          {service.category === 'SPACE' ? 'Venue Service' : 'Event Service'}
+                          {service.category === 'VENUE' ? 'Venue Service' : 'Event Service'}
                         </span>
                         <span className={`badge ${service.providerType === 'INTERNAL' ? 'b-ok' : 'b-info'}`}>
                           {service.providerType === 'INTERNAL' ? 'Internal' : service.providerName || 'External Partner'}
@@ -260,8 +260,8 @@ export default function CatalogServicesSection({
                     }}
                   >
                     <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                      <span className={`badge ${pkg.context === 'SPACE' ? 'b-accent' : 'b-info'}`}>
-                        {pkg.context === 'SPACE' ? 'Venue Package' : 'Event Package'}
+                      <span className={`badge ${pkg.context === 'VENUE' ? 'b-accent' : 'b-info'}`}>
+                        {pkg.context === 'VENUE' ? 'Venue Package' : 'Event Package'}
                       </span>
                       <span className="badge b-mute">{pkg.services.length} service{pkg.services.length === 1 ? '' : 's'}</span>
                     </div>

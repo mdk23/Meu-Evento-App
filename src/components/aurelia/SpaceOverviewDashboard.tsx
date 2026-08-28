@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Clock, DollarSign, CalendarDays, TrendingUp, ArrowRight, AlertTriangle, MapPin } from 'lucide-react';
-import { SpaceDashboardDTO } from '@/types/dtos';
+import { VenueDashboardDTO } from '@/types/dtos';
 
 const MT = (n: number) => n.toLocaleString('pt-MZ');
 
@@ -16,14 +16,14 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-interface SpaceOverviewDashboardProps {
-  data: SpaceDashboardDTO;
+interface VenueOverviewDashboardProps {
+  data: VenueDashboardDTO;
 }
 
 /** Venue-workspace "Overview" — commercial-only by design, so there's no service-execution or
  * supplier panel here (see `EventOverviewDashboard` for that side). Reads straight off `Booking`
  * rather than `Event`, since SPACE-kind bookings never have one. */
-export default function SpaceOverviewDashboard({ data }: SpaceOverviewDashboardProps) {
+export default function VenueOverviewDashboard({ data }: VenueOverviewDashboardProps) {
   const { kpis, todaysBookings, upcomingBookings, space } = data;
   const collectedPercent = kpis.pendingAmount + kpis.totalCollected > 0
     ? Math.round((kpis.totalCollected / (kpis.pendingAmount + kpis.totalCollected)) * 100)
@@ -116,7 +116,7 @@ export default function SpaceOverviewDashboard({ data }: SpaceOverviewDashboardP
           <div className="card">
             <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
               <h3 className="h-md">Upcoming Booking Schedule</h3>
-              <Link href="/bookings?context=SPACE" className="mini" style={{ color: 'var(--accent)' }}>View All Venue Bookings</Link>
+              <Link href="/bookings?context=VENUE" className="mini" style={{ color: 'var(--accent)' }}>View All Venue Bookings</Link>
             </div>
 
             <div className="space-y-4">

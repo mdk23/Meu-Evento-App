@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No tenant found' }, { status: 400 });
     }
 
-    if (!name || (scope !== 'SPACE' && scope !== 'EVENT')) {
+    if (!name || (scope !== 'VENUE' && scope !== 'EVENT')) {
       return NextResponse.json({ error: 'Name and a valid scope (SPACE or EVENT) are required' }, { status: 400 });
     }
     if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       where: { id: { in: serviceIds } },
       select: { id: true, name: true, context: true },
     });
-    const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.context, scope as 'SPACE' | 'EVENT'));
+    const incompatible = candidateServices.filter((s) => !isServiceCompatibleWithPackageScope(s.context, scope as 'VENUE' | 'EVENT'));
     if (incompatible.length > 0) {
       return NextResponse.json(
         { error: `Not compatible with a ${scope} package: ${incompatible.map((s) => s.name).join(', ')}` },

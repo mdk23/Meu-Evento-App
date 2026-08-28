@@ -22,7 +22,7 @@ export default async function ServicesCatalogPage({ searchParams }: ServicesPage
   return (
     <ServicesClient
       initialServices={services}
-      initialScopeFilter={scope === 'SPACE' || scope === 'EVENT' ? scope : 'ALL'}
+      initialScopeFilter={scope === 'VENUE' || scope === 'EVENT' ? scope : 'ALL'}
       inventoryItems={inventoryItems}
       inventoryCategories={inventoryCategories}
     />

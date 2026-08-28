@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { DashboardDTO, SpaceDashboardDTO } from '@/types/dtos';
+import { DashboardDTO, VenueDashboardDTO } from '@/types/dtos';
 import { subtractMoneyFloor0, toDisplayNumber } from '@/lib/money';
 import { calculateRevenue, calculateInternalCost, calculateSupplierCost } from '@/lib/finance';
 
@@ -283,7 +283,7 @@ export class DashboardRepository {
   /** Space-workspace Overview — no `Event`/service-execution concept applies here (SPACE bookings
    * are commercial-only by design), so this reads straight off `Booking` instead of `Event`, and
    * swaps the operational "Service Execution Status" panel for a payment-collection snapshot. */
-  static async getSpaceDashboardData(): Promise<SpaceDashboardDTO> {
+  static async getVenueDashboardData(): Promise<VenueDashboardDTO> {
     const now = new Date();
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -302,29 +302,29 @@ export class DashboardRepository {
       upcomingBookingsRaw,
       tenant,
     ] = await Promise.all([
-      prisma.paymentTransaction.aggregate({ where: { booking: { context: 'SPACE' } }, _sum: { amount: true } }),
+      prisma.paymentTransaction.aggregate({ where: { booking: { context: 'VENUE' } }, _sum: { amount: true } }),
       prisma.scheduledPayment.aggregate({
-        where: { plan: { active: true }, booking: { context: 'SPACE' } },
+        where: { plan: { active: true }, booking: { context: 'VENUE' } },
         _sum: { amount: true, paidAmount: true },
       }),
       prisma.bookingService.findMany({
-        where: { booking: { context: 'SPACE' } },
+        where: { booking: { context: 'VENUE' } },
         select: { sellingPrice: true },
       }),
-      prisma.booking.aggregate({ where: { context: 'SPACE' }, _sum: { discount: true } }),
-      prisma.booking.count({ where: { context: 'SPACE' } }),
+      prisma.booking.aggregate({ where: { context: 'VENUE' }, _sum: { discount: true } }),
+      prisma.booking.count({ where: { context: 'VENUE' } }),
       prisma.booking.count({
-        where: { context: 'SPACE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
+        where: { context: 'VENUE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
       }),
       prisma.scheduledPayment.count({
-        where: { plan: { active: true }, status: 'OVERDUE', booking: { context: 'SPACE' } },
+        where: { plan: { active: true }, status: 'OVERDUE', booking: { context: 'VENUE' } },
       }),
       prisma.booking.findMany({
-        where: { context: 'SPACE', eventDate: { gte: todayStart, lte: todayEnd } },
+        where: { context: 'VENUE', eventDate: { gte: todayStart, lte: todayEnd } },
         select: { id: true, guestCount: true, status: true, startAt: true, endAt: true, client: { select: { name: true } } },
       }),
       prisma.booking.findMany({
-        where: { context: 'SPACE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
+        where: { context: 'VENUE', startAt: { gte: now }, status: { notIn: [...NON_BLOCKING_STATUSES] } },
         orderBy: { startAt: 'asc' },
         take: 6,
         select: { id: true, guestCount: true, status: true, eventDate: true, client: { select: { name: true } } },
