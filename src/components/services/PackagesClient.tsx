@@ -30,8 +30,11 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   const [scope, setScope] = useState<'VENUE' | 'EVENT'>('VENUE');
   const [pricingMode, setPricingMode] = useState<'COMPUTED' | 'FIXED'>('COMPUTED');
   const [fixedPrice, setFixedPrice] = useState('');
+  const [capacity, setCapacity] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  // Per-service price override for this package only. Empty/absent key = "use the catalog price".
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({});
 
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -42,8 +45,10 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     setScope(initialScopeFilter === 'EVENT' ? 'EVENT' : 'VENUE');
     setPricingMode('COMPUTED');
     setFixedPrice('');
+    setCapacity('');
     setSelectedServiceIds([]);
     setQuantities({});
+    setPriceOverrides({});
     setIsAddModalOpen(true);
   };
 
@@ -54,8 +59,14 @@ export default function PackagesClient({ initialPackages, initialServices, initi
     setScope(pkg.context);
     setPricingMode(pkg.pricingMode);
     setFixedPrice(pkg.price !== null ? String(pkg.price) : '');
+    setCapacity(pkg.capacity !== null ? String(pkg.capacity) : '');
     setSelectedServiceIds(pkg.services.map((s) => s.serviceId));
     setQuantities(Object.fromEntries(pkg.services.map((s) => [s.serviceId, s.quantity])));
+    setPriceOverrides(
+      Object.fromEntries(
+        pkg.services.filter((s) => s.priceOverride !== null).map((s) => [s.serviceId, s.priceOverride as number])
+      )
+    );
   };
 
   const toggleService = (serviceId: string) => {
@@ -66,6 +77,19 @@ export default function PackagesClient({ initialPackages, initialServices, initi
 
   const setQuantityFor = (serviceId: string, quantity: number) => {
     setQuantities((prev) => ({ ...prev, [serviceId]: quantity }));
+  };
+
+  const setPriceOverrideFor = (serviceId: string, raw: string) => {
+    setPriceOverrides((prev) => {
+      const next = { ...prev };
+      const trimmed = raw.trim();
+      if (trimmed === '') {
+        delete next[serviceId];
+      } else {
+        next[serviceId] = Math.max(0, parseFloat(trimmed) || 0);
+      }
+      return next;
+    });
   };
 
   // Switching Workspace can make an already-checked service incompatible (e.g. an EVENT-only
@@ -101,8 +125,10 @@ export default function PackagesClient({ initialPackages, initialServices, initi
           scope,
           pricingMode,
           price: pricingMode === 'FIXED' ? fixedPrice : undefined,
+          capacity: capacity.trim() === '' ? null : capacity,
           serviceIds: selectedServiceIds,
           quantities,
+          priceOverrides,
         }),
       });
       if (res.ok) {
@@ -143,8 +169,10 @@ export default function PackagesClient({ initialPackages, initialServices, initi
           scope,
           pricingMode,
           price: pricingMode === 'FIXED' ? fixedPrice : undefined,
+          capacity: capacity.trim() === '' ? null : capacity,
           serviceIds: selectedServiceIds,
           quantities,
+          priceOverrides,
         }),
       });
       if (res.ok) {
@@ -284,8 +312,14 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                           {pkg.context === 'VENUE' ? 'Venue' : 'Event'}
                         </span>
                       )}
-                      <h3 className="h-md">{pkg.name}</h3>
-                      <p className="mini dim" style={{ marginTop: 2 }}>{serviceCount} service{serviceCount === 1 ? '' : 's'}</p>
+                      <h3 className="h-md">
+                        {pkg.name}
+                        <span className="badge b-mute" style={{ marginLeft: 8, verticalAlign: 'middle' }}>v{pkg.version}</span>
+                      </h3>
+                      <p className="mini dim" style={{ marginTop: 2 }}>
+                        {serviceCount} service{serviceCount === 1 ? '' : 's'}
+                        {pkg.capacity !== null && ` · designed for ${pkg.capacity} guests`}
+                      </p>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <span className="val num" style={{ fontSize: 19 }}>{MT(packageTotal(pkg))} MT</span>
@@ -294,6 +328,15 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                   </div>
 
                   {pkg.description && <p className="mini dim" style={{ lineHeight: 1.6 }}>{pkg.description}</p>}
+
+                  {pkg.seatingSummary && (
+                    <div className="between mini" style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)' }}>
+                      <span className="dim">Seating {pkg.seatingSummary.provided} / target {pkg.seatingSummary.target}</span>
+                      <span className={`badge ${pkg.seatingSummary.status === 'SUFFICIENT' ? 'b-ok' : 'b-warn'}`}>
+                        {pkg.seatingSummary.status === 'SUFFICIENT' ? 'Sufficient' : `Short ${pkg.seatingSummary.shortage}`}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="stack" style={{ gap: 0 }}>
                     {pkg.services.map((s) => (
@@ -384,6 +427,45 @@ export default function PackagesClient({ initialPackages, initialServices, initi
               </div>
 
               <div className="field">
+                <label className="label">Designed for (guests)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  placeholder="e.g. 100 — leave blank if not applicable"
+                  className="input"
+                />
+                <p className="mini dim">Drives the seating-sufficiency check below and the &ldquo;booking exceeds package capacity&rdquo; warning. Never a hard limit.</p>
+              </div>
+
+              {editingPackage?.seatingSummary && (
+                <div
+                  className="stack"
+                  style={{ gap: 4, padding: 10, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}
+                >
+                  <div className="between mini">
+                    <span className="dim">Seating at {editingPackage.seatingSummary.target} guests</span>
+                    <span className="num">{editingPackage.seatingSummary.provided} seats</span>
+                  </div>
+                  <div className="between mini">
+                    <span className="dim">Status</span>
+                    <span className={`badge ${editingPackage.seatingSummary.status === 'SUFFICIENT' ? 'b-ok' : 'b-warn'}`}>
+                      {editingPackage.seatingSummary.status === 'SUFFICIENT'
+                        ? 'Sufficient'
+                        : `Shortage: ${editingPackage.seatingSummary.shortage}`}
+                    </span>
+                  </div>
+                  {editingPackage.seatingSummary.uncountedCategoryReqs > 0 && (
+                    <p className="mini dim">
+                      {editingPackage.seatingSummary.uncountedCategoryReqs} category-only requirement(s) not counted — their variant is chosen per booking.
+                    </p>
+                  )}
+                  <p className="mini dim">Recalculates when you save.</p>
+                </div>
+              )}
+
+              <div className="field">
                 <label className="label">Pricing</label>
                 <select value={pricingMode} onChange={(e) => setPricingMode(e.target.value as 'COMPUTED' | 'FIXED')} className="input">
                   <option value="COMPUTED">Computed — total always derived live from included services</option>
@@ -426,17 +508,31 @@ export default function PackagesClient({ initialPackages, initialServices, initi
                           <span className="mini dim">{s.category}</span>
                         </label>
                         {isSelected && (
-                          <input
-                            type="number"
-                            min={1}
-                            value={quantities[s.id] ?? 1}
-                            onChange={(e) => setQuantityFor(s.id, Math.max(1, parseInt(e.target.value, 10) || 1))}
-                            className="input"
-                            style={{ width: 56, padding: '4px 6px', textAlign: 'center' }}
-                            title="Quantity"
-                          />
+                          <>
+                            <input
+                              type="number"
+                              min={1}
+                              value={quantities[s.id] ?? 1}
+                              onChange={(e) => setQuantityFor(s.id, Math.max(1, parseInt(e.target.value, 10) || 1))}
+                              className="input"
+                              style={{ width: 56, padding: '4px 6px', textAlign: 'center' }}
+                              title="Quantity"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              value={priceOverrides[s.id] ?? ''}
+                              onChange={(e) => setPriceOverrideFor(s.id, e.target.value)}
+                              placeholder={String(s.defaultPrice)}
+                              className="input"
+                              style={{ width: 84, padding: '4px 6px', textAlign: 'right' }}
+                              title="Package price override (blank = catalog price)"
+                            />
+                          </>
                         )}
-                        <span className="mini num" style={{ width: 80, textAlign: 'right', flexShrink: 0 }}>{MT(s.defaultPrice)} MT</span>
+                        <span className="mini num" style={{ width: 80, textAlign: 'right', flexShrink: 0 }}>
+                          {MT(priceOverrides[s.id] ?? s.defaultPrice)} MT
+                        </span>
                       </div>
                     );
                   })}

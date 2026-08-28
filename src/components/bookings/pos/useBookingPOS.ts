@@ -5,6 +5,7 @@ import { Client, ServiceItem, CartItem, CatalogPackage, BookingPOSTerminalProps 
 import { defaultVenues, defaultCatalogServices } from './constants';
 import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
 import { isOverCapacity } from '@/lib/capacity';
+import { computeBookingPackageCapacityGap } from '@/lib/seating';
 
 /** Combines a `yyyy-mm-dd` date string with an `HH:mm` time string into a local `Date`. */
 function combineDateAndTime(dateStr: string, timeStr: string): Date {
@@ -172,16 +173,24 @@ export function useBookingPOS({
   // 3. POS Cart State (Selected items)
   const [selectedItems, setSelectedItems] = useState<CartItem[]>(() => {
     if (initialBookingData?.bookingServices) {
+      const packagesById = new Map(
+        (initialBookingData.bookingPackages || []).map((bp) => [bp.id, bp])
+      );
       return initialBookingData.bookingServices.map((es) => {
-        // PER_GUEST lines always track the live guest count (kept in sync by the effect below);
-        // everything else now reads its real persisted quantity instead of assuming 1, so a
-        // fixed-price multi-unit line (e.g. "10 Extra Tables") survives an edit-reload intact.
-        const qty = es.service?.priceType === 'PER_GUEST' ? (initialBookingData.guestCount || 1) : (es.quantity || 1);
+        const isPackageSourced = es.source === 'PACKAGE' || !!es.bookingPackageId;
+        // A DIRECT PER_GUEST line tracks the live guest count (kept in sync by the effect below);
+        // a PACKAGE-sourced line is frozen at its persisted quantity (§2/§24/§34); everything else
+        // reads its real persisted quantity so a fixed-price multi-unit line survives edit-reload.
+        const qty =
+          !isPackageSourced && es.service?.priceType === 'PER_GUEST'
+            ? (initialBookingData.guestCount || 1)
+            : (es.quantity || 1);
         const unitPrice = es.unitPrice > 0 ? es.unitPrice : (es.sellingPrice > 0 ? (es.sellingPrice / qty) : (es.service?.defaultPrice || 0));
+        const sourcePackage = es.bookingPackageId ? packagesById.get(es.bookingPackageId) : undefined;
         return {
           id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
           serviceId: es.serviceId,
-          name: es.service?.name || 'Service',
+          name: es.service?.name || es.serviceNameSnapshot || 'Service',
           category: (es.service?.category === 'Venue Rental' || es.service?.category === 'VENUE') ? 'VENUE' : 'EVENT',
           providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
@@ -189,6 +198,11 @@ export function useBookingPOS({
           price: unitPrice,
           quantity: qty,
           totalPrice: es.sellingPrice || 0,
+          source: (isPackageSourced ? 'PACKAGE' : 'DIRECT') as CartItem['source'],
+          bookingServiceId: es.id,
+          sourceBookingPackageId: es.bookingPackageId || undefined,
+          sourcePackageId: sourcePackage?.packageId,
+          sourcePackageName: sourcePackage?.nameSnapshot,
         };
       });
     }
@@ -295,10 +309,14 @@ export function useBookingPOS({
     toast.success(`Added ${newItems.length} service${newItems.length === 1 ? '' : 's'} from "${pkg.name}".`);
   };
 
-  // Update item quantity on guest count changes
+  // Update item quantity on guest count changes — DIRECT (catalog-added) PER_GUEST lines only.
+  // Package-sourced lines are frozen at the quantities they were applied with (§2/§24/§34); a
+  // guest-count change over an applied package's capacity surfaces as `packageCapacityWarnings`
+  // below, and the operator covers the gap with a separate additional service.
   React.useEffect(() => {
     setSelectedItems(prev =>
       prev.map(item => {
+        if (item.sourcePackageId) return item;
         if (item.priceType === 'PER_GUEST') {
           return {
             ...item,
@@ -315,6 +333,22 @@ export function useBookingPOS({
     setSelectedItems(prev => prev.filter(i => i.id !== id));
     toast.info('Item removed.');
   };
+
+  // Warn (never auto-fix) when the booking's guest count exceeds an applied package's designed
+  // capacity — the operator adds additional services to cover the gap, the package is left frozen.
+  const packageCapacityWarnings = useMemo(() => {
+    const appliedPackageIdsInCart = Array.from(
+      new Set(selectedItems.map(i => i.sourcePackageId).filter((v): v is string => !!v))
+    );
+    return appliedPackageIdsInCart
+      .map(pkgId => {
+        const pkg = initialPackages.find(p => p.id === pkgId);
+        if (!pkg) return null;
+        const gap = computeBookingPackageCapacityGap(guestCount, pkg.capacity);
+        return gap ? { packageId: pkgId, packageName: pkg.name, ...gap } : null;
+      })
+      .filter((v): v is NonNullable<typeof v> => v !== null);
+  }, [selectedItems, initialPackages, guestCount]);
 
   // Calculations
   const venueServicesTotal = useMemo(() => {
@@ -507,6 +541,11 @@ export function useBookingPOS({
           sourcePackageId: item.sourcePackageId,
           sourcePackageName: item.sourcePackageName,
           packageApplicationKey: item.packageApplicationKey,
+          // Phase 9 diff keys — let PATCH match this cart line to an existing BookingService and
+          // keep its reservations, rather than delete-then-recreate.
+          bookingServiceId: item.bookingServiceId,
+          sourceBookingPackageId: item.sourceBookingPackageId,
+          source: item.source,
         })),
         totalAmount: grandTotal,
         discount,
@@ -592,6 +631,7 @@ export function useBookingPOS({
     catalogServices,
     venueServices,
     packages: initialPackages,
+    packageCapacityWarnings,
     searchTerm,
     setSearchTerm,
     categoryFilter,

@@ -29,4 +29,13 @@ describe('resolveLineAmounts', () => {
     const result = resolveLineAmounts({});
     expect(result).toEqual({ quantity: 1, unitPrice: 0, sellingPrice: 0 });
   });
+
+  it('carries a package price override through as the unit price and total (Phase 4)', () => {
+    // POS sends `price` = PackageItem.priceOverride and `totalPrice` = override * quantity.
+    const override = 25000;
+    const result = resolveLineAmounts({ price: override, quantity: 3, totalPrice: override * 3 });
+    expect(result.unitPrice).toBe(override);
+    expect(result.sellingPrice).toBe(override * 3);
+    expect(result.unitPrice * result.quantity).toBe(result.sellingPrice);
+  });
 });

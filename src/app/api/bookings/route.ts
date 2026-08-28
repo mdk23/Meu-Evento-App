@@ -181,6 +181,7 @@ export async function POST(request: Request) {
       const event = resolvedKind === BookingContext.EVENT
         ? await tx.event.create({
             data: {
+              tenantId: tenant.id,
               bookingId: booking.id,
               name: title || `${client.name} Event`,
               date: parsedDate,
@@ -246,15 +247,17 @@ export async function POST(request: Request) {
             if (!bookingPackageId) {
               const sourcePackage = await tx.package.findUnique({
                 where: { id: item.sourcePackageId },
-                select: { context: true, pricingMode: true, price: true },
+                select: { context: true, pricingMode: true, price: true, version: true },
               });
               const bookingPackage = await tx.bookingPackage.create({
                 data: {
+                  tenantId: tenant.id,
                   bookingId: booking.id,
                   packageId: item.sourcePackageId,
                   nameSnapshot: item.sourcePackageName || 'Package',
                   context: sourcePackage?.context ?? resolvedKind,
                   price: sourcePackage?.pricingMode === 'FIXED' ? sourcePackage.price : null,
+                  packageVersion: sourcePackage?.version ?? 1,
                 },
               });
               bookingPackageId = bookingPackage.id;
@@ -264,6 +267,7 @@ export async function POST(request: Request) {
 
           const createdBookingService = await tx.bookingService.create({
             data: {
+              tenantId: tenant.id,
               bookingId: booking.id,
               eventId: event?.id ?? null,
               serviceId: catalogServiceId,
@@ -291,6 +295,7 @@ export async function POST(request: Request) {
             unitCount: itemQuantity,
             startAt: booking.startAt,
             endAt: booking.endAt,
+            source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
           });
 
           if (bookingPackageId) {

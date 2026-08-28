@@ -3,9 +3,11 @@ import { ServiceCardDTO } from '@/types/dtos';
 import { toDisplayNumber } from '@/lib/money';
 
 export class ServiceRepository {
-  static async getServiceCatalog(): Promise<ServiceCardDTO[]> {
+  /** `tenantId` is optional — omitted today (single-tenant, no identity layer); wired through so a
+   * later auth pass can scope the catalog without touching call sites. */
+  static async getServiceCatalog(tenantId?: string): Promise<ServiceCardDTO[]> {
     const services = await prisma.service.findMany({
-      where: { active: true },
+      where: { active: true, ...(tenantId ? { tenantId } : {}) },
       orderBy: { name: 'asc' },
       select: {
         id: true,

@@ -117,13 +117,18 @@ export interface GetBookingListParams {
   pageSize?: number;
   status?: string;
   kind?: string;
+  /** Optional tenant scope. Omitted today (the app is single-tenant with no identity layer); wired
+   * through so a later auth pass can pass it without touching call sites. */
+  tenantId?: string;
 }
 
 export class BookingRepository {
-  static async getBookingList({ page, pageSize, status, kind }: GetBookingListParams = {}): Promise<BookingListPageDTO> {
+  static async getBookingList({ page, pageSize, status, kind, tenantId }: GetBookingListParams = {}): Promise<BookingListPageDTO> {
     const { page: resolvedPage, pageSize: resolvedPageSize, skip, take } = resolvePagination({ page, pageSize });
 
+    const tenantScope = tenantId ? { tenantId } : {};
     const where: Prisma.BookingWhereInput = {
+      ...tenantScope,
       ...(status && status !== 'ALL' && Object.values(BookingStatus).includes(status as BookingStatus)
         ? { status: status as BookingStatus }
         : {}),
@@ -146,7 +151,7 @@ export class BookingRepository {
       prisma.booking.groupBy({
         by: ['status'],
         _count: { status: true },
-        where: kind === 'VENUE' || kind === 'EVENT' ? { context: kind } : {},
+        where: { ...tenantScope, ...(kind === 'VENUE' || kind === 'EVENT' ? { context: kind } : {}) },
       }),
     ]);
 
@@ -169,8 +174,9 @@ export class BookingRepository {
    * an hour-by-hour day timeline) and needs every booking's time range to bucket/position
    * client-side, not a single page of results.
    */
-  static async getAllBookingsForCalendar(): Promise<CalendarBookingDTO[]> {
+  static async getAllBookingsForCalendar(tenantId?: string): Promise<CalendarBookingDTO[]> {
     const bookings = await prisma.booking.findMany({
+      where: tenantId ? { tenantId } : {},
       orderBy: { startAt: 'asc' },
       select: CALENDAR_BOOKING_SELECT,
     });

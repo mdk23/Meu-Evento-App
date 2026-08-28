@@ -91,6 +91,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const newEventService = await prisma.bookingService.create({
       data: {
+        tenantId: catalogService.tenantId,
         bookingId: event.bookingId,
         eventId,
         serviceId,

@@ -38,6 +38,7 @@ export async function promoteBookingToEvent(
     booking.event ??
     (await tx.event.create({
       data: {
+        tenantId: booking.tenantId,
         bookingId: booking.id,
         name: `${booking.client.name} Event`,
         date: booking.eventDate,

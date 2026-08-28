@@ -42,9 +42,12 @@ interface StockSummary {
   reservedQuantity: number;
   availableQuantity: number;
   allocatedQuantity: number;
+  issuedQuantity: number;
   usedQuantity: number;
+  returnedQuantity: number;
   damagedQuantity: number;
   lostQuantity: number;
+  missingQuantity: number;
 }
 
 interface InventoryItemDetailClientProps {
@@ -109,13 +112,16 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
               <span className={`badge ${item.active ? 'b-ok' : 'b-mute'}`}>{item.active ? 'Active' : 'Archived'}</span>
             </div>
             {item.description && <p className="mini dim">{item.description}</p>}
-            {variantDetails.length > 0 && (
+            {(variantDetails.length > 0 || item.seatingCapacity > 0) && (
               <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                 {item.color && <span className="badge b-mute">Color: {item.color}</span>}
                 {item.material && <span className="badge b-mute">Material: {item.material}</span>}
                 {item.model && <span className="badge b-mute">Model: {item.model}</span>}
                 {item.size && <span className="badge b-mute">Size: {item.size}</span>}
                 {item.shape && <span className="badge b-mute">Shape: {item.shape}</span>}
+                {item.seatingCapacity > 0 && (
+                  <span className="badge b-mute">Seats {item.seatingCapacity}/unit</span>
+                )}
               </div>
             )}
           </div>
@@ -148,8 +154,18 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
                 <span className="val num">{stockSummary.allocatedQuantity}</span>
               </div>
               <div className="card plain kpi">
+                <span className="label">Issued</span>
+                <span className="val num">{stockSummary.issuedQuantity}</span>
+              </div>
+              <div className="card plain kpi">
                 <span className="label">Used</span>
                 <span className="val num">{stockSummary.usedQuantity}</span>
+              </div>
+              <div className="card plain kpi">
+                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Undo2 className="w-3 h-3" /> Returned
+                </span>
+                <span className="val num">{stockSummary.returnedQuantity}</span>
               </div>
               <div className="card plain kpi">
                 <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -158,10 +174,14 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
                 <span className="val num">{stockSummary.damagedQuantity}</span>
               </div>
               <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Undo2 className="w-3 h-3" /> Lost
-                </span>
+                <span className="label">Lost</span>
                 <span className="val num">{stockSummary.lostQuantity}</span>
+              </div>
+              <div className="card plain kpi">
+                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle className="w-3 h-3" /> Missing
+                </span>
+                <span className="val num">{stockSummary.missingQuantity}</span>
               </div>
             </div>
           </div>

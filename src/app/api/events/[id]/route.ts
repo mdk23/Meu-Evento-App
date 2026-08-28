@@ -66,6 +66,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         reservedQuantity: Number(r.reservedQuantity),
         status: r.status,
         reusedFromResourceId: r.reusedFromResourceId,
+        transactions: r.transactions.map((t) => ({ type: t.type, quantity: Number(t.quantity) })),
       }))
     );
     const serviceLabels = Object.fromEntries(

@@ -34,9 +34,12 @@ export default async function InventoryItemDetailPage({ params }: InventoryItemD
         reservedQuantity: stockSummary.reservedQuantity.toNumber(),
         availableQuantity: stockSummary.availableQuantity.toNumber(),
         allocatedQuantity: stockSummary.allocatedQuantity.toNumber(),
+        issuedQuantity: stockSummary.issuedQuantity.toNumber(),
         usedQuantity: stockSummary.usedQuantity.toNumber(),
+        returnedQuantity: stockSummary.returnedQuantity.toNumber(),
         damagedQuantity: stockSummary.damagedQuantity.toNumber(),
         lostQuantity: stockSummary.lostQuantity.toNumber(),
+        missingQuantity: stockSummary.missingQuantity.toNumber(),
       }}
     />
   );

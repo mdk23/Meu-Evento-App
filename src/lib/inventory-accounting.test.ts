@@ -35,7 +35,7 @@ describe('computeInventoryStockSummary', () => {
     expect(summary.usedQuantity.toNumber()).toBe(200);
   });
 
-  it('sums damaged and lost independently', () => {
+  it('sums damaged and lost independently, and missingQuantity is their sum', () => {
     const summary = computeInventoryStockSummary(
       500,
       [],
@@ -46,5 +46,33 @@ describe('computeInventoryStockSummary', () => {
     );
     expect(summary.damagedQuantity.toNumber()).toBe(5);
     expect(summary.lostQuantity.toNumber()).toBe(2);
+    expect(summary.missingQuantity.toNumber()).toBe(7);
+  });
+
+  it('CONFIRMED and ISSUED resources count toward reservedQuantity (they still hold stock)', () => {
+    const summary = computeInventoryStockSummary(
+      500,
+      [
+        { reservedQuantity: 120, status: 'CONFIRMED', reusedFromResourceId: null },
+        { reservedQuantity: 80, status: 'ISSUED', reusedFromResourceId: null },
+      ],
+      []
+    );
+    expect(summary.reservedQuantity.toNumber()).toBe(200);
+    expect(summary.availableQuantity.toNumber()).toBe(300);
+  });
+
+  it('issuedQuantity is ISSUE minus USE/RETURN reversals; returnedQuantity sums RETURN', () => {
+    const summary = computeInventoryStockSummary(
+      500,
+      [],
+      [
+        { type: 'ISSUE', quantity: 120 },
+        { type: 'USE', quantity: 90 },
+        { type: 'RETURN', quantity: 118 },
+      ]
+    );
+    expect(summary.issuedQuantity.toNumber()).toBe(0); // 120 - (90 + 118), floored at 0
+    expect(summary.returnedQuantity.toNumber()).toBe(118);
   });
 });

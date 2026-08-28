@@ -31,6 +31,7 @@ export default function BookingContractTab({ booking }: BookingContractTabProps)
                 <div key={bp.id} className="between" style={{ padding: '12px 22px', borderBottom: '1px solid var(--rule)' }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{bp.nameSnapshot}</span>
+                    <span className="badge b-mute" style={{ marginLeft: 8 }}>version {bp.packageVersion}</span>
                     <p className="mini dim" style={{ marginTop: 2 }}>{bp.items.length} service{bp.items.length === 1 ? '' : 's'}</p>
                   </div>
                   <span className="num" style={{ fontWeight: 600 }}>{packageTotal.toLocaleString()} MT</span>

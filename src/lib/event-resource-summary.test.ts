@@ -64,4 +64,29 @@ describe('computeEventResourceSummary', () => {
     const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
     expect(rows[0]).toMatchObject({ required: 400, provided: 400, reserved: 300 });
   });
+
+  it('counts a CONFIRMED row in the Reserved column (it still holds stock)', () => {
+    const resources = [
+      { bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', categoryName: null, requiredQuantity: 120, reservedQuantity: 120, status: 'CONFIRMED' as const, reusedFromResourceId: null },
+    ];
+    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    expect(rows[0]).toMatchObject({ reserved: 120, status: 'FULFILLED' });
+  });
+
+  it('derives Returned and Missing from each row’s transaction ledger', () => {
+    const resources = [
+      {
+        bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', categoryName: null,
+        requiredQuantity: 120, reservedQuantity: 120, status: 'RETURNED' as const, reusedFromResourceId: null,
+        transactions: [
+          { type: 'ISSUE', quantity: 120 },
+          { type: 'RETURN', quantity: 118 },
+          { type: 'DAMAGE', quantity: 1 },
+          { type: 'LOSS', quantity: 1 },
+        ],
+      },
+    ];
+    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    expect(rows[0]).toMatchObject({ returned: 118, missing: 2 });
+  });
 });

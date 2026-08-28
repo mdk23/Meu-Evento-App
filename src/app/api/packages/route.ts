@@ -8,6 +8,13 @@ function resolvePricingMode(value: unknown): PackagePricingMode {
   return value === 'FIXED' ? PackagePricingMode.FIXED : PackagePricingMode.COMPUTED;
 }
 
+/** A package-line price override: a non-negative number, or null for "use the catalog price". */
+function resolvePriceOverride(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseFloat(String(value));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export async function GET() {
   try {
     const packages = await prisma.package.findMany({
@@ -29,7 +36,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, scope, pricingMode, price, serviceIds, quantities } = body;
+    const { name, description, scope, pricingMode, price, capacity, serviceIds, quantities, priceOverrides } = body;
 
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
@@ -68,12 +75,14 @@ export async function POST(request: Request) {
         context: scope as PackageContext,
         pricingMode: resolvedPricingMode,
         price: resolvedPricingMode === PackagePricingMode.FIXED && price !== undefined ? parseFloat(price) : null,
+        capacity: capacity !== undefined && capacity !== null && capacity !== '' ? parseInt(String(capacity), 10) : null,
         items: {
           create: serviceIds.map((serviceId: string, index: number) => ({
             tenantId: tenant.id,
             serviceId,
             order: index,
             quantity: quantities?.[serviceId] ?? 1,
+            priceOverride: resolvePriceOverride(priceOverrides?.[serviceId]),
           })),
         },
       },

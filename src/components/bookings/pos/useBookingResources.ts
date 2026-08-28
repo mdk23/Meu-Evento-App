@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { InventoryItem } from '@prisma/client';
 import { ResourceReuseCandidate } from '@/components/resources/BookingServiceResourcePanel';
+import type { EventResourceSummaryRow } from '@/lib/event-resource-summary';
 
 export interface BookingResourceRow {
   id: string;
@@ -27,6 +28,7 @@ export interface BookingResourceService {
 
 interface BookingResourcesApiResponse {
   booking: { id: string; bookingServices: BookingResourceService[] };
+  resourceSummary: EventResourceSummaryRow[];
   inventoryItems: InventoryItem[];
 }
 
@@ -97,13 +99,18 @@ export function useBookingResources(bookingId: string) {
     }
   };
 
-  const handleReservationAction = async (bookingServiceId: string, resourceId: string, action: string) => {
+  const handleReservationAction = async (
+    bookingServiceId: string,
+    resourceId: string,
+    action: string,
+    quantity?: number
+  ) => {
     setError('');
     try {
       const res = await fetch(`/api/bookings/${bookingId}/services/${bookingServiceId}/inventory/${resourceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(quantity !== undefined ? { action, quantity } : { action }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -113,6 +120,28 @@ export function useBookingResources(bookingId: string) {
       await reload();
     } catch (err) {
       console.error('Failed to transition inventory reservation:', err);
+    }
+  };
+
+  const handleResolveVariant = async (bookingServiceId: string, resourceId: string, inventoryItemId: string) => {
+    setError('');
+    try {
+      const res = await fetch(
+        `/api/bookings/${bookingId}/services/${bookingServiceId}/inventory/${resourceId}/resolve`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inventoryItemId }),
+        }
+      );
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || 'Failed to set the item for this requirement.');
+        return;
+      }
+      await reload();
+    } catch (err) {
+      console.error('Failed to resolve category resource:', err);
     }
   };
 
@@ -148,5 +177,6 @@ export function useBookingResources(bookingId: string) {
     handleRemoveReservedInventory,
     handleReservationAction,
     handleReuseReservation,
+    handleResolveVariant,
   };
 }

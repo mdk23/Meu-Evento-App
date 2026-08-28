@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, ServiceSource } from '@prisma/client';
 import { resolveRequiredQuantity } from './service-inventory-requirements';
 
 /**
@@ -11,6 +11,11 @@ import { resolveRequiredQuantity } from './service-inventory-requirements';
  * that line resolve against 10, not the booking's guest count). `startAt`/`endAt` default every seeded
  * row to the parent booking's own span — the resource's real need window can be narrowed later, at
  * reserve time, if it differs from the full booking.
+ *
+ * `source` records whether the parent line was added directly or exploded from a Package. It doesn't
+ * change the initial seed (at apply time the snapshot guest count equals the live one), but it's the
+ * signal the booking-edit diff uses later to decide whether a guest-count change may recompute a
+ * row's `requiredQuantity` — PACKAGE-sourced rows are frozen, MANUAL rows are operator-owned.
  */
 export async function seedResourceRequirementsForBookingService(
   tx: Prisma.TransactionClient,
@@ -23,6 +28,7 @@ export async function seedResourceRequirementsForBookingService(
     unitCount: number;
     startAt: Date;
     endAt: Date;
+    source?: ServiceSource;
   }
 ): Promise<void> {
   const requirements = await tx.serviceInventoryRequirement.findMany({

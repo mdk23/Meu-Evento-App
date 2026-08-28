@@ -17,4 +17,20 @@ describe('resolveRequiredQuantity', () => {
   it('PER_GUEST with no guestCount resolves to zero, not NaN', () => {
     expect(resolveRequiredQuantity({ quantityType: 'PER_GUEST', quantity: 1 }).toNumber()).toBe(0);
   });
+
+  it('GUESTS_PER_UNIT rounds the guests / seats-per-unit division up', () => {
+    expect(resolveRequiredQuantity({ quantityType: 'GUESTS_PER_UNIT', quantity: 12, guestCount: 100 }).toNumber()).toBe(9);
+    expect(resolveRequiredQuantity({ quantityType: 'GUESTS_PER_UNIT', quantity: 12, guestCount: 120 }).toNumber()).toBe(10);
+    expect(resolveRequiredQuantity({ quantityType: 'GUESTS_PER_UNIT', quantity: 12, guestCount: 121 }).toNumber()).toBe(11);
+  });
+
+  it('GUESTS_PER_UNIT with a non-positive divisor or no guestCount resolves to zero', () => {
+    expect(resolveRequiredQuantity({ quantityType: 'GUESTS_PER_UNIT', quantity: 0, guestCount: 100 }).toNumber()).toBe(0);
+    expect(resolveRequiredQuantity({ quantityType: 'GUESTS_PER_UNIT', quantity: 12 }).toNumber()).toBe(0);
+  });
+
+  it('MANUAL passes the template quantity through as a starting default, ignoring guest count', () => {
+    expect(resolveRequiredQuantity({ quantityType: 'MANUAL', quantity: 40 }).toNumber()).toBe(40);
+    expect(resolveRequiredQuantity({ quantityType: 'MANUAL', quantity: 40, guestCount: 999 }).toNumber()).toBe(40);
+  });
 });

@@ -203,6 +203,7 @@ export async function POST() {
 
     const event1 = await prisma.event.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking1.id,
         name: 'John & Mary Wedding Celebration',
         date: eventDate1,
@@ -215,6 +216,7 @@ export async function POST() {
     // Add EventServices for Event 1
     await prisma.bookingService.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking1.id,
         eventId: event1.id,
         serviceId: serviceVenue.id,
@@ -230,6 +232,7 @@ export async function POST() {
 
     const eventServiceCatering = await prisma.bookingService.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking1.id,
         eventId: event1.id,
         serviceId: serviceCatering.id,
@@ -279,6 +282,7 @@ export async function POST() {
 
     const eventServiceDecoration = await prisma.bookingService.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking1.id,
         eventId: event1.id,
         serviceId: serviceDecoration.id,
@@ -341,6 +345,7 @@ export async function POST() {
 
     await prisma.bookingService.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking1.id,
         eventId: event1.id,
         serviceId: servicePhoto.id,
@@ -409,6 +414,7 @@ export async function POST() {
 
     const event2 = await prisma.event.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking2.id,
         name: 'ACME Tech Leadership Summit',
         date: eventDate2,
@@ -419,6 +425,7 @@ export async function POST() {
 
     await prisma.bookingService.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking2.id,
         eventId: event2.id,
         serviceId: serviceVenue.id,
@@ -433,6 +440,7 @@ export async function POST() {
 
     await prisma.bookingService.create({
       data: {
+        tenantId: tenant.id,
         bookingId: booking2.id,
         eventId: event2.id,
         serviceId: serviceDJ.id,

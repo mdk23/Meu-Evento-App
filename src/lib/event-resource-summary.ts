@@ -10,6 +10,9 @@ export interface ResourceForSummary {
   reservedQuantity: number;
   status: ResourceAllocationStatus;
   reusedFromResourceId: string | null;
+  /** This row's own movement ledger, used to derive returned/damaged/lost totals. Optional so the
+   * Event detail route (which doesn't need those columns) can omit it. */
+  transactions?: Array<{ type: string; quantity: number }>;
 }
 
 export type ResourceRowStatus = 'FULFILLED' | 'PENDING' | 'SHORTAGE' | 'UNRESOLVED';
@@ -24,9 +27,16 @@ export interface EventResourceSummaryRow {
   /** Tenant-wide available stock for this item, or null when the row is still an unresolved
    * category (nothing concrete to check stock for yet). */
   available: number | null;
+  /** Units returned after use (Σ RETURN) and units that didn't come back intact (Σ DAMAGE + Σ LOSS),
+   * across this group's ledger. */
+  returned: number;
+  missing: number;
   sources: string[];
   status: ResourceRowStatus;
 }
+
+/** @deprecated Use `ResourceSummaryRow` — the summary is booking-scoped, not Event-specific. */
+export type ResourceSummaryRow = EventResourceSummaryRow;
 
 /**
  * The event-wide "operational loading list" — every resource requirement across every service on
@@ -35,10 +45,11 @@ export interface EventResourceSummaryRow {
  * in one place. "Provided" is each row's own `reservedQuantity` (however it got covered — a direct
  * reservation or reusing another row's stock); "Reserved" is the *fresh* physical commitment against
  * the item tenant-wide, which excludes reused rows so the same stock isn't counted twice. Pure — no
- * DB access — the caller supplies the event-scoped resources and a tenant-wide availability lookup
- * already fetched.
+ * DB access — the caller supplies the booking- or event-scoped resources and a tenant-wide
+ * availability lookup already fetched. Works identically for a VENUE booking (no Event) and an
+ * EVENT booking — there is no `eventId` anywhere in here.
  */
-export function computeEventResourceSummary(
+export function computeResourceSummary(
   resources: ResourceForSummary[],
   availableByItemId: Record<string, number>,
   serviceLabels: Record<string, string>
@@ -69,6 +80,10 @@ export function computeEventResourceSummary(
 
     const available = group.itemId ? availableByItemId[group.itemId] ?? 0 : null;
 
+    const ledger = group.rows.flatMap((r) => r.transactions ?? []);
+    const returned = ledger.filter((t) => t.type === 'RETURN').reduce((sum, t) => sum + t.quantity, 0);
+    const missing = ledger.filter((t) => t.type === 'DAMAGE' || t.type === 'LOSS').reduce((sum, t) => sum + t.quantity, 0);
+
     const sources = Array.from(new Set(group.rows.map((r) => serviceLabels[r.bookingServiceId] || 'Service')));
 
     let status: ResourceRowStatus;
@@ -82,8 +97,12 @@ export function computeEventResourceSummary(
       status = 'SHORTAGE';
     }
 
-    rows.push({ key, itemLabel: group.label, required, provided, additional, reserved, available, sources, status });
+    rows.push({ key, itemLabel: group.label, required, provided, additional, reserved, available, returned, missing, sources, status });
   }
 
   return rows;
 }
+
+/** @deprecated Renamed to `computeResourceSummary` (the summary is not Event-specific). Kept as an
+ * alias so existing Event callers don't break. */
+export const computeEventResourceSummary = computeResourceSummary;

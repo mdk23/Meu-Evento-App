@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 import Topbar from '@/components/aurelia/Topbar';
 
 type ResourceVenue = Prisma.VenueGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
-type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; categoryId: true; category: { select: { name: true } } } }>;
+type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; seatingCapacity: true; categoryId: true; category: { select: { name: true } } } }>;
 type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
 type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
 
@@ -35,6 +35,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState(initialData.inventoryCategories[0]?.name || '');
   const [quantity, setQuantity] = useState('50');
+  const [seatingCapacity, setSeatingCapacity] = useState('0');
   const [role, setRole] = useState('Chef');
   const [capacity, setCapacity] = useState('500');
   const [address, setAddress] = useState('');
@@ -46,6 +47,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const [editName, setEditName] = useState('');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editQuantity, setEditQuantity] = useState('');
+  const [editSeatingCapacity, setEditSeatingCapacity] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
@@ -64,6 +66,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
     setEditName(item.name);
     setEditCategoryId(item.categoryId);
     setEditQuantity(String(item.totalQuantity));
+    setEditSeatingCapacity(String(item.seatingCapacity));
   };
 
   const handleUpdateItem = async (e: React.FormEvent) => {
@@ -74,7 +77,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
       const res = await fetch(`/api/inventory-items/${editingItem.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, categoryId: editCategoryId, quantity: editQuantity }),
+        body: JSON.stringify({ name: editName, categoryId: editCategoryId, quantity: editQuantity, seatingCapacity: editSeatingCapacity }),
       });
       if (res.ok) {
         toast.success('Inventory item updated!');
@@ -133,6 +136,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
           name,
           category,
           quantity,
+          seatingCapacity,
           role,
           capacity,
           address,
@@ -291,6 +295,9 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                                 <span className="dim">Available Quantity</span>
                                 <strong className="num" style={{ fontSize: 18, color: 'var(--ink)' }}>{item.totalQuantity} pcs</strong>
                               </div>
+                              {item.seatingCapacity > 0 && (
+                                <p className="mini dim">Seats {item.seatingCapacity} {item.seatingCapacity === 1 ? 'guest' : 'guests'} per unit</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -395,6 +402,11 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                     <label className="label">Quantity</label>
                     <input type="number" required value={quantity} onChange={e => setQuantity(e.target.value)} className="input" />
                   </div>
+                  <div className="field">
+                    <label className="label">Seats per unit</label>
+                    <input type="number" min={0} value={seatingCapacity} onChange={e => setSeatingCapacity(e.target.value)} className="input" />
+                    <p className="mini dim">How many guests one unit seats — 1 for a chair, 12 for a round table, 0 if it isn&apos;t seating.</p>
+                  </div>
                 </>
               ) : activeTab === 'staff' ? (
                 <>
@@ -462,6 +474,11 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
               <div className="field">
                 <label className="label">Quantity</label>
                 <input type="number" required value={editQuantity} onChange={e => setEditQuantity(e.target.value)} className="input" />
+              </div>
+              <div className="field">
+                <label className="label">Seats per unit</label>
+                <input type="number" min={0} value={editSeatingCapacity} onChange={e => setEditSeatingCapacity(e.target.value)} className="input" />
+                <p className="mini dim">How many guests one unit seats — 1 for a chair, 12 for a round table, 0 if it isn&apos;t seating.</p>
               </div>
 
               <div className="row" style={{ justifyContent: 'flex-end', gap: 12 }}>

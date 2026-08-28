@@ -110,20 +110,30 @@ enum ServiceSource {
 }
 
 /// How a `ServiceInventoryRequirement`'s `quantity` scales when resolved onto an actual booking.
+/// FIXED: use `quantity` as-is. PER_GUEST: `quantity` × booking guest count. PER_UNIT: `quantity` ×
+/// the parent `BookingService` line's own unit count (this is prompt-1's `PER_SERVICE_UNIT` — same
+/// concept, kept under the shorter name). GUESTS_PER_UNIT: CEILING(guestCount / `quantity`), where
+/// `quantity` is seats-per-unit (e.g. 12 guests per round table). MANUAL: `quantity` is only a
+/// starting default — the booking operator owns the final number and it is never auto-recalculated.
 enum QuantityType {
   FIXED
   PER_GUEST
   PER_UNIT
+  GUESTS_PER_UNIT
+  MANUAL
 }
 
 /// Lifecycle of a `BookingServiceResource`'s commitment — PLANNED means nothing is reserved yet
-/// (just a known need); RESERVED/IN_USE count as active commitments against availability; RETURNED
-/// and RELEASED both free the stock back up (RETURNED after physical use, RELEASED as a plain exit
-/// before or after reserving, folding what used to be a separate "cancelled" outcome into the same
-/// terminal state).
+/// (just a known need); RESERVED/CONFIRMED/ISSUED/IN_USE all count as active commitments against
+/// availability (CONFIRMED = reservation locked in, ISSUED = physically dispatched from the store,
+/// IN_USE = in use at the venue); RETURNED and RELEASED both free the stock back up (RETURNED after
+/// physical use, RELEASED as a plain exit before use, folding what used to be a separate "cancelled"
+/// outcome into the same terminal state).
 enum ResourceAllocationStatus {
   PLANNED
   RESERVED
+  CONFIRMED
+  ISSUED
   IN_USE
   RETURNED
   RELEASED
@@ -138,6 +148,7 @@ enum InventoryTransactionType {
   RESERVE
   RELEASE
   ALLOCATE
+  ISSUE
   USE
   RETURN
   DAMAGE
@@ -156,6 +167,9 @@ model Tenant {
   venue               Venue?
   clients             Client[]
   bookings            Booking[]
+  events              Event[]
+  bookingServices     BookingService[]
+  bookingPackages     BookingPackage[]
   services            Service[]
   packages            Package[]
   suppliers           Supplier[]
@@ -256,6 +270,9 @@ model Booking {
 
 model Event {
   id         String      @id @default(cuid())
+  /// Denormalized from the parent `Booking` for tenant-scoped queries and consistency with every
+  /// other tenant-owned model. Always equals `booking.tenantId` (a booking never changes tenant).
+  tenantId   String
   bookingId  String      @unique
   name       String
   date       DateTime
@@ -265,6 +282,7 @@ model Event {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking               Booking                @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   bookingServices       BookingService[]
   guests                Guest[]
@@ -272,6 +290,7 @@ model Event {
   inventoryTransactions InventoryTransaction[]
   statusOverrides       EventStatusOverride[]
 
+  @@index([tenantId])
   @@index([bookingId])
   @@index([status])
   @@index([date])
@@ -404,6 +423,14 @@ model Package {
   pricingMode PackagePricingMode @default(COMPUTED)
   /// Only meaningful when `pricingMode = FIXED` — ignored (and left null on new rows) otherwise.
   price       Decimal?           @db.Decimal(12, 2)
+  /// The guest count this bundle is designed for — drives the seating-sufficiency preview and the
+  /// "booking exceeds package capacity" warning. Null when unspecified; never a hard limit on how
+  /// many guests a booking that uses this package can have.
+  capacity    Int?
+  /// Bumped whenever the bundle's definition changes (its service list, per-line quantity or price
+  /// override, pricing mode/price, or capacity) — not for a name/description edit. `BookingPackage`
+  /// snapshots this so a booking can show which version of the package it was sold.
+  version     Int                @default(1)
   active      Boolean            @default(true)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
@@ -444,6 +471,9 @@ model PackageItem {
 
 model BookingService {
   id               String          @id @default(cuid())
+  /// Denormalized from the parent `Booking` for tenant-scoped queries and consistency with every
+  /// other tenant-owned model. Always equals `booking.tenantId`.
+  tenantId         String
   /// The commercial owner of this line — always set. A venue-only booking's lines have no
   /// `eventId`; that's how a booking can exist with commercial service lines and no Event.
   bookingId        String
@@ -494,6 +524,7 @@ model BookingService {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking        Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   event          Event?          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   service        Service         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
@@ -507,6 +538,7 @@ model BookingService {
   expenses              Expense[]
   sourcePackageItems    BookingPackageItem[]
 
+  @@index([tenantId])
   @@index([bookingId])
   @@index([eventId])
   @@index([serviceId])
@@ -525,6 +557,9 @@ model BookingService {
 /// never does) would only lose the "which package" attribution, not the sold lines themselves.
 model BookingPackage {
   id           String         @id @default(cuid())
+  /// Denormalized from the parent `Booking` for tenant-scoped queries and consistency with every
+  /// other tenant-owned model. Always equals `booking.tenantId`.
+  tenantId     String
   bookingId    String
   packageId    String
   nameSnapshot String
@@ -534,13 +569,18 @@ model BookingPackage {
   /// Snapshot of the source `Package.price`, only when its `pricingMode` was `FIXED` at application
   /// time. Null when it was `COMPUTED` — the total is (and was) derived from the exploded lines.
   price        Decimal?       @db.Decimal(12, 2)
+  /// Snapshot of the source `Package.version` at application time — lets the booking show "sold from
+  /// version 3 of this package" even after the catalog package is edited further.
+  packageVersion Int          @default(1)
   createdAt    DateTime       @default(now())
 
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking         Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   package         Package              @relation(fields: [packageId], references: [id], onDelete: Restrict)
   items           BookingPackageItem[]
   bookingServices BookingService[]
 
+  @@index([tenantId])
   @@index([bookingId])
   @@index([packageId])
   @@map("booking_packages")
@@ -661,6 +701,11 @@ model InventoryItem {
   /// furniture/equipment is whole-unit; every *flow* quantity elsewhere (requirements, reservations,
   /// transactions) is Decimal to allow fractional operational units later.
   totalQuantity Int      @default(0)
+  /// How many guests one unit of this item seats — 1 for a chair, 12 for a round table, 0 for a
+  /// non-seating item (AC unit, tablecloth). `seatingCapacity > 0` is the only signal used to decide
+  /// whether an item counts toward a package's provided-seats total; a category flag would be wrong
+  /// (a "Tables" category can hold a console table that seats nobody).
+  seatingCapacity Int    @default(0)
   categoryId    String
   sku           String?
   unit          String   @default("unit")

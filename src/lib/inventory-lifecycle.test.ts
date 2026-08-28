@@ -22,6 +22,47 @@ describe('resolveReservationTransition', () => {
     expect(result).toEqual({ nextStatus: 'RETURNED', transactionType: 'RETURN' });
   });
 
+  it('Confirm moves RESERVED -> CONFIRMED with no ledger row (pure commitment-strength change)', () => {
+    expect(resolveReservationTransition('RESERVED', 'CONFIRM')).toEqual({ nextStatus: 'CONFIRMED', transactionType: null });
+  });
+
+  it('Issue moves RESERVED or CONFIRMED -> ISSUED and logs an ISSUE transaction', () => {
+    expect(resolveReservationTransition('RESERVED', 'ISSUE')).toEqual({ nextStatus: 'ISSUED', transactionType: 'ISSUE' });
+    expect(resolveReservationTransition('CONFIRMED', 'ISSUE')).toEqual({ nextStatus: 'ISSUED', transactionType: 'ISSUE' });
+  });
+
+  it('Use is allowed from CONFIRMED and ISSUED as well as RESERVED', () => {
+    expect(resolveReservationTransition('CONFIRMED', 'USE')).toEqual({ nextStatus: 'IN_USE', transactionType: 'USE' });
+    expect(resolveReservationTransition('ISSUED', 'USE')).toEqual({ nextStatus: 'IN_USE', transactionType: 'USE' });
+  });
+
+  it('Return is allowed straight from ISSUED (dispatched but not marked used)', () => {
+    expect(resolveReservationTransition('ISSUED', 'RETURN')).toEqual({ nextStatus: 'RETURNED', transactionType: 'RETURN' });
+  });
+
+  it('Damage and Loss are ledger-only (status unchanged) and allowed once issued or later', () => {
+    expect(resolveReservationTransition('ISSUED', 'DAMAGE')).toEqual({ nextStatus: null, transactionType: 'DAMAGE' });
+    expect(resolveReservationTransition('IN_USE', 'DAMAGE')).toEqual({ nextStatus: null, transactionType: 'DAMAGE' });
+    expect(resolveReservationTransition('RETURNED', 'LOSS')).toEqual({ nextStatus: null, transactionType: 'LOSS' });
+  });
+
+  it('rejects Confirm on a merely-PLANNED resource', () => {
+    expect('error' in resolveReservationTransition('PLANNED', 'CONFIRM')).toBe(true);
+  });
+
+  it('rejects Issue once already IN_USE', () => {
+    expect('error' in resolveReservationTransition('IN_USE', 'ISSUE')).toBe(true);
+  });
+
+  it('rejects Damage before anything is issued', () => {
+    expect('error' in resolveReservationTransition('RESERVED', 'DAMAGE')).toBe(true);
+  });
+
+  it('allows Release from CONFIRMED (not yet dispatched) but not from ISSUED', () => {
+    expect(resolveReservationTransition('CONFIRMED', 'RELEASE')).toEqual({ nextStatus: 'RELEASED', transactionType: 'RELEASE' });
+    expect('error' in resolveReservationTransition('ISSUED', 'RELEASE')).toBe(true);
+  });
+
   it('Release is allowed from PLANNED or RESERVED, both logging a RELEASE transaction', () => {
     expect(resolveReservationTransition('PLANNED', 'RELEASE')).toEqual({ nextStatus: 'RELEASED', transactionType: 'RELEASE' });
     expect(resolveReservationTransition('RESERVED', 'RELEASE')).toEqual({ nextStatus: 'RELEASED', transactionType: 'RELEASE' });

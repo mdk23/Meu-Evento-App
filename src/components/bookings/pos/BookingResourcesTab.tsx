@@ -22,6 +22,7 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
     handleRemoveReservedInventory,
     handleReservationAction,
     handleReuseReservation,
+    handleResolveVariant,
   } = useBookingResources(bookingId);
 
   if (loading) {
@@ -33,6 +34,7 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
   }
 
   const internalServices = (data?.booking.bookingServices || []).filter((bs) => bs.providerType === 'INTERNAL');
+  const resourceSummary = data?.resourceSummary || [];
 
   return (
     <div className="page stack" style={{ gap: 24 }}>
@@ -43,6 +45,49 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
           this is a Venue booking or a full Event, no promotion required.
         </p>
       </div>
+
+      {resourceSummary.length > 0 && (
+        <div className="card plain stack" style={{ gap: 10, padding: 20 }}>
+          <h4 className="mini" style={{ fontWeight: 700, color: 'var(--ink)' }}>Resource summary</h4>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="tbl" style={{ minWidth: 520 }}>
+              <thead>
+                <tr>
+                  <th>Resource</th>
+                  <th style={{ textAlign: 'right' }}>Required</th>
+                  <th style={{ textAlign: 'right' }}>Reserved</th>
+                  <th style={{ textAlign: 'right' }}>Available</th>
+                  <th style={{ textAlign: 'right' }}>Shortage</th>
+                  <th style={{ textAlign: 'right' }}>Returned</th>
+                  <th style={{ textAlign: 'right' }}>Missing</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resourceSummary.map((row) => {
+                  const badgeClass =
+                    row.status === 'FULFILLED' ? 'b-ok'
+                    : row.status === 'PENDING' ? 'b-info'
+                    : row.status === 'UNRESOLVED' ? 'b-mute'
+                    : 'b-warn';
+                  return (
+                    <tr key={row.key}>
+                      <td>{row.itemLabel}</td>
+                      <td style={{ textAlign: 'right' }}>{row.required}</td>
+                      <td style={{ textAlign: 'right' }}>{row.reserved}</td>
+                      <td style={{ textAlign: 'right' }}>{row.available ?? '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{row.additional > 0 ? row.additional : '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{row.returned > 0 ? row.returned : '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{row.missing > 0 ? row.missing : '—'}</td>
+                      <td><span className={`badge ${badgeClass}`}>{row.status}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="alert bad">
@@ -72,10 +117,11 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
                 inventoryItems={data?.inventoryItems || []}
                 onReserveInventory={(options) => handleReserveInventoryItem(bs.id, options)}
                 onRemoveReservedInventory={(resourceId) => handleRemoveReservedInventory(bs.id, resourceId)}
-                onReservationAction={(resourceId, action) => handleReservationAction(bs.id, resourceId, action)}
+                onReservationAction={(resourceId, action, quantity) => handleReservationAction(bs.id, resourceId, action, quantity)}
                 onReuseReservation={(resourceRequirementId, reuseFromResourceId, quantity) =>
                   handleReuseReservation(bs.id, resourceRequirementId, reuseFromResourceId, quantity)
                 }
+                onResolveVariant={(resourceId, inventoryItemId) => handleResolveVariant(bs.id, resourceId, inventoryItemId)}
               />
             </div>
           ))}

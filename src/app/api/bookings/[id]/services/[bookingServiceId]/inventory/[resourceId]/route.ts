@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { resolveReservationTransition, ReservationAction } from '@/lib/inventory-lifecycle';
 
-const VALID_ACTIONS: ReservationAction[] = ['ALLOCATE', 'USE', 'RETURN', 'RELEASE'];
+const VALID_ACTIONS: ReservationAction[] = ['CONFIRM', 'ISSUE', 'ALLOCATE', 'USE', 'RETURN', 'RELEASE', 'DAMAGE', 'LOSS'];
+
+/** Actions whose ledger row can move a partial quantity (the operator supplies how much); everything
+ * else moves the whole reserved commitment. */
+const PARTIAL_QUANTITY_ACTIONS = new Set<ReservationAction>(['DAMAGE', 'LOSS', 'RETURN']);
 
 async function loadScopedResource(bookingId: string, bookingServiceId: string, resourceId: string) {
   const existing = await prisma.bookingServiceResource.findUnique({ where: { id: resourceId } });
@@ -40,6 +44,28 @@ export async function PATCH(
       return NextResponse.json({ error: transition.error }, { status: 400 });
     }
 
+    if ((action === 'CONFIRM' || action === 'ISSUE') && !existing.inventoryItemId) {
+      return NextResponse.json(
+        { error: 'Resolve which inventory item fulfills this requirement before confirming or issuing it.' },
+        { status: 400 }
+      );
+    }
+
+    // DAMAGE / LOSS / partial RETURN can move less than the whole reserved commitment — the operator
+    // says how much. Everything else moves the full `reservedQuantity`.
+    const reservedNum = Number(existing.reservedQuantity);
+    let ledgerQuantity = reservedNum;
+    if (PARTIAL_QUANTITY_ACTIONS.has(action) && body.quantity !== undefined) {
+      const q = Number(body.quantity);
+      if (!Number.isFinite(q) || q <= 0 || q > reservedNum) {
+        return NextResponse.json(
+          { error: `Quantity must be between 1 and ${reservedNum} (this row's reserved amount).` },
+          { status: 400 }
+        );
+      }
+      ledgerQuantity = q;
+    }
+
     const tenant = await prisma.tenant.findFirst();
     if (!tenant) {
       return NextResponse.json({ error: 'No tenant found' }, { status: 400 });
@@ -61,8 +87,9 @@ export async function PATCH(
           })
         : existing;
 
-      // A row only reaches RESERVED/IN_USE (the only statuses these actions run from) via the
-      // reserve endpoint, which always resolves inventoryItemId first — so it's guaranteed set here.
+      // A row only reaches an active status (the only ones these actions run from) via the reserve
+      // endpoint, which always resolves inventoryItemId first — so it's guaranteed set here.
+      // CONFIRM has no transactionType (pure commitment-strength change, no physical movement).
       if (transition.transactionType && existing.inventoryItemId) {
         await tx.inventoryTransaction.create({
           data: {
@@ -72,7 +99,7 @@ export async function PATCH(
             bookingServiceId,
             bookingServiceResourceId: resourceId,
             type: transition.transactionType,
-            quantity: existing.reservedQuantity,
+            quantity: ledgerQuantity,
             createdBy: 'Staff',
           },
         });

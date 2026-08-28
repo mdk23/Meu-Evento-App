@@ -94,6 +94,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             packages={pos.packages}
             onApplyPackage={pos.applyPackage}
             isPackageApplied={pos.isPackageApplied}
+            packageCapacityWarnings={pos.packageCapacityWarnings}
           />
 
           {/* COLUMN 3: POS CASH EXTRACT & SUMMARY */}

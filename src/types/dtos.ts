@@ -156,7 +156,7 @@ export interface ServiceInventoryRequirementDTO {
   categoryId: string | null;
   categoryName: string | null;
   quantity: number;
-  quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT';
+  quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
   optional: boolean;
   notes: string | null;
 }
@@ -179,6 +179,14 @@ export interface WorkspaceSummaryDTO {
   contractedValue: number;
 }
 
+export interface PackageSeatingSummaryDTO {
+  target: number;
+  provided: number;
+  shortage: number;
+  status: 'SUFFICIENT' | 'SHORTAGE';
+  uncountedCategoryReqs: number;
+}
+
 export interface PackageCardDTO {
   id: string;
   name: string;
@@ -187,6 +195,12 @@ export interface PackageCardDTO {
   pricingMode: 'COMPUTED' | 'FIXED';
   /** Only meaningful when `pricingMode = FIXED`. */
   price: number | null;
+  /** Intended guest count; null when unspecified. Never a hard cap on bookings that use it. */
+  capacity: number | null;
+  /** Seating-sufficiency preview at `capacity`; null when `capacity` is null. */
+  seatingSummary: PackageSeatingSummaryDTO | null;
+  /** Bumped on every definition change; snapshotted onto `BookingPackage.packageVersion`. */
+  version: number;
   active: boolean;
   services: Array<{
     serviceId: string;

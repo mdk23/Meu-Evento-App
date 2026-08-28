@@ -33,8 +33,9 @@ interface ServiceWorkOrderModalProps {
   inventoryItems: InventoryItem[];
   onReserveInventory: (options: { inventoryItemId: string; quantity: number; resourceRequirementId?: string }) => void;
   onRemoveReservedInventory: (resourceId: string) => void;
-  onReservationAction: (resourceId: string, action: string) => void;
+  onReservationAction: (resourceId: string, action: string, quantity?: number) => void;
   onReuseReservation: (resourceRequirementId: string, reuseFromResourceId: string, quantity: number) => void;
+  onResolveVariant: (resourceId: string, inventoryItemId: string) => void;
   onSave: () => void;
   onClose: () => void;
 }
@@ -71,6 +72,7 @@ export default function ServiceWorkOrderModal({
   onRemoveReservedInventory,
   onReservationAction,
   onReuseReservation,
+  onResolveVariant,
   onSave,
   onClose,
 }: ServiceWorkOrderModalProps) {
@@ -244,6 +246,7 @@ export default function ServiceWorkOrderModal({
                 onRemoveReservedInventory={onRemoveReservedInventory}
                 onReservationAction={onReservationAction}
                 onReuseReservation={onReuseReservation}
+                onResolveVariant={onResolveVariant}
               />
             </div>
           )}

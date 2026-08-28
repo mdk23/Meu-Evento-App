@@ -38,7 +38,7 @@ interface ServicesClientProps {
   inventoryCategories: InventoryCategoryOption[];
 }
 
-type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT';
+type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
 
 /** Editable row shape for the Inventory Requirements builder. `targetType` drives whether
  * `inventoryItemId` or `categoryId` is the active fulfillment target; the other stays populated
@@ -545,6 +545,8 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             <option value="FIXED">Fixed</option>
                             <option value="PER_GUEST">Per guest</option>
                             <option value="PER_UNIT">Per unit</option>
+                            <option value="GUESTS_PER_UNIT">Guests per unit (e.g. seats per table)</option>
+                            <option value="MANUAL">Manual — set on the booking</option>
                           </select>
                           <input
                             type="number"
@@ -552,7 +554,11 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             step="1"
                             value={row.quantity}
                             onChange={(e) => updateRequirementRow(index, { quantity: e.target.value.replace(/[^0-9]/g, '') })}
-                            placeholder="Quantity"
+                            placeholder={
+                              row.quantityType === 'GUESTS_PER_UNIT' ? 'Guests per unit'
+                              : row.quantityType === 'MANUAL' ? 'Default quantity'
+                              : 'Quantity'
+                            }
                             className="input"
                             style={{ padding: '8px 10px', fontSize: 12 }}
                           />

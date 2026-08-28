@@ -3,11 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { PackageContext, PackagePricingMode } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
 import { isServiceCompatibleWithPackageScope } from '@/lib/service-scope';
+import { packageDefinitionChanged, PackageDefinitionSnapshot } from '@/lib/package-version';
 
 function resolvePricingMode(value: unknown): PackagePricingMode | undefined {
   if (value === 'FIXED') return PackagePricingMode.FIXED;
   if (value === 'COMPUTED') return PackagePricingMode.COMPUTED;
   return undefined;
+}
+
+/** A package-line price override: a non-negative number, or null for "use the catalog price". */
+function resolvePriceOverride(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseFloat(String(value));
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 export async function PATCH(
@@ -17,15 +25,54 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, scope, pricingMode, price, serviceIds, quantities } = body;
+    const { name, description, scope, pricingMode, price, capacity, serviceIds, quantities, priceOverrides } = body;
 
-    const existingPackage = await prisma.package.findUnique({ where: { id } });
+    const existingPackage = await prisma.package.findUnique({ where: { id }, include: { items: true } });
     if (!existingPackage) {
       return NextResponse.json({ error: 'Package not found' }, { status: 404 });
     }
 
     const resolvedScope: PackageContext = scope === 'VENUE' || scope === 'EVENT' ? scope : existingPackage.context;
     const resolvedPricingMode = resolvePricingMode(pricingMode) ?? existingPackage.pricingMode;
+    const resolvedCapacity =
+      capacity === undefined
+        ? existingPackage.capacity
+        : capacity === null || capacity === ''
+        ? null
+        : parseInt(String(capacity), 10);
+    const resolvedPrice =
+      resolvedPricingMode === PackagePricingMode.FIXED
+        ? price !== undefined
+          ? parseFloat(price)
+          : existingPackage.price !== null
+          ? Number(existingPackage.price)
+          : null
+        : null;
+
+    // Bump `version` only when the bundle's *definition* changes — a name/description edit doesn't.
+    const beforeDef: PackageDefinitionSnapshot = {
+      pricingMode: existingPackage.pricingMode,
+      price: existingPackage.price !== null ? Number(existingPackage.price) : null,
+      capacity: existingPackage.capacity,
+      items: existingPackage.items.map((i) => ({
+        serviceId: i.serviceId,
+        quantity: Number(i.quantity),
+        priceOverride: i.priceOverride !== null ? Number(i.priceOverride) : null,
+      })),
+    };
+    const afterDef: PackageDefinitionSnapshot = {
+      pricingMode: resolvedPricingMode,
+      price: resolvedPrice,
+      capacity: resolvedCapacity,
+      items: Array.isArray(serviceIds)
+        ? serviceIds.map((sid: string) => ({
+            serviceId: sid,
+            quantity: Number(quantities?.[sid] ?? 1),
+            priceOverride: resolvePriceOverride(priceOverrides?.[sid]),
+          }))
+        : beforeDef.items,
+    };
+    const bumpVersion = packageDefinitionChanged(beforeDef, afterDef);
 
     if (Array.isArray(serviceIds) && serviceIds.length > 0) {
       // Defense in depth — same compatibility rule as create, checked against whichever scope this
@@ -57,6 +104,7 @@ export async function PATCH(
               serviceId,
               order: index,
               quantity: quantities?.[serviceId] ?? 1,
+              priceOverride: resolvePriceOverride(priceOverrides?.[serviceId]),
             })),
           });
         }
@@ -69,12 +117,9 @@ export async function PATCH(
           description: description !== undefined ? description : existingPackage.description,
           context: resolvedScope,
           pricingMode: resolvedPricingMode,
-          price:
-            resolvedPricingMode === PackagePricingMode.FIXED
-              ? price !== undefined
-                ? parseFloat(price)
-                : existingPackage.price
-              : null,
+          price: resolvedPrice,
+          capacity: resolvedCapacity,
+          ...(bumpVersion ? { version: { increment: 1 } } : {}),
         },
         include: { items: { orderBy: { order: 'asc' }, include: { service: true } } },
       });

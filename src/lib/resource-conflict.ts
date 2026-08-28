@@ -1,7 +1,10 @@
 import { ExecutionType, Prisma, ResourceAllocationStatus } from '@prisma/client';
 
-/** Resource statuses that still count as an active commitment against available stock. */
-export const ACTIVE_RESOURCE_STATUSES: ResourceAllocationStatus[] = ['RESERVED', 'IN_USE'];
+/** Resource statuses that still count as an active commitment against available stock — the single
+ * source of truth, imported (never re-declared) by every place that filters "does this row still
+ * hold physical stock" (availability math, stock summary, reuse candidates, event/booking summaries).
+ * Any status added here that holds stock is automatically reflected everywhere. */
+export const ACTIVE_RESOURCE_STATUSES: ResourceAllocationStatus[] = ['RESERVED', 'CONFIRMED', 'ISSUED', 'IN_USE'];
 
 /** Default reservation span for staff/inventory when no explicit time range is given — the whole calendar day of the event. */
 export function fullDaySpan(date: Date): { startAt: Date; endAt: Date } {

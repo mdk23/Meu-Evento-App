@@ -4,7 +4,12 @@ import { ExecutionType, QuantityType, PriceType } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
 
 function resolveQuantityType(value: unknown): QuantityType {
-  return value === 'PER_GUEST' || value === 'PER_UNIT' ? (value as QuantityType) : QuantityType.FIXED;
+  return value === 'PER_GUEST' ||
+    value === 'PER_UNIT' ||
+    value === 'GUESTS_PER_UNIT' ||
+    value === 'MANUAL'
+    ? (value as QuantityType)
+    : QuantityType.FIXED;
 }
 
 function isPriceType(value: unknown): value is PriceType {
@@ -42,6 +47,12 @@ export async function PATCH(
         if (!r.inventoryItemId && !r.categoryId) {
           return NextResponse.json(
             { error: 'Each inventory requirement needs either a specific item or a category.' },
+            { status: 400 }
+          );
+        }
+        if (r.quantityType === 'GUESTS_PER_UNIT' && !(parseFloat(String(r.quantity ?? 0)) > 0)) {
+          return NextResponse.json(
+            { error: 'Guests-per-unit requirements need a seats-per-unit value greater than zero.' },
             { status: 400 }
           );
         }

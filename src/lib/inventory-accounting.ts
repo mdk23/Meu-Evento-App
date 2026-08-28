@@ -1,8 +1,9 @@
 import { Prisma } from '@prisma/client';
+import { ACTIVE_RESOURCE_STATUSES } from './resource-conflict';
 
 export interface ReservationLike {
   reservedQuantity: number | Prisma.Decimal;
-  status: 'PLANNED' | 'RESERVED' | 'IN_USE' | 'RETURNED' | 'RELEASED';
+  status: 'PLANNED' | 'RESERVED' | 'CONFIRMED' | 'ISSUED' | 'IN_USE' | 'RETURNED' | 'RELEASED';
   reusedFromResourceId: string | null;
 }
 
@@ -15,6 +16,7 @@ export interface TransactionLike {
     | 'RESERVE'
     | 'RELEASE'
     | 'ALLOCATE'
+    | 'ISSUE'
     | 'USE'
     | 'RETURN'
     | 'DAMAGE'
@@ -26,12 +28,19 @@ export interface InventoryStockSummary {
   reservedQuantity: Prisma.Decimal;
   availableQuantity: Prisma.Decimal;
   allocatedQuantity: Prisma.Decimal;
+  issuedQuantity: Prisma.Decimal;
   usedQuantity: Prisma.Decimal;
+  returnedQuantity: Prisma.Decimal;
   damagedQuantity: Prisma.Decimal;
   lostQuantity: Prisma.Decimal;
+  /** damaged + lost — "how many units didn't come back intact". */
+  missingQuantity: Prisma.Decimal;
 }
 
-const ACTIVE_RESOURCE_STATUSES = new Set(['RESERVED', 'IN_USE']);
+// Single source of truth in resource-conflict.ts — imported, not re-declared, so adding a status
+// that still holds stock (CONFIRMED/ISSUED) can never diverge the availability math from this
+// summary. `Set` wrapper only for the `.has()` call sites below.
+const ACTIVE_RESOURCE_STATUS_SET = new Set<string>(ACTIVE_RESOURCE_STATUSES);
 
 function sumBy<T>(items: T[], predicate: (item: T) => boolean, quantityOf: (item: T) => number | Prisma.Decimal): Prisma.Decimal {
   return items
@@ -55,7 +64,7 @@ export function computeInventoryStockSummary(
   const total = new Prisma.Decimal(totalQuantity);
   const reservedQuantity = sumBy(
     reservations,
-    (r) => ACTIVE_RESOURCE_STATUSES.has(r.status) && r.reusedFromResourceId === null,
+    (r) => ACTIVE_RESOURCE_STATUS_SET.has(r.status) && r.reusedFromResourceId === null,
     (r) => r.reservedQuantity
   );
   const availableQuantity = Prisma.Decimal.max(total.minus(reservedQuantity), 0);
@@ -64,7 +73,12 @@ export function computeInventoryStockSummary(
   const returnedOrUsedAfterAllocate = sumBy(transactions, (t) => t.type === 'USE' || t.type === 'RETURN', (t) => t.quantity);
   const allocatedQuantity = Prisma.Decimal.max(allocated.minus(returnedOrUsedAfterAllocate), 0);
 
+  // Issued but not yet used or returned — mirrors how `allocatedQuantity` nets its reversals.
+  const issued = sumBy(transactions, (t) => t.type === 'ISSUE', (t) => t.quantity);
+  const issuedQuantity = Prisma.Decimal.max(issued.minus(returnedOrUsedAfterAllocate), 0);
+
   const usedQuantity = sumBy(transactions, (t) => t.type === 'USE', (t) => t.quantity);
+  const returnedQuantity = sumBy(transactions, (t) => t.type === 'RETURN', (t) => t.quantity);
   const damagedQuantity = sumBy(transactions, (t) => t.type === 'DAMAGE', (t) => t.quantity);
   const lostQuantity = sumBy(transactions, (t) => t.type === 'LOSS', (t) => t.quantity);
 
@@ -73,8 +87,11 @@ export function computeInventoryStockSummary(
     reservedQuantity,
     availableQuantity,
     allocatedQuantity,
+    issuedQuantity,
     usedQuantity,
+    returnedQuantity,
     damagedQuantity,
     lostQuantity,
+    missingQuantity: damagedQuantity.plus(lostQuantity),
   };
 }

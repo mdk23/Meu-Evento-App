@@ -5,14 +5,19 @@ import { resolvePagination, buildPaginatedResult } from '@/lib/pagination';
 export interface GetEventListParams {
   page?: number;
   pageSize?: number;
+  /** Optional tenant scope. Omitted today (single-tenant, no identity layer); wired through so a
+   * later auth pass can pass it without touching call sites. */
+  tenantId?: string;
 }
 
 export class EventRepository {
-  static async getEventList({ page, pageSize }: GetEventListParams = {}): Promise<EventListPageDTO> {
+  static async getEventList({ page, pageSize, tenantId }: GetEventListParams = {}): Promise<EventListPageDTO> {
     const { page: resolvedPage, pageSize: resolvedPageSize, skip, take } = resolvePagination({ page, pageSize });
 
+    const where = tenantId ? { tenantId } : {};
     const [events, total] = await Promise.all([
       prisma.event.findMany({
+        where,
         orderBy: { date: 'asc' },
         skip,
         take,
@@ -42,7 +47,7 @@ export class EventRepository {
           },
         },
       }),
-      prisma.event.count(),
+      prisma.event.count({ where }),
     ]);
 
     const items: EventOverviewDTO[] = events.map((evt) => ({

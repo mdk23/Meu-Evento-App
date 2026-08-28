@@ -43,6 +43,15 @@ export interface CartItem {
   sourcePackageId?: string;
   sourcePackageName?: string;
   packageApplicationKey?: string;
+  /** Provenance of this line — set on both freshly-added and edit-hydrated lines. */
+  source?: 'DIRECT' | 'PACKAGE';
+  /** The existing `BookingService.id` this cart line maps to, when the cart was hydrated for an
+   * edit. Absent on lines added during the current session — those become brand-new BookingService
+   * rows. This is the match key the booking-edit diff (`planBookingServiceSync`) uses. */
+  bookingServiceId?: string;
+  /** The existing `BookingPackage.id` this line already belongs to (edit hydration only). Lets the
+   * diff keep that frozen package snapshot instead of creating a new one. */
+  sourceBookingPackageId?: string;
 }
 
 import React from 'react';

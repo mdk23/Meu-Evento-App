@@ -72,6 +72,7 @@ export async function POST(request: Request) {
           tenantId: tenant.id,
           name: data.name,
           totalQuantity: parseInt(data.quantity || '0', 10),
+          seatingCapacity: parseInt(data.seatingCapacity || '0', 10) || 0,
           categoryId: category.id,
         },
       });

@@ -122,6 +122,7 @@ export default function EventDetailClient({ eventId }: EventDetailClientProps) {
           onRemoveReservedInventory={detail.handleRemoveReservedInventory}
           onReservationAction={detail.handleReservationAction}
           onReuseReservation={detail.handleReuseReservation}
+          onResolveVariant={detail.handleResolveVariant}
           onSave={detail.handleSaveWorkOrder}
           onClose={detail.closeServiceWorkOrder}
         />

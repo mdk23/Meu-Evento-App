@@ -4,15 +4,44 @@ import { InventoryItem } from '@prisma/client';
 
 export const RESERVATION_ACTIONS: Record<string, { label: string; action: string }[]> = {
   PLANNED: [],
-  RESERVED: [{ label: 'Allocate', action: 'ALLOCATE' }, { label: 'Use', action: 'USE' }, { label: 'Release', action: 'RELEASE' }],
-  IN_USE: [{ label: 'Return', action: 'RETURN' }],
-  RETURNED: [],
+  RESERVED: [
+    { label: 'Confirm', action: 'CONFIRM' },
+    { label: 'Issue', action: 'ISSUE' },
+    { label: 'Allocate', action: 'ALLOCATE' },
+    { label: 'Use', action: 'USE' },
+    { label: 'Release', action: 'RELEASE' },
+  ],
+  CONFIRMED: [
+    { label: 'Issue', action: 'ISSUE' },
+    { label: 'Use', action: 'USE' },
+    { label: 'Release', action: 'RELEASE' },
+  ],
+  ISSUED: [
+    { label: 'Use', action: 'USE' },
+    { label: 'Return', action: 'RETURN' },
+    { label: 'Damage', action: 'DAMAGE' },
+    { label: 'Loss', action: 'LOSS' },
+  ],
+  IN_USE: [
+    { label: 'Return', action: 'RETURN' },
+    { label: 'Damage', action: 'DAMAGE' },
+    { label: 'Loss', action: 'LOSS' },
+  ],
+  RETURNED: [
+    { label: 'Damage', action: 'DAMAGE' },
+    { label: 'Loss', action: 'LOSS' },
+  ],
   RELEASED: [],
 };
+
+/** Actions that ask the operator for a quantity (partial) instead of moving the whole row. */
+const QUANTITY_PROMPT_ACTIONS = new Set(['DAMAGE', 'LOSS']);
 
 export const STATUS_BADGE_CLASS: Record<string, string> = {
   PLANNED: 'b-mute',
   RESERVED: 'b-ok',
+  CONFIRMED: 'b-ok',
+  ISSUED: 'b-info',
   IN_USE: 'b-info',
   RETURNED: 'b-mute',
   RELEASED: 'b-mute',
@@ -93,11 +122,13 @@ function ResourceReserveRow({
   inventoryItems,
   onReserve,
   onReuse,
+  onResolveVariant,
 }: {
   resource: BookingServiceResourceLike;
   inventoryItems: InventoryItem[];
   onReserve: (inventoryItemId: string, quantity: number, resourceId: string) => void;
   onReuse: (reuseFromResourceId: string, quantity: number, resourceId: string) => void;
+  onResolveVariant: (inventoryItemId: string, resourceId: string) => void;
 }) {
   const categoryId = resource.sourceRequirement?.categoryId;
   const eligibleItems = resource.inventoryItemId
@@ -130,6 +161,17 @@ function ResourceReserveRow({
             ))}
           </select>
         )}
+        {!resource.inventoryItemId && resource.sourceRequirement?.categoryId && (
+          <button
+            type="button"
+            onClick={() => pickedItemId && onResolveVariant(pickedItemId, resource.id)}
+            disabled={!pickedItemId}
+            className="btn ghost sm"
+            title="Lock in which item this requirement uses, without reserving stock yet"
+          >
+            Set variant
+          </button>
+        )}
         <input
           type="number"
           min={1}
@@ -156,8 +198,68 @@ interface BookingServiceResourcePanelProps {
   inventoryItems: InventoryItem[];
   onReserveInventory: (options: { inventoryItemId: string; quantity: number; resourceRequirementId?: string }) => void;
   onRemoveReservedInventory: (resourceId: string) => void;
-  onReservationAction: (resourceId: string, action: string) => void;
+  onReservationAction: (resourceId: string, action: string, quantity?: number) => void;
   onReuseReservation: (resourceRequirementId: string, reuseFromResourceId: string, quantity: number) => void;
+  onResolveVariant: (resourceId: string, inventoryItemId: string) => void;
+}
+
+/** One lifecycle action — a plain button, unless it's DAMAGE/LOSS, which reveals an inline quantity
+ * input first (defaulting to the row's whole reserved amount). */
+function LifecycleActionButton({
+  resource,
+  actionLabel,
+  action,
+  onAct,
+}: {
+  resource: BookingServiceResourceLike;
+  actionLabel: string;
+  action: string;
+  onAct: (action: string, quantity?: number) => void;
+}) {
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [qty, setQty] = useState(String(resource.reservedQuantity));
+
+  if (!QUANTITY_PROMPT_ACTIONS.has(action)) {
+    return (
+      <button type="button" onClick={() => onAct(action)} className="btn ghost sm" style={{ padding: '4px 10px', fontSize: 11 }}>
+        {actionLabel}
+      </button>
+    );
+  }
+
+  if (!promptOpen) {
+    return (
+      <button type="button" onClick={() => setPromptOpen(true)} className="btn ghost sm" style={{ padding: '4px 10px', fontSize: 11 }}>
+        {actionLabel}
+      </button>
+    );
+  }
+
+  return (
+    <span className="row" style={{ gap: 4 }}>
+      <input
+        type="number"
+        min={1}
+        max={resource.reservedQuantity}
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+        className="input"
+        style={{ width: 52, padding: '4px 6px', fontSize: 11 }}
+      />
+      <button
+        type="button"
+        onClick={() => {
+          const n = Math.min(parseInt(qty, 10) || 0, resource.reservedQuantity);
+          if (n > 0) onAct(action, n);
+          setPromptOpen(false);
+        }}
+        className="btn ghost sm"
+        style={{ padding: '4px 10px', fontSize: 11 }}
+      >
+        {actionLabel}
+      </button>
+    </span>
+  );
 }
 
 /** The full per-line resource management block: every `BookingServiceResource` row for one
@@ -172,6 +274,7 @@ export default function BookingServiceResourcePanel({
   onRemoveReservedInventory,
   onReservationAction,
   onReuseReservation,
+  onResolveVariant,
 }: BookingServiceResourcePanelProps) {
   const [selectedInventoryId, setSelectedInventoryId] = useState('');
   const [reserveQuantity, setReserveQuantity] = useState('1');
@@ -200,7 +303,7 @@ export default function BookingServiceResourcePanel({
                     <div className="row" style={{ gap: 6 }}>
                       <span className="mini dim">{r.reservedQuantity} / {r.requiredQuantity} reserved</span>
                       <span className={`badge ${STATUS_BADGE_CLASS[r.status] || 'b-mute'}`}>{r.status}</span>
-                      {r.status !== 'RELEASED' && r.status !== 'RETURNED' && (
+                      {(r.status === 'PLANNED' || r.status === 'RESERVED' || r.status === 'CONFIRMED') && (
                         <button
                           type="button"
                           onClick={() => onRemoveReservedInventory(r.id)}
@@ -222,19 +325,18 @@ export default function BookingServiceResourcePanel({
                     onReuse={(reuseFromResourceId, quantity, resourceId) =>
                       onReuseReservation(resourceId, reuseFromResourceId, quantity)
                     }
+                    onResolveVariant={(inventoryItemId, resourceId) => onResolveVariant(resourceId, inventoryItemId)}
                   />
                   {(RESERVATION_ACTIONS[r.status] || []).length > 0 && (
-                    <div className="row" style={{ gap: 6 }}>
+                    <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                       {RESERVATION_ACTIONS[r.status].map(({ label: actionLabel, action }) => (
-                        <button
+                        <LifecycleActionButton
                           key={action}
-                          type="button"
-                          onClick={() => onReservationAction(r.id, action)}
-                          className="btn ghost sm"
-                          style={{ padding: '4px 10px', fontSize: 11 }}
-                        >
-                          {actionLabel}
-                        </button>
+                          resource={r}
+                          actionLabel={actionLabel}
+                          action={action}
+                          onAct={(a, quantity) => onReservationAction(r.id, a, quantity)}
+                        />
                       ))}
                     </div>
                   )}

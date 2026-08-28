@@ -82,6 +82,8 @@ export default function ResourcesTab({ eventServices, resourceSummary, onOpenWor
                     <th className="r">Additional</th>
                     <th className="r">Reserved</th>
                     <th className="r">Available</th>
+                    <th className="r">Returned</th>
+                    <th className="r">Missing</th>
                     <th>Source</th>
                     <th>Status</th>
                   </tr>
@@ -97,6 +99,8 @@ export default function ResourcesTab({ eventServices, resourceSummary, onOpenWor
                         <td className="r num" style={row.additional > 0 ? { color: 'var(--bad)' } : undefined}>{row.additional}</td>
                         <td className="r num">{row.reserved}</td>
                         <td className="r num">{row.available === null ? '—' : row.available}</td>
+                        <td className="r num">{row.returned > 0 ? row.returned : '—'}</td>
+                        <td className="r num" style={row.missing > 0 ? { color: 'var(--bad)' } : undefined}>{row.missing > 0 ? row.missing : '—'}</td>
                         <td className="mini dim">{row.sources.join(', ')}</td>
                         <td><span className={`badge ${badge.className}`}>{badge.label}</span></td>
                       </tr>

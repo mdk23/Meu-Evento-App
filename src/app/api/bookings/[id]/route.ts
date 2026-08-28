@@ -8,6 +8,20 @@ import { deriveEventStatus } from '@/lib/event-progress';
 import { resolveLineAmounts } from '@/lib/booking-service-pricing';
 import { assertServiceScopeAllowed, ServiceScopeError } from '@/lib/service-scope';
 import { seedResourceRequirementsForBookingService } from '@/lib/booking-resource-requirements';
+import { planBookingServiceSync, SubmittedLine, ExistingLine } from '@/lib/booking-service-sync';
+import { resolveReservationTransition } from '@/lib/inventory-lifecycle';
+import { resolveRequiredQuantity } from '@/lib/service-inventory-requirements';
+
+/** Thrown when a full POS edit would remove a service line that still has issued / in-use / returned
+ * inventory — the operator must return that stock first. Surfaced as a 409. */
+class BookingEditRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BookingEditRefusedError';
+  }
+}
+
+const GUEST_DRIVEN_QUANTITY_TYPES = ['PER_GUEST', 'PER_UNIT', 'GUESTS_PER_UNIT'];
 
 export async function PATCH(
   request: Request,
@@ -111,9 +125,10 @@ export async function PATCH(
       assertCapacityForConfirmation(resolvedGuestCount, existingBooking.venue.capacity, resolvedOverrideReason);
     }
 
-    // Update booking + client + event + services + payment schedule atomically —
-    // the service/payment sync below deletes-then-recreates rows, so a partial failure
-    // must not leave the booking with a wiped-but-not-rebuilt services or payment schedule.
+    // Update booking + client + event + service lines atomically. The service sync below is a
+    // diff/merge (Phase 9) — existing BookingService rows and their reservations are kept, only the
+    // real delta is created/removed — but it still spans several writes, so a partial failure must
+    // not leave the line list half-synced.
     const updatedBooking = await prismaTransaction.$transaction(async (tx) => {
       // Only WAITING_LIST/CANCELLED bookings are allowed to overlap an already-booked window.
       // Re-check whenever the resulting status is a blocking one, whether it's because the
@@ -188,42 +203,42 @@ export async function PATCH(
         }
       }
 
-      // Sync service lines if provided (Full POS Edit) — keyed off `bookingId`, which is always
-      // set regardless of whether this booking has an Event, so this applies equally to VENUE and
-      // EVENT bookings (a VENUE booking's lines are commercial-only: no `eventId`).
+      // Sync service lines if provided (Full POS Edit). Diff/merge against the existing lines rather
+      // than delete-then-recreate — so every already-made reservation, allocation, and lifecycle
+      // state on a `BookingServiceResource` survives an edit. Keyed off `bookingId`, so it applies
+      // equally to VENUE and EVENT bookings (a VENUE booking's lines are commercial-only, no eventId).
       if (isEdit && selectedServices && Array.isArray(selectedServices)) {
-        // Delete old services — cascades to their auto-seeded BookingServiceResource rows too
-        // (rebuilt fresh below per surviving line, same "full edit replaces the whole line list"
-        // reasoning as everything else here).
-        await tx.bookingService.deleteMany({
-          where: { bookingId: existingBooking.id }
-        });
-        // ...and their package-application snapshots, if any — a full edit rebuilds the whole line
-        // list from scratch, so any package attribution is rebuilt fresh below too, from whatever
-        // package-tagged lines are still in the submitted cart (cascades to BookingPackageItem).
-        await tx.bookingPackage.deleteMany({
-          where: { bookingId: existingBooking.id }
-        });
-
         const tenantId = existingBooking.tenantId || (await tx.tenant.findFirst())?.id;
-        const packageAppMap = new Map<string, string>();
+        const eventId =
+          existingBooking.context === 'EVENT' && existingBooking.event ? existingBooking.event.id : null;
+        const resolvedGuestCount =
+          guestCount !== undefined ? parseInt(guestCount, 10) : existingBooking.guestCount;
+        const guestCountChanged =
+          guestCount !== undefined && parseInt(guestCount, 10) !== existingBooking.guestCount;
 
+        // 1. Resolve every submitted cart line to a catalog service (creating an ad-hoc Service for a
+        //    nameless line), scope-check it, and normalize its amounts. `planLine` is the subset the
+        //    pure planner needs; the rest drives the create path below.
+        interface PreparedLine {
+          planLine: SubmittedLine;
+          catalogServiceId: string;
+          priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
+          name: string;
+          notes: string;
+        }
+        const prepared: PreparedLine[] = [];
         for (const item of selectedServices) {
-          let catalogServiceId = item.serviceId;
+          let catalogServiceId: string | undefined = item.serviceId;
           let serviceScope: 'VENUE' | 'EVENT' | 'BOTH' | undefined;
           let servicePriceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT' | undefined;
 
           if (!catalogServiceId && tenantId) {
-            const existingService = await tx.service.findFirst({
-              where: { name: item.name, tenantId },
-            });
+            const existingService = await tx.service.findFirst({ where: { name: item.name, tenantId } });
             if (existingService) {
               catalogServiceId = existingService.id;
               serviceScope = existingService.context;
               servicePriceType = existingService.priceType;
             } else {
-              // Ad-hoc service born inside this booking rather than the Services page — "created in
-              // Venue, belongs to Venue": stamped with the booking's own (unchanging) workspace.
               const newService = await tx.service.create({
                 data: {
                   tenantId,
@@ -240,97 +255,248 @@ export async function PATCH(
               servicePriceType = newService.priceType;
             }
           }
+          if (!catalogServiceId) continue;
 
-          if (catalogServiceId) {
-            if (serviceScope === undefined || servicePriceType === undefined) {
-              const catalogService = await tx.service.findUnique({ where: { id: catalogServiceId }, select: { context: true, priceType: true } });
-              serviceScope = catalogService?.context ?? 'BOTH';
-              servicePriceType = catalogService?.priceType ?? 'FIXED';
-            }
-            assertServiceScopeAllowed(serviceScope, existingBooking.context, item.name);
+          if (serviceScope === undefined || servicePriceType === undefined) {
+            const catalogService = await tx.service.findUnique({
+              where: { id: catalogServiceId },
+              select: { context: true, priceType: true },
+            });
+            serviceScope = catalogService?.context ?? 'BOTH';
+            servicePriceType = catalogService?.priceType ?? 'FIXED';
+          }
+          assertServiceScopeAllowed(serviceScope, existingBooking.context, item.name);
 
-            const { quantity: itemQuantity, unitPrice: itemUnitPrice, sellingPrice: itemSellingPrice } = resolveLineAmounts(item);
+          const { quantity, unitPrice, sellingPrice } = resolveLineAmounts(item);
+          const isPackageSourced = !!(item.sourceBookingPackageId || (item.packageApplicationKey && item.sourcePackageId));
 
-            let bookingPackageId: string | null = null;
-            if (item.packageApplicationKey && item.sourcePackageId) {
-              bookingPackageId = packageAppMap.get(item.packageApplicationKey) ?? null;
-              if (!bookingPackageId) {
-                const sourcePackage = await tx.package.findUnique({
-                  where: { id: item.sourcePackageId },
-                  select: { context: true, pricingMode: true, price: true },
-                });
-                const bookingPackage = await tx.bookingPackage.create({
+          prepared.push({
+            catalogServiceId,
+            priceType: servicePriceType ?? 'FIXED',
+            name: item.name || 'Service',
+            notes: item.details || '',
+            planLine: {
+              bookingServiceId: item.bookingServiceId || undefined,
+              serviceId: catalogServiceId,
+              source: isPackageSourced ? 'PACKAGE' : 'DIRECT',
+              sourceBookingPackageId: item.sourceBookingPackageId || undefined,
+              packageApplicationKey: item.packageApplicationKey || undefined,
+              sourcePackageId: item.sourcePackageId || undefined,
+              sourcePackageName: item.sourcePackageName || undefined,
+              quantity,
+              unitPrice,
+              sellingPrice,
+              cost: item.cost || sellingPrice * 0.4,
+              providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+            },
+          });
+        }
+
+        // 2. Load the current lines (with each resource's status) and diff.
+        const existingServices = await tx.bookingService.findMany({
+          where: { bookingId: existingBooking.id },
+          select: {
+            id: true,
+            serviceId: true,
+            source: true,
+            bookingPackageId: true,
+            quantity: true,
+            unitPrice: true,
+            sellingPrice: true,
+            cost: true,
+            providerType: true,
+            resources: { select: { id: true, status: true, quantityType: true } },
+          },
+        });
+        const existingLines: ExistingLine[] = existingServices.map((bs) => ({
+          id: bs.id,
+          serviceId: bs.serviceId,
+          source: bs.source,
+          bookingPackageId: bs.bookingPackageId,
+          quantity: Number(bs.quantity),
+          unitPrice: Number(bs.unitPrice),
+          sellingPrice: Number(bs.sellingPrice),
+          cost: Number(bs.cost),
+          providerType: bs.providerType,
+          resources: bs.resources.map((r) => ({ id: r.id, status: r.status, quantityType: r.quantityType })),
+        }));
+
+        const plan = planBookingServiceSync(
+          existingLines,
+          prepared.map((p) => p.planLine),
+          { guestCountChanged }
+        );
+
+        // 3. Refuse the whole edit up front if any removed line has dispatched stock.
+        const refusals = plan.remove.filter((r) => r.plan === 'REFUSE');
+        if (refusals.length > 0) {
+          const labelById = new Map(
+            (
+              await tx.bookingService.findMany({
+                where: { id: { in: refusals.map((r) => r.id) } },
+                select: { id: true, serviceNameSnapshot: true, service: { select: { name: true } } },
+              })
+            ).map((e) => [e.id, e.serviceNameSnapshot || e.service?.name || 'a service'])
+          );
+          const label = refusals.map((r) => `"${labelById.get(r.id) ?? 'a service'}"`).join(', ');
+          throw new BookingEditRefusedError(
+            `Can't remove ${label} — it has inventory issued or in use. Return that stock first, then edit.`
+          );
+        }
+
+        // 4. Removals: release any still-reserved rows (audited RELEASE transition + ledger row),
+        //    then delete the line (its remaining PLANNED/RELEASED resources cascade).
+        for (const removal of plan.remove) {
+          if (removal.plan === 'RELEASE_THEN_DELETE') {
+            const rows = await tx.bookingServiceResource.findMany({
+              where: { id: { in: removal.releaseResourceIds } },
+              select: { id: true, status: true, inventoryItemId: true, reservedQuantity: true },
+            });
+            for (const row of rows) {
+              const transition = resolveReservationTransition(row.status, 'RELEASE');
+              if ('error' in transition) continue;
+              await tx.bookingServiceResource.update({ where: { id: row.id }, data: { status: 'RELEASED' } });
+              if (row.inventoryItemId) {
+                await tx.inventoryTransaction.create({
                   data: {
-                    bookingId: existingBooking.id,
-                    packageId: item.sourcePackageId,
-                    nameSnapshot: item.sourcePackageName || 'Package',
-                    context: sourcePackage?.context ?? existingBooking.context,
-                    price: sourcePackage?.pricingMode === 'FIXED' ? sourcePackage.price : null,
+                    tenantId: existingBooking.tenantId,
+                    inventoryItemId: row.inventoryItemId,
+                    eventId,
+                    bookingServiceId: removal.id,
+                    bookingServiceResourceId: row.id,
+                    type: 'RELEASE',
+                    quantity: row.reservedQuantity,
+                    createdBy: 'Staff',
                   },
                 });
-                bookingPackageId = bookingPackage.id;
-                packageAppMap.set(item.packageApplicationKey, bookingPackageId);
               }
             }
+          }
+          await tx.bookingService.delete({ where: { id: removal.id } });
+        }
 
-            const createdBookingService = await tx.bookingService.create({
-              data: {
-                bookingId: existingBooking.id,
-                // Not just `existingBooking.event?.id` — a demoted booking keeps its Event record
-                // (kept, not deleted) while `context` flips to VENUE, so event-existence alone no
-                // longer implies "this booking is currently in the Event workspace."
-                eventId: existingBooking.context === 'EVENT' && existingBooking.event ? existingBooking.event.id : null,
-                serviceId: catalogServiceId,
-                // Resolved from whichever workspace this booking is in — matches the plain-add path
-                // since a package's own context snapshot doesn't exist as a separate signal yet.
-                context: existingBooking.context,
-                priceType: servicePriceType ?? 'FIXED',
-                serviceNameSnapshot: item.name || null,
-                providerType: item.providerType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
-                quantity: itemQuantity,
-                unitPrice: itemUnitPrice,
-                sellingPrice: itemSellingPrice,
-                cost: item.cost || (itemSellingPrice * 0.4),
-                status: 'PLANNING',
-                source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
-                bookingPackageId,
-              },
+        // 5. Updates: commercial fields only. When a DIRECT line's driver changed, re-resolve its
+        //    still-PLANNED, template-seeded, guest/unit-driven resource requirements — reserved/
+        //    confirmed/issued rows are left alone (the resource summary's "additional" surfaces the gap).
+        for (const upd of plan.update) {
+          const preparedForUpd = prepared.find((p) => p.planLine.bookingServiceId === upd.id);
+          if (Object.keys(upd.fields).length > 0) {
+            await tx.bookingService.update({ where: { id: upd.id }, data: upd.fields });
+          }
+          if (upd.recalcResourceRequiredQty && preparedForUpd) {
+            const rows = await tx.bookingServiceResource.findMany({
+              where: { bookingServiceId: upd.id, status: 'PLANNED', sourceRequirementId: { not: null } },
+              include: { sourceRequirement: { select: { quantity: true, quantityType: true } } },
             });
-
-            if (tenantId) {
-              await seedResourceRequirementsForBookingService(tx, {
-                tenantId,
-                bookingId: existingBooking.id,
-                bookingServiceId: createdBookingService.id,
-                serviceId: catalogServiceId,
-                guestCount: guestCount !== undefined ? parseInt(guestCount, 10) : existingBooking.guestCount,
-                unitCount: itemQuantity,
-                startAt: existingBooking.startAt,
-                endAt: existingBooking.endAt,
-              });
-            }
-
-            if (bookingPackageId && tenantId) {
-              await tx.bookingPackageItem.create({
+            for (const row of rows) {
+              if (!row.sourceRequirement) continue;
+              if (!GUEST_DRIVEN_QUANTITY_TYPES.includes(row.sourceRequirement.quantityType)) continue;
+              await tx.bookingServiceResource.update({
+                where: { id: row.id },
                 data: {
-                  tenantId,
-                  bookingPackageId,
-                  serviceId: catalogServiceId,
-                  bookingServiceId: createdBookingService.id,
-                  serviceName: item.name || 'Service',
-                  quantity: itemQuantity,
-                  unitPrice: itemUnitPrice,
-                  totalPrice: itemSellingPrice,
+                  requiredQuantity: resolveRequiredQuantity({
+                    quantityType: row.sourceRequirement.quantityType,
+                    quantity: row.sourceRequirement.quantity,
+                    guestCount: resolvedGuestCount,
+                    unitCount: preparedForUpd.planLine.quantity,
+                  }),
                 },
               });
             }
           }
         }
 
-        // The services above were just wiped and recreated at fresh PLANNING status, so the
-        // event's derived status must be recalculated from that reality — this intentionally
-        // supersedes any eventStatus override passed in this same request. No-op for a VENUE
-        // booking, which has no Event to recalculate.
+        // 6. Creates: brand-new lines added during this edit. A line carrying an existing
+        //    `sourceBookingPackageId` reuses that frozen BookingPackage; a line with a
+        //    `packageApplicationKey` but no snapshot yet is a package applied during this edit —
+        //    create one BookingPackage per distinct key.
+        const packageAppMap = new Map<string, string>();
+        for (const p of prepared) {
+          if (!plan.create.includes(p.planLine)) continue;
+          const line = p.planLine;
+
+          let bookingPackageId: string | null = null;
+          if (line.sourceBookingPackageId) {
+            const stillThere = await tx.bookingPackage.findFirst({
+              where: { id: line.sourceBookingPackageId, bookingId: existingBooking.id },
+              select: { id: true },
+            });
+            bookingPackageId = stillThere?.id ?? null;
+          }
+          if (!bookingPackageId && line.packageApplicationKey && line.sourcePackageId) {
+            bookingPackageId = packageAppMap.get(line.packageApplicationKey) ?? null;
+            if (!bookingPackageId) {
+              const sourcePackage = await tx.package.findUnique({
+                where: { id: line.sourcePackageId },
+                select: { context: true, pricingMode: true, price: true, version: true },
+              });
+              const bookingPackage = await tx.bookingPackage.create({
+                data: {
+                  tenantId: existingBooking.tenantId,
+                  bookingId: existingBooking.id,
+                  packageId: line.sourcePackageId,
+                  nameSnapshot: line.sourcePackageName || 'Package',
+                  context: sourcePackage?.context ?? existingBooking.context,
+                  price: sourcePackage?.pricingMode === 'FIXED' ? sourcePackage.price : null,
+                  packageVersion: sourcePackage?.version ?? 1,
+                },
+              });
+              bookingPackageId = bookingPackage.id;
+              packageAppMap.set(line.packageApplicationKey, bookingPackageId);
+            }
+          }
+
+          const createdBookingService = await tx.bookingService.create({
+            data: {
+              tenantId: existingBooking.tenantId,
+              bookingId: existingBooking.id,
+              eventId,
+              serviceId: p.catalogServiceId,
+              context: existingBooking.context,
+              priceType: p.priceType,
+              serviceNameSnapshot: p.name,
+              providerType: line.providerType,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              sellingPrice: line.sellingPrice,
+              cost: line.cost,
+              status: 'PLANNING',
+              source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
+              bookingPackageId,
+            },
+          });
+
+          if (tenantId) {
+            await seedResourceRequirementsForBookingService(tx, {
+              tenantId,
+              bookingId: existingBooking.id,
+              bookingServiceId: createdBookingService.id,
+              serviceId: p.catalogServiceId,
+              guestCount: resolvedGuestCount,
+              unitCount: line.quantity,
+              startAt: existingBooking.startAt,
+              endAt: existingBooking.endAt,
+              source: bookingPackageId ? 'PACKAGE' : 'DIRECT',
+            });
+          }
+
+          if (bookingPackageId && tenantId) {
+            await tx.bookingPackageItem.create({
+              data: {
+                tenantId,
+                bookingPackageId,
+                serviceId: p.catalogServiceId,
+                bookingServiceId: createdBookingService.id,
+                serviceName: p.name,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                totalPrice: line.sellingPrice,
+              },
+            });
+          }
+        }
+
+        // Recompute the event's derived status from the resulting line set (no-op for a VENUE booking).
         if (existingBooking.event) {
           const freshServices = await tx.bookingService.findMany({
             where: { eventId: existingBooking.event.id },
@@ -368,6 +534,9 @@ export async function PATCH(
     return NextResponse.json(serializeDecimals({ success: true, booking: updatedBooking }));
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof BookingEditRefusedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof CapacityExceededError) {

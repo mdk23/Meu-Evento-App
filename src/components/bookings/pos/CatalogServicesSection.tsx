@@ -1,6 +1,14 @@
 import React from 'react';
-import { Plus, Search, Check, Boxes, ListChecks } from 'lucide-react';
+import { Plus, Search, Check, Boxes, ListChecks, AlertTriangle } from 'lucide-react';
 import { ServiceItem, CartItem, CatalogPackage } from './types';
+
+export interface PackageCapacityWarning {
+  packageId: string;
+  packageName: string;
+  guestCount: number;
+  packageCapacity: number;
+  additionalCapacityRequired: number;
+}
 
 interface CatalogServicesSectionProps {
   searchTerm: string;
@@ -16,6 +24,7 @@ interface CatalogServicesSectionProps {
   packages: CatalogPackage[];
   onApplyPackage: (pkg: CatalogPackage) => void;
   isPackageApplied: (pkg: CatalogPackage) => boolean;
+  packageCapacityWarnings: PackageCapacityWarning[];
 }
 
 export default function CatalogServicesSection({
@@ -32,6 +41,7 @@ export default function CatalogServicesSection({
   packages,
   onApplyPackage,
   isPackageApplied,
+  packageCapacityWarnings,
 }: CatalogServicesSectionProps) {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [viewMode, setViewMode] = React.useState<'services' | 'packages'>('services');
@@ -86,6 +96,23 @@ export default function CatalogServicesSection({
           </button>
         </div>
       </div>
+
+      {packageCapacityWarnings.length > 0 && (
+        <div
+          className="stack"
+          style={{ gap: 6, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--warn)', background: 'var(--warn-bg, var(--surface-2))', flexShrink: 0 }}
+        >
+          {packageCapacityWarnings.map((w) => (
+            <div key={w.packageId} className="row mini" style={{ gap: 8, alignItems: 'flex-start' }}>
+              <AlertTriangle className="w-4 h-4" style={{ color: 'var(--warn)', flexShrink: 0, marginTop: 1 }} />
+              <span>
+                Booking exceeds &ldquo;{w.packageName}&rdquo; capacity. Guests {w.guestCount}, package {w.packageCapacity}
+                {' '}&mdash; add services for {w.additionalCapacityRequired} more. The package is not changed.
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col gap-5 overflow-hidden">
         {/* SEARCH BAR */}

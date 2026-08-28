@@ -265,15 +265,15 @@ export function useEventDetail(id: string) {
     }
   };
 
-  /** Advances a resource through Allocate/Use/Return/Release. */
-  const handleReservationAction = async (resourceId: string, action: string) => {
+  /** Advances a resource through Confirm/Issue/Allocate/Use/Return/Release, or logs Damage/Loss. */
+  const handleReservationAction = async (resourceId: string, action: string, quantity?: number) => {
     if (!selectedService || !data) return;
     setWorkOrderError('');
     try {
       const res = await fetch(`/api/bookings/${data.event.booking.id}/services/${selectedService.id}/inventory/${resourceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(quantity !== undefined ? { action, quantity } : { action }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -283,6 +283,31 @@ export function useEventDetail(id: string) {
       await reloadEvent();
     } catch (err) {
       console.error('Failed to transition inventory reservation:', err);
+    }
+  };
+
+  /** Locks a category-based resource placeholder to a specific in-category item without reserving
+   * stock — status stays PLANNED, no transaction is written. */
+  const handleResolveVariant = async (resourceId: string, inventoryItemId: string) => {
+    if (!selectedService || !data) return;
+    setWorkOrderError('');
+    try {
+      const res = await fetch(
+        `/api/bookings/${data.event.booking.id}/services/${selectedService.id}/inventory/${resourceId}/resolve`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inventoryItemId }),
+        }
+      );
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setWorkOrderError(json.error || 'Failed to set the item for this requirement.');
+        return;
+      }
+      await reloadEvent();
+    } catch (err) {
+      console.error('Failed to resolve category resource:', err);
     }
   };
 
@@ -370,6 +395,7 @@ export function useEventDetail(id: string) {
     handleRemoveReservedInventory,
     handleReservationAction,
     handleReuseReservation,
+    handleResolveVariant,
 
     isAddServiceOpen,
     setIsAddServiceOpen,

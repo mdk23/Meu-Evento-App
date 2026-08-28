@@ -32,7 +32,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, categoryId, quantity } = body;
+    const { name, categoryId, quantity, seatingCapacity } = body;
 
     const existing = await prisma.inventoryItem.findUnique({ where: { id } });
     if (!existing) {
@@ -52,6 +52,8 @@ export async function PATCH(
         name: name !== undefined ? name.trim() : existing.name,
         categoryId: categoryId !== undefined ? categoryId : existing.categoryId,
         totalQuantity: quantity !== undefined ? parseInt(quantity, 10) : existing.totalQuantity,
+        seatingCapacity:
+          seatingCapacity !== undefined ? parseInt(seatingCapacity, 10) || 0 : existing.seatingCapacity,
       },
       include: { category: true },
     });

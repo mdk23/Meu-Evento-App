@@ -14,7 +14,12 @@ function resolvePriceType(value: unknown): PriceType {
 }
 
 function resolveQuantityType(value: unknown): QuantityType {
-  return value === 'PER_GUEST' || value === 'PER_UNIT' ? (value as QuantityType) : QuantityType.FIXED;
+  return value === 'PER_GUEST' ||
+    value === 'PER_UNIT' ||
+    value === 'GUESTS_PER_UNIT' ||
+    value === 'MANUAL'
+    ? (value as QuantityType)
+    : QuantityType.FIXED;
 }
 
 interface InventoryRequirementInput {
@@ -33,6 +38,9 @@ function validateRequirements(requirements: unknown): { error: string } | { rows
   for (const r of requirements as InventoryRequirementInput[]) {
     if (!r.inventoryItemId && !r.categoryId) {
       return { error: 'Each inventory requirement needs either a specific item or a category.' };
+    }
+    if (r.quantityType === 'GUESTS_PER_UNIT' && !(parseFloat(String(r.quantity ?? 0)) > 0)) {
+      return { error: 'Guests-per-unit requirements need a seats-per-unit value greater than zero.' };
     }
   }
   return { rows: requirements as InventoryRequirementInput[] };
