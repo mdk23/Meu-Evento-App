@@ -10,12 +10,12 @@ export class InvalidCrossoverError extends Error {
 }
 
 /**
- * Promotes a SPACE booking into an EVENT booking. The contract, payments and reserved stock carry
+ * Promotes a VENUE booking into an EVENT booking. The contract, payments and reserved stock carry
  * across untouched — nothing about `PaymentPlan`/`ScheduledPayment`/`PaymentTransaction` changes,
  * since they're keyed off `bookingId`, which never changes. `Event.bookingId` is unique, so a
  * booking that was previously demoted (its Event kept, not deleted) reactivates that same Event
  * rather than creating a duplicate — this makes promote idempotent-safe across repeated
- * promote/demote cycles. Every commercial-only `BookingService` line added while this was a Space
+ * promote/demote cycles. Every commercial-only `BookingService` line added while this was a Venue
  * booking (`eventId: null`) gets linked to the (re)activated Event, so it immediately shows up as
  * the event's starting service list.
  */
@@ -29,7 +29,7 @@ export async function promoteBookingToEvent(
     include: { client: true, event: true },
   });
   if (!booking) throw new InvalidCrossoverError('Booking not found.');
-  if (booking.context !== BookingContext.SPACE) {
+  if (booking.context !== BookingContext.VENUE) {
     throw new InvalidCrossoverError('Only a Venue booking can be promoted to an Event.');
   }
 
@@ -70,7 +70,7 @@ export async function promoteBookingToEvent(
 }
 
 /**
- * Demotes an EVENT booking back to a SPACE booking. The Event record is kept, not deleted — its
+ * Demotes an EVENT booking back to a VENUE booking. The Event record is kept, not deleted — its
  * `BookingService`/task/staff/inventory-reservation history stays exactly as it was, simply no
  * longer the booking's active workspace. Nothing about the contract, payments, or reserved stock
  * changes; `context` is the only field this touches on `Booking`.
@@ -86,7 +86,7 @@ export async function demoteBookingToVenue(
     throw new InvalidCrossoverError('Only an Event booking can be demoted to Venue.');
   }
 
-  await tx.booking.update({ where: { id: bookingId }, data: { context: BookingContext.SPACE } });
+  await tx.booking.update({ where: { id: bookingId }, data: { context: BookingContext.VENUE } });
 
   await tx.auditLog.create({
     data: {

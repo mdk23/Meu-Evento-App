@@ -4,7 +4,7 @@ export type WorkspaceKind = 'VENUE' | 'EVENT';
 /** Whether a catalog item (Service or Package) scoped `scope` should be selectable from a booking
  * in workspace `kind`. Event is the superset workspace — an Event booking legitimately needs the
  * venue too (its own example: "an event uses an event package and a space package"), so it sees
- * everything. A Space booking is commercial-only and only ever sees Space + Both-scoped items. */
+ * everything. A Venue booking is commercial-only and only ever sees Venue + Both-scoped items. */
 export function isScopeAllowedForKind(scope: CatalogScope, kind: WorkspaceKind): boolean {
   if (kind === 'EVENT') return true;
   return scope === 'VENUE' || scope === 'BOTH';
@@ -12,7 +12,7 @@ export function isScopeAllowedForKind(scope: CatalogScope, kind: WorkspaceKind):
 
 /** Whether a service scoped `serviceScope` may be bundled into a package scoped `packageScope`.
  * Deliberately symmetric — unlike `isScopeAllowedForKind`, a package never gets Event's "superset"
- * treatment: an EVENT package cannot bundle a SPACE-only service any more than a SPACE package can
+ * treatment: an EVENT package cannot bundle a VENUE-only service any more than a VENUE package can
  * bundle an EVENT-only one. Only a BOTH-scoped service (or an exact scope match) is compatible,
  * which is what keeps a package's own catalog "pure" to its declared workspace. */
 export function isServiceCompatibleWithPackageScope(serviceScope: CatalogScope, packageScope: 'VENUE' | 'EVENT'): boolean {
@@ -29,7 +29,7 @@ export class ServiceScopeError extends Error {
 /**
  * Defense in depth — the booking-creation catalog fetch already filters to eligible services, but a
  * client bypassing that (a direct API call) must not be able to smuggle an EVENT-only service into a
- * SPACE booking, or vice versa. Must be called before any `BookingService` write, not just relied on
+ * VENUE booking, or vice versa. Must be called before any `BookingService` write, not just relied on
  * via the filtered catalog.
  */
 export function assertServiceScopeAllowed(scope: CatalogScope, kind: WorkspaceKind, serviceName?: string): void {

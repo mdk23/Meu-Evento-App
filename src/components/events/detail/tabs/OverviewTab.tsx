@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Space, EventStatus } from '@prisma/client';
+import { Venue, EventStatus } from '@prisma/client';
 import {
   MapPin,
   Mail,
@@ -19,7 +19,7 @@ import { eventStatusBadgeClass } from '../statusStyles';
 
 interface OverviewTabProps {
   event: EventDetailPayload;
-  space?: Space | null;
+  space?: Venue | null;
   onNavigateTab?: (tab: TabId) => void;
 }
 
@@ -203,7 +203,7 @@ export default function OverviewTab({ event, space, onNavigateTab }: OverviewTab
 
         {/* SIDEBAR */}
         <div className="stack" style={{ gap: 24 }}>
-          {/* SPACE & CAPACITY */}
+          {/* VENUE & CAPACITY */}
           <div className="card plain stack">
             <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Venue & Capacity

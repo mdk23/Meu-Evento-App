@@ -121,7 +121,7 @@ export function useBookingPOS({
     return { startAt: start, endAt: end };
   }, [eventDate, startTime, endTime]);
 
-  // Spaces List
+  // Venues List
   const venuesList = useMemo(() => {
     return initialVenues.length > 0
       ? initialVenues.map(s => ({
@@ -137,7 +137,7 @@ export function useBookingPOS({
   // Selected space
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
 
-  // There's one real Space per tenant — its capacity is what guestCount is checked against.
+  // There's one real Venue per tenant — its capacity is what guestCount is checked against.
   const venueCapacity = venuesList[0]?.capacity || 0;
   const overCapacity = isOverCapacity(guestCount, venueCapacity);
 
@@ -148,7 +148,7 @@ export function useBookingPOS({
       id: s.id,
       name: s.name,
       // A BOTH-context service is bucketed into whichever workspace this booking is for, since the
-      // existing Space/Event cost-total split only has two buckets and "shared, but counted here in
+      // existing Venue/Event cost-total split only has two buckets and "shared, but counted here in
       // this booking" is the correct read of BOTH.
       category: (s.context === 'BOTH' ? initialKind : s.context) as 'VENUE' | 'EVENT',
       providerType: (s.defaultProviderType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL') as 'INTERNAL' | 'EXTERNAL',
@@ -159,7 +159,7 @@ export function useBookingPOS({
     }));
   }, [initialServices, initialKind]);
 
-  // Space Services derived directly from catalogServices (Category: SPACE)
+  // Venue Services derived directly from catalogServices (Category: VENUE)
   const venueServices = useMemo(() => {
     return catalogServices.filter(s => s.category === 'VENUE');
   }, [catalogServices]);
@@ -182,7 +182,7 @@ export function useBookingPOS({
           id: `cart-${es.serviceId}-${Date.now()}-${Math.random()}`,
           serviceId: es.serviceId,
           name: es.service?.name || 'Service',
-          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'Space Rental' || es.service?.category === 'VENUE') ? 'VENUE' : 'EVENT',
+          category: (es.service?.category === 'Venue Rental' || es.service?.category === 'Venue Rental' || es.service?.category === 'VENUE') ? 'VENUE' : 'EVENT',
           providerType: es.providerType || es.service?.defaultProviderType || 'INTERNAL',
           providerName: es.providerType === 'EXTERNAL' || es.service?.defaultProviderType === 'EXTERNAL' ? 'External Supplier' : 'Internal Venue',
           priceType: (es.service?.priceType === 'PER_GUEST' || es.service?.priceType === 'PER_HOUR' ? es.service.priceType : 'FIXED') as CartItem['priceType'],
@@ -201,7 +201,7 @@ export function useBookingPOS({
   const [customMilestones, setCustomMilestones] = useState<MilestoneDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Sync Space Selection with Cart Item using real catalog service
+  // Sync Venue Selection with Cart Item using real catalog service
   const handleSelectVenue = (service: ServiceItem) => {
     setSelectedVenueId(service.id);
     toggleCatalogService(service);

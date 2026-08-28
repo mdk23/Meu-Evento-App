@@ -22,7 +22,7 @@ interface VenueOverviewDashboardProps {
 
 /** Venue-workspace "Overview" — commercial-only by design, so there's no service-execution or
  * supplier panel here (see `EventOverviewDashboard` for that side). Reads straight off `Booking`
- * rather than `Event`, since SPACE-kind bookings never have one. */
+ * rather than `Event`, since VENUE-kind bookings never have one. */
 export default function VenueOverviewDashboard({ data }: VenueOverviewDashboardProps) {
   const { kpis, todaysBookings, upcomingBookings, space } = data;
   const collectedPercent = kpis.pendingAmount + kpis.totalCollected > 0
@@ -151,9 +151,9 @@ export default function VenueOverviewDashboard({ data }: VenueOverviewDashboardP
           </div>
         </div>
 
-        {/* SPACE & PAYMENT SNAPSHOT (1 COL) */}
+        {/* VENUE & PAYMENT SNAPSHOT (1 COL) */}
         <div className="space-y-6">
-          {/* SPACE & CAPACITY */}
+          {/* VENUE & CAPACITY */}
           <div className="card space-y-4">
             <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <MapPin className="w-4 h-4" style={{ color: 'var(--accent)' }} /> Venue &amp; Capacity

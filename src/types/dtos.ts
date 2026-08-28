@@ -34,7 +34,7 @@ export interface DashboardDTO {
 
 export interface VenueDashboardDTO {
   kpis: {
-    /** Contracted revenue: SUM(EventService.sellingPrice) - discount for SPACE-kind bookings only. */
+    /** Contracted revenue: SUM(EventService.sellingPrice) - discount for VENUE-kind bookings only. */
     revenue: number;
     totalCollected: number;
     pendingAmount: number;
@@ -80,7 +80,7 @@ export interface BookingListDTO {
   guestCount: number;
   status: string;
   bookingType: string;
-  /** SPACE = commercial-only, no Event workspace; EVENT = has one. See promote/demote. */
+  /** VENUE = commercial-only, no Event workspace; EVENT = has one. See promote/demote. */
   kind: 'VENUE' | 'EVENT';
   notes?: string | null;
   hasEvent: boolean;
@@ -165,7 +165,7 @@ export interface ServiceCardDTO {
   id: string;
   name: string;
   category: string;
-  /** Which workspace(s) this service can be selected from — SPACE, EVENT, or BOTH. */
+  /** Which workspace(s) this service can be selected from — VENUE, EVENT, or BOTH. */
   context: 'VENUE' | 'EVENT' | 'BOTH';
   defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
   priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';

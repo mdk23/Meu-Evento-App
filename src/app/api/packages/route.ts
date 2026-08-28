@@ -37,14 +37,14 @@ export async function POST(request: Request) {
     }
 
     if (!name || (scope !== 'VENUE' && scope !== 'EVENT')) {
-      return NextResponse.json({ error: 'Name and a valid scope (SPACE or EVENT) are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Name and a valid scope (VENUE or EVENT) are required' }, { status: 400 });
     }
     if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
       return NextResponse.json({ error: 'At least one service is required' }, { status: 400 });
     }
 
     // Defense in depth — the package builder's checklist already filters to compatible services,
-    // but a direct API call must not be able to bundle e.g. an EVENT-only service into a SPACE
+    // but a direct API call must not be able to bundle e.g. an EVENT-only service into a VENUE
     // package (or vice versa) just because it bypassed that UI.
     const candidateServices = await prisma.service.findMany({
       where: { id: { in: serviceIds } },

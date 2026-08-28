@@ -11,7 +11,7 @@ interface BookingHandoverTabProps {
   booking: BookingPOSInitialData;
 }
 
-/** SPACE → a Hand-over placeholder (commercial-only bookings have no operational workspace) with a
+/** VENUE → a Hand-over placeholder (commercial-only bookings have no operational workspace) with a
  * one-click Promote action. EVENT → a link into the real Event workspace, which already has full
  * tabs (Services/Tasks/Guests/Resources/Suppliers/Payments/Execution). */
 export default function BookingHandoverTab({ booking }: BookingHandoverTabProps) {

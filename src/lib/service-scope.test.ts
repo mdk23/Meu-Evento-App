@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isScopeAllowedForKind, isServiceCompatibleWithPackageScope, assertServiceScopeAllowed, ServiceScopeError } from './service-scope';
 
 describe('isScopeAllowedForKind (booking catalog eligibility)', () => {
-  it('a SPACE booking only sees SPACE and BOTH-scoped items', () => {
+  it('a VENUE booking only sees VENUE and BOTH-scoped items', () => {
     expect(isScopeAllowedForKind('VENUE', 'VENUE')).toBe(true);
     expect(isScopeAllowedForKind('BOTH', 'VENUE')).toBe(true);
     expect(isScopeAllowedForKind('EVENT', 'VENUE')).toBe(false);

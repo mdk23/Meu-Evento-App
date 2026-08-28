@@ -4,7 +4,7 @@ import { assertReuseQuantityAvailable, InventoryConflictError } from '@/lib/reso
 
 /**
  * Fulfills a `BookingServiceResource` row by reusing another service's already-active resource on
- * the same booking instead of creating a fresh reservation — the cross-workspace "Space already
+ * the same booking instead of creating a fresh reservation — the cross-workspace "Venue already
  * reserved 300 chairs, Event's Decoration needs 200 of them" scenario. Never touches the target's
  * own `reservedQuantity` or creates an `InventoryTransaction` — reuse is a bookkeeping link
  * (`reusedFromResourceId`) against stock that's already committed, not a new physical movement.

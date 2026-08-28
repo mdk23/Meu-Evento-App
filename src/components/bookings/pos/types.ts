@@ -58,13 +58,13 @@ export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
   select: { id: true; name: true; category: true; context: true; defaultProviderType: true; defaultPrice: true; priceType: true };
 }>>;
 
-export type CatalogVenue = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
+export type CatalogVenue = Prisma.VenueGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;
 
 export type BookingSummary = Prisma.BookingGetPayload<{
   select: { id: true; eventDate: true; startAt: true; endAt: true; venueId: true; status: true; client: { select: { name: true } } };
 }>;
 
-/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `bookingServices` reads off the booking directly — it's always set, unlike `event`, which is null for a SPACE booking. `bookingPackages` is the frozen record of which packages produced which lines — read-only, purely for display (see `BookingContractTab`). */
+/** Full booking record loaded when editing an existing booking; legacy `clientName`/`title` are tolerated but never populated by current callers. `bookingServices` reads off the booking directly — it's always set, unlike `event`, which is null for a VENUE booking. `bookingPackages` is the frozen record of which packages produced which lines — read-only, purely for display (see `BookingContractTab`). */
 export type BookingPOSInitialData = DecimalToNumber<Prisma.BookingGetPayload<{
   include: {
     client: true;
@@ -92,7 +92,7 @@ export interface BookingPOSTerminalProps {
   initialDate?: string;
   /** Which workspace a brand-new booking is created into (`Booking.context`) — set from the
    * `?context=` query string when the "New Booking" link is reached from a workspace-scoped page
-   * (e.g. Space Bookings). Defaults to `EVENT` to match every existing unscoped caller. Ignored when
+   * (e.g. Venue Bookings). Defaults to `EVENT` to match every existing unscoped caller. Ignored when
    * editing. */
   initialKind?: 'VENUE' | 'EVENT';
 }

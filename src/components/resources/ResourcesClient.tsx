@@ -8,7 +8,7 @@ import { Building2, Package, Users, Truck, Plus, Loader2, X, Edit3, Trash2, Save
 import { Prisma } from '@prisma/client';
 import Topbar from '@/components/aurelia/Topbar';
 
-type ResourceVenue = Prisma.SpaceGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
+type ResourceVenue = Prisma.VenueGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
 type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; categoryId: true; category: { select: { name: true } } } }>;
 type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
 type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
@@ -202,7 +202,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
             full viewport width, unlike the other tabs' single-column/card layouts. */}
         <div className={`flex-1 overflow-auto page${activeTab === 'inventory' ? ' full-bleed' : ''}`}>
 
-          {/* TAB 1: SPACE */}
+          {/* TAB 1: VENUE */}
           {activeTab === 'space' && (
             <div className="card plain stack" style={{ maxWidth: 640 }}>
               <div className="between" style={{ alignItems: 'flex-start' }}>

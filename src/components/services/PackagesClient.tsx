@@ -69,7 +69,7 @@ export default function PackagesClient({ initialPackages, initialServices, initi
   };
 
   // Switching Workspace can make an already-checked service incompatible (e.g. an EVENT-only
-  // service checked while scope was EVENT, now switching to SPACE) — drop it from the selection
+  // service checked while scope was EVENT, now switching to VENUE) — drop it from the selection
   // right here rather than just hiding it from the now-filtered checklist below, since a hidden but
   // still-selected service would otherwise fail with a confusing error on submit.
   const handleScopeChange = (nextScope: 'VENUE' | 'EVENT') => {

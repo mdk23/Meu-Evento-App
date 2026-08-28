@@ -1,6 +1,6 @@
 import { VenueItem, ServiceItem } from './types';
 
-// There's one Space per tenant (see the `Space` model) — this fallback only renders if that
+// There's one Venue per tenant (see the `Venue` model) — this fallback only renders if that
 // real record somehow fails to load, so it deliberately doesn't invent named sub-venues.
 export const defaultVenues: VenueItem[] = [
   {

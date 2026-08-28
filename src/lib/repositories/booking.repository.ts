@@ -132,7 +132,7 @@ export class BookingRepository {
 
     // Tab badge counts must reflect every status regardless of the current *status* filter/page, so
     // this is a separate groupBy ignoring `status` — same pattern as dashboard.repository.ts's status
-    // breakdowns. It still respects `kind`, though: when scoped to a workspace (Space or Event
+    // breakdowns. It still respects `kind`, though: when scoped to a workspace (Venue or Event
     // bookings only), the counts should describe that scope, not the whole tenant.
     const [bookings, total, statusGrouped] = await Promise.all([
       prisma.booking.findMany({

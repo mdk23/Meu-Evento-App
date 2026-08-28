@@ -7,7 +7,7 @@ export class BookingConflictError extends Error {
   }
 }
 
-/** Statuses that don't occupy the Space's calendar for conflict-checking purposes. */
+/** Statuses that don't occupy the Venue's calendar for conflict-checking purposes. */
 const NON_BLOCKING_STATUSES: BookingStatus[] = [BookingStatus.CANCELLED, BookingStatus.WAITING_LIST];
 
 /**

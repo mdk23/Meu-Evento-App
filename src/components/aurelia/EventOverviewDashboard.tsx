@@ -177,7 +177,7 @@ export default function EventOverviewDashboard({ data }: EventOverviewDashboardP
             </div>
           </div>
 
-          {/* QUICK LINKS & SPACE BANNER */}
+          {/* QUICK LINKS & VENUE BANNER */}
           <div className="card space-y-4" style={{ background: 'var(--accent-soft)' }}>
             <h3 className="h-md">Resources & Suppliers</h3>
             <p className="mini">

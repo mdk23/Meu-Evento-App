@@ -163,7 +163,7 @@ export class DashboardRepository {
   /** Same shape as `getDashboardData`, scoped to EVENT-kind bookings only — this is what "Overview"
    * shows while you're in the Event workspace. Filtering through `booking: { context: 'EVENT' }` also
    * fixes a real gap in the unscoped query: a demoted booking keeps its `Event` record ("kept, not
-   * deleted" — see `booking-crossover.ts`), so without this filter a Space booking that used to be
+   * deleted" — see `booking-crossover.ts`), so without this filter a Venue booking that used to be
    * an Event would still show up in operational panels it no longer belongs to. */
   static async getEventDashboardData(): Promise<DashboardDTO> {
     const todayStart = new Date();
@@ -280,7 +280,7 @@ export class DashboardRepository {
     };
   }
 
-  /** Space-workspace Overview — no `Event`/service-execution concept applies here (SPACE bookings
+  /** Venue-workspace Overview — no `Event`/service-execution concept applies here (VENUE bookings
    * are commercial-only by design), so this reads straight off `Booking` instead of `Event`, and
    * swaps the operational "Service Execution Status" panel for a payment-collection snapshot. */
   static async getVenueDashboardData(): Promise<VenueDashboardDTO> {

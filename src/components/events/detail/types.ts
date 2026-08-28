@@ -1,4 +1,4 @@
-import { Prisma, Space, Supplier, Staff, Service, InventoryItem } from '@prisma/client';
+import { Prisma, Venue, Supplier, Staff, Service, InventoryItem } from '@prisma/client';
 import { DecimalToNumber } from '@/lib/money';
 import { ReuseCandidate } from '@/lib/reuse-candidates';
 import { EventResourceSummaryRow } from '@/lib/event-resource-summary';
@@ -53,7 +53,7 @@ export type StaffAssignment = EventServiceWithRelations['staffAssignments'][numb
 export interface EventDetailApiResponse {
   event: EventDetailPayload;
   resourceSummary?: EventResourceSummaryRow[];
-  space?: Space | null;
+  space?: Venue | null;
   suppliers?: Supplier[];
   staff?: Staff[];
   catalogServices?: SerializedService[];

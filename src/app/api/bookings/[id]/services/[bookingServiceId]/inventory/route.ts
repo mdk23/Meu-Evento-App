@@ -11,7 +11,7 @@ import {
 /**
  * Reserves inventory for a `BookingService` line — reachable from any booking regardless of
  * whether it has an Event (no `eventId` requirement anywhere in this path), which is the whole
- * point of Phase 6: a Space-only booking gets exactly the same resource capability an Event
+ * point of Phase 6: a Venue-only booking gets exactly the same resource capability an Event
  * booking gets, no "Promote to Event" step required.
  */
 export async function POST(

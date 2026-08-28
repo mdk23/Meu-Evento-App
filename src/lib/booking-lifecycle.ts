@@ -10,7 +10,7 @@ export interface LifecycleInput {
   kind: 'VENUE' | 'EVENT';
   scheduledPayments: { amount: number; paidAmount: number }[];
   eventServices: { status: string }[];
-  /** Null when no Event record exists yet (a SPACE booking that's never been promoted). */
+  /** Null when no Event record exists yet (a VENUE booking that's never been promoted). */
   eventStatus?: string | null;
 }
 
@@ -38,7 +38,7 @@ export function deriveLifecycleStages(input: LifecycleInput): LifecycleStage[] {
       ? 'current'
       : 'pending';
 
-  // SPACE bookings have no operational workspace by design — nothing to block on, so this stage
+  // VENUE bookings have no operational workspace by design — nothing to block on, so this stage
   // never holds up a commercial-only booking's spine.
   const operationsState: LifecycleStageState =
     kind === 'VENUE'

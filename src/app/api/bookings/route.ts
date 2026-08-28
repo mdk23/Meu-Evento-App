@@ -120,8 +120,8 @@ export async function POST(request: Request) {
     }
 
     // Defaults to EVENT so every existing caller (which never sends `kind`) keeps today's exact
-    // behavior — a linked Event is created automatically. SPACE bookings are opt-in.
-    const resolvedKind: BookingContext = kind === 'VENUE' ? BookingContext.SPACE : BookingContext.EVENT;
+    // behavior — a linked Event is created automatically. VENUE bookings are opt-in.
+    const resolvedKind: BookingContext = kind === 'VENUE' ? BookingContext.VENUE : BookingContext.EVENT;
 
     const discountVal = parseFloat(discount || '0');
     const totalAmountVal = parseFloat(totalAmount || '0');
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // 2. A SPACE booking is commercial-only — no Event exists for it, by design (that's how a
+      // 2. A VENUE booking is commercial-only — no Event exists for it, by design (that's how a
       // booking can exist with service lines and no operational/event workspace). Only EVENT
       // bookings automatically get a linked Execution Event.
       const event = resolvedKind === BookingContext.EVENT
@@ -213,7 +213,7 @@ export async function POST(request: Request) {
               servicePriceType = existingService.priceType;
             } else {
               // Ad-hoc service born inside this booking rather than the Services page — "created in
-              // Space, belongs to Space": it's stamped with the booking's own workspace instead of
+              // Venue, belongs to Venue": it's stamped with the booking's own workspace instead of
               // the schema default BOTH, since there was no explicit scope choice to honor.
               const newService = await tx.service.create({
                 data: {

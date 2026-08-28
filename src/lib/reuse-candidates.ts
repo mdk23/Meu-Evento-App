@@ -20,7 +20,7 @@ export interface ReuseCandidate {
 
 /**
  * Finds every *other* service's already-active resource for the same item this row needs (the
- * cross-workspace "an Event service reusing the Space package's already-reserved chairs instead of
+ * cross-workspace "an Event service reusing the Venue package's already-reserved chairs instead of
  * double-reserving" scenario) and how much of each is still free to reuse — a resource's committed
  * stock can be claimed by any number of other rows, but their combined `reservedQuantity` claims
  * against it can never exceed its own `reservedQuantity` (`computeReuseAllocation`).

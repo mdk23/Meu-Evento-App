@@ -52,7 +52,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Reuse candidates are computed here, not fetched via a Prisma include — they're a cross-service
-    // comparison ("Space already reserved this, reuse it?"), not a relation. Flatten once across the
+    // comparison ("Venue already reserved this, reuse it?"), not a relation. Flatten once across the
     // whole event so `computeReuseCandidatesForRequirement` can compare each row against every
     // *other* service's active resources for the same item.
     const allResources = event.bookingServices.flatMap((bs) =>

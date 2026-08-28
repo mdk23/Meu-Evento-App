@@ -30,7 +30,7 @@ export interface EventResourceSummaryRow {
 
 /**
  * The event-wide "operational loading list" — every resource requirement across every service on
- * the event (Space, Event, direct, or package-sourced — this doesn't care which), grouped by the
+ * the event (Venue, Event, direct, or package-sourced — this doesn't care which), grouped by the
  * physical item it targets, showing Required/Provided/Additional/Reserved/Available/Source/Status
  * in one place. "Provided" is each row's own `reservedQuantity` (however it got covered — a direct
  * reservation or reusing another row's stock); "Reserved" is the *fresh* physical commitment against

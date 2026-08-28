@@ -189,8 +189,8 @@ export async function PATCH(
       }
 
       // Sync service lines if provided (Full POS Edit) — keyed off `bookingId`, which is always
-      // set regardless of whether this booking has an Event, so this applies equally to SPACE and
-      // EVENT bookings (a SPACE booking's lines are commercial-only: no `eventId`).
+      // set regardless of whether this booking has an Event, so this applies equally to VENUE and
+      // EVENT bookings (a VENUE booking's lines are commercial-only: no `eventId`).
       if (isEdit && selectedServices && Array.isArray(selectedServices)) {
         // Delete old services — cascades to their auto-seeded BookingServiceResource rows too
         // (rebuilt fresh below per surviving line, same "full edit replaces the whole line list"
@@ -223,7 +223,7 @@ export async function PATCH(
               servicePriceType = existingService.priceType;
             } else {
               // Ad-hoc service born inside this booking rather than the Services page — "created in
-              // Space, belongs to Space": stamped with the booking's own (unchanging) workspace.
+              // Venue, belongs to Venue": stamped with the booking's own (unchanging) workspace.
               const newService = await tx.service.create({
                 data: {
                   tenantId,
@@ -277,7 +277,7 @@ export async function PATCH(
               data: {
                 bookingId: existingBooking.id,
                 // Not just `existingBooking.event?.id` — a demoted booking keeps its Event record
-                // (kept, not deleted) while `context` flips to SPACE, so event-existence alone no
+                // (kept, not deleted) while `context` flips to VENUE, so event-existence alone no
                 // longer implies "this booking is currently in the Event workspace."
                 eventId: existingBooking.context === 'EVENT' && existingBooking.event ? existingBooking.event.id : null,
                 serviceId: catalogServiceId,
@@ -329,7 +329,7 @@ export async function PATCH(
 
         // The services above were just wiped and recreated at fresh PLANNING status, so the
         // event's derived status must be recalculated from that reality — this intentionally
-        // supersedes any eventStatus override passed in this same request. No-op for a SPACE
+        // supersedes any eventStatus override passed in this same request. No-op for a VENUE
         // booking, which has no Event to recalculate.
         if (existingBooking.event) {
           const freshServices = await tx.bookingService.findMany({
