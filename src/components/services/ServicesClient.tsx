@@ -30,12 +30,20 @@ interface InventoryCategoryOption {
   description: string | null;
 }
 
+interface ServiceCategoryOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 interface ServicesClientProps {
   initialServices: ServiceCardDTO[];
   /** Deep-linked from the Venue/Event workspace nav via `?scope=` — defaults to showing everything. */
   initialScopeFilter?: 'ALL' | 'VENUE' | 'EVENT';
   inventoryItems: InventoryItemOption[];
   inventoryCategories: InventoryCategoryOption[];
+  /** Managed on the Settings page — the "Category" picker options for a new Service. */
+  serviceCategories: ServiceCategoryOption[];
 }
 
 type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
@@ -78,8 +86,9 @@ function toRequirementPayload(rows: RequirementRow[]) {
     }));
 }
 
-export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL', inventoryItems, inventoryCategories }: ServicesClientProps) {
+export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL', inventoryItems, inventoryCategories, serviceCategories }: ServicesClientProps) {
   const router = useRouter();
+  const defaultCategory = serviceCategories[0]?.name || '';
 
   // Filter state: 'ALL', 'INTERNAL', 'EXTERNAL'
   const [executionFilter, setExecutionFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
@@ -93,7 +102,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
   // Form states
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Catering');
+  const [category, setCategory] = useState(defaultCategory);
   const [context, setContext] = useState<'VENUE' | 'EVENT' | 'BOTH'>('BOTH');
   const [executionType, setExecutionType] = useState('INTERNAL');
   const [priceType, setPriceType] = useState('FIXED');
@@ -105,7 +114,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
   const openAddModal = () => {
     setName('');
-    setCategory('Catering');
+    setCategory(defaultCategory);
     setContext(initialScopeFilter === 'VENUE' || initialScopeFilter === 'EVENT' ? initialScopeFilter : 'BOTH');
     setExecutionType('INTERNAL');
     setPriceType('FIXED');
@@ -429,13 +438,40 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
               <div className="field">
                 <label className="label">Category</label>
-                <input
-                  required
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="e.g. Catering, Dj, Security, Bar"
-                  className="input"
-                />
+                {serviceCategories.length > 0 ? (
+                  <>
+                    <select
+                      required
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="input"
+                    >
+                      {!category && <option value="">-- Select category --</option>}
+                      {category && !serviceCategories.some((c) => c.name === category) && (
+                        <option value={category}>{category} (current)</option>
+                      )}
+                      {serviceCategories.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                    <p className="mini dim" style={{ marginTop: 4 }}>
+                      Manage these options on the <Link href="/settings">Settings</Link> page.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      required
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      placeholder="e.g. Catering, Dj, Security, Bar"
+                      className="input"
+                    />
+                    <p className="mini dim" style={{ marginTop: 4 }}>
+                      Tip: define a reusable list on the <Link href="/settings">Settings</Link> page.
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="field">

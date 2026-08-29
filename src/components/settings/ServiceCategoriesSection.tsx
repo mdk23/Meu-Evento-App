@@ -3,22 +3,22 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Tags, Plus, Loader2, X, Edit3, Trash2, Save } from 'lucide-react';
+import { Layers, Plus, Loader2, X, Edit3, Trash2, Save } from 'lucide-react';
 
-export interface InventoryCategoryRow {
+export interface ServiceCategoryRow {
   id: string;
   name: string;
   description: string | null;
 }
 
-interface InventoryCategoriesSectionProps {
-  initialCategories: InventoryCategoryRow[];
+interface ServiceCategoriesSectionProps {
+  initialCategories: ServiceCategoryRow[];
 }
 
-export default function InventoryCategoriesSection({ initialCategories }: InventoryCategoriesSectionProps) {
+export default function ServiceCategoriesSection({ initialCategories }: ServiceCategoriesSectionProps) {
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editing, setEditing] = useState<InventoryCategoryRow | null>(null);
+  const [editing, setEditing] = useState<ServiceCategoryRow | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -30,7 +30,7 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
     setIsAddOpen(true);
   };
 
-  const openEdit = (category: InventoryCategoryRow) => {
+  const openEdit = (category: ServiceCategoryRow) => {
     setEditing(category);
     setName(category.name);
     setDescription(category.description || '');
@@ -49,7 +49,7 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
     }
     setSubmitting(true);
     try {
-      const url = editing ? `/api/inventory-categories/${editing.id}` : '/api/inventory-categories';
+      const url = editing ? `/api/service-categories/${editing.id}` : '/api/service-categories';
       const method = editing ? 'PATCH' : 'POST';
       const res = await fetch(url, {
         method,
@@ -74,7 +74,7 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
 
   const handleDeletePrompt = (id: string, categoryName: string) => {
     toast(`Deactivate category "${categoryName}"?`, {
-      description: 'Hides it from the "add inventory item" picker. Existing inventory items keep this category, unaffected.',
+      description: 'Removes it from the "create Service" picker. Services already using this label keep it, unaffected.',
       action: { label: 'Confirm Deactivate', onClick: () => executeDelete(id) },
       cancel: { label: 'Cancel', onClick: () => {} },
       duration: 6000,
@@ -84,7 +84,7 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
   const executeDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/inventory-categories/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/service-categories/${id}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Category deactivated!');
         router.refresh();
@@ -106,11 +106,11 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
         <div className="between" style={{ alignItems: 'flex-start' }}>
           <div>
             <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Tags className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Inventory Categories
+              <Layers className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Service Categories
             </h3>
             <p className="mini dim" style={{ marginTop: 4 }}>
-              Groups for physical stock variants (e.g. &ldquo;Chairs&rdquo; groups Gold Chiavari, White
-              Tiffany) — selectable when adding an inventory item on the Resources page.
+              The options in the &ldquo;Category&rdquo; picker when you create a Service (e.g.
+              &ldquo;Catering&rdquo;, &ldquo;Decoration&rdquo;, &ldquo;Entertainment&rdquo;).
             </p>
           </div>
           <button onClick={openAdd} className="btn primary sm">
@@ -120,7 +120,7 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
 
         <div style={{ marginTop: 20, maxWidth: 820 }}>
           {initialCategories.length === 0 ? (
-            <p className="mini dim">No inventory categories yet. Add one to start categorizing stock.</p>
+            <p className="mini dim">No service categories yet. Add one so the Services page has a category picker.</p>
           ) : (
             initialCategories.map((c) => (
               <div key={c.id} className="kv">
@@ -153,8 +153,8 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
           <div className="modal">
             <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
               <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Tags className="w-5 h-5" style={{ color: 'var(--accent)' }} />
-                {isAddOpen ? 'Add Inventory Category' : 'Edit Inventory Category'}
+                <Layers className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+                {isAddOpen ? 'Add Service Category' : 'Edit Service Category'}
               </h3>
               <button onClick={closeModal} className="icon-btn">
                 <X className="w-4 h-4" />
@@ -169,7 +169,7 @@ export default function InventoryCategoriesSection({ initialCategories }: Invent
                   autoFocus
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Chairs, Tables, Linens"
+                  placeholder="e.g. Catering, Decoration, Entertainment, Security"
                   className="input"
                 />
               </div>

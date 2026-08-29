@@ -106,7 +106,14 @@ export async function POST() {
       },
     });
 
-    // 6. Create Inventory Categories + Items
+    // 6. Create Service Categories (the "Category" picker options on the Services page)
+    await prisma.serviceCategory.createMany({
+      data: ['Venue Rental', 'Food & Beverage', 'Decoration', 'Media', 'Entertainment', 'Security', 'Furniture'].map(
+        (name) => ({ tenantId: tenant.id, name })
+      ),
+    });
+
+    // 7. Create Inventory Categories + Items
     const [categoryFurniture, categoryAudioVisual, categoryKitchen] = await Promise.all([
       prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Furniture' } }),
       prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Audio Visual' } }),

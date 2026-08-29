@@ -171,6 +171,7 @@ model Tenant {
   bookingServices     BookingService[]
   bookingPackages     BookingPackage[]
   services            Service[]
+  serviceCategories   ServiceCategory[]
   packages            Package[]
   suppliers           Supplier[]
   inventoryItems      InventoryItem[]
@@ -335,6 +336,26 @@ model AuditLog {
   @@index([tenantId])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+/// The managed list of Service categories a catalog owner maintains on the Settings page — the
+/// options shown in the "Category" picker when creating a Service. `Service.category` stays a plain
+/// string label (not an FK) so historical rows, POS ad-hoc services, and the `@@index([category])`
+/// filter keep working unchanged; this table only drives the picker.
+model ServiceCategory {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("service_categories")
 }
 
 model Service {

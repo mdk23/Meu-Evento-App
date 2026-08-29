@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import {
@@ -10,6 +11,10 @@ import {
   Wrench,
   AlertTriangle,
   Undo2,
+  Send,
+  Hammer,
+  CircleSlash,
+  Armchair,
 } from 'lucide-react';
 import { DecimalToNumber } from '@/lib/money';
 import Topbar from '@/components/aurelia/Topbar';
@@ -57,7 +62,9 @@ interface InventoryItemDetailClientProps {
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
   PLANNED: 'b-mute',
-  RESERVED: 'b-warn',
+  RESERVED: 'b-ok',
+  CONFIRMED: 'b-ok',
+  ISSUED: 'b-info',
   IN_USE: 'b-info',
   RETURNED: 'b-mute',
   RELEASED: 'b-mute',
@@ -70,10 +77,25 @@ const TRANSACTION_LABEL: Record<string, string> = {
   RESERVE: 'Reserved',
   RELEASE: 'Released',
   ALLOCATE: 'Allocated',
+  ISSUE: 'Issued',
   USE: 'Used',
   RETURN: 'Returned',
   DAMAGE: 'Damaged',
   LOSS: 'Lost',
+};
+
+const TRANSACTION_TONE: Record<string, string> = {
+  PURCHASE: 'b-ok',
+  ADJUSTMENT_IN: 'b-ok',
+  ADJUSTMENT_OUT: 'b-warn',
+  RESERVE: 'b-accent',
+  RELEASE: 'b-mute',
+  ALLOCATE: 'b-accent',
+  ISSUE: 'b-info',
+  USE: 'b-info',
+  RETURN: 'b-mute',
+  DAMAGE: 'b-bad',
+  LOSS: 'b-bad',
 };
 
 function serviceLabel(row: { event: { name: string } | null; bookingService: { service: { name: string } | null; serviceNameSnapshot: string | null } | null }): string {
@@ -88,8 +110,49 @@ function resourceServiceLabel(row: {
   return row.bookingService?.event ? `${service} — ${row.bookingService.event.name}` : service;
 }
 
+/** One derived stock figure shown as a compact tile. `tone` shifts the value colour for the
+ * outcomes that matter operationally (missing stock). */
+function FlowTile({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  hint: string;
+  tone?: 'bad' | 'warn';
+}) {
+  const color = value > 0 && tone === 'bad' ? 'var(--bad)' : value > 0 && tone === 'warn' ? 'var(--warn)' : 'var(--ink)';
+  return (
+    <div className="card plain" style={{ padding: '16px 18px' }} title={hint}>
+      <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {icon} {label}
+      </span>
+      <span className="num" style={{ display: 'block', marginTop: 6, fontSize: 24, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function InventoryItemDetailClient({ item, stockSummary }: InventoryItemDetailClientProps) {
-  const variantDetails = [item.color, item.material, item.model, item.size, item.shape].filter(Boolean);
+  const variantDetails: Array<[string, string | null]> = [
+    ['Color', item.color],
+    ['Material', item.material],
+    ['Model', item.model],
+    ['Size', item.size],
+    ['Shape', item.shape],
+  ];
+  const specs = variantDetails.filter(([, v]) => v);
+
+  const total = Math.max(stockSummary.totalQuantity, 0);
+  const reserved = Math.max(stockSummary.reservedQuantity, 0);
+  const available = Math.max(stockSummary.availableQuantity, 0);
+  const reservedPct = total > 0 ? Math.min((reserved / total) * 100, 100) : 0;
+  const utilisation = total > 0 ? Math.round((reserved / total) * 100) : 0;
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
@@ -99,159 +162,210 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
         </Link>
       </Topbar>
 
-      <div className="flex-1 overflow-y-auto page">
-        <div className="stack" style={{ gap: 24 }}>
-          <div className="card plain stack" style={{ maxWidth: 720 }}>
-            <div className="between" style={{ alignItems: 'flex-start' }}>
+      <div className="flex-1 overflow-y-auto page full-bleed">
+        <div className="stack" style={{ gap: 22, maxWidth: 1600, margin: '0 auto' }}>
+
+          {/* HERO — identity + specs on the left, headline stock on the right */}
+          <div
+            className="card plain"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)',
+              gap: 0,
+              padding: 0,
+              overflow: 'hidden',
+            }}
+          >
+            {/* Left */}
+            <div className="stack" style={{ gap: 16, padding: 28 }}>
+              <div className="between" style={{ alignItems: 'flex-start', gap: 16 }}>
+                <div>
+                  <h3 className="h-md">{item.name}</h3>
+                  <p className="mini dim" style={{ marginTop: 6 }}>
+                    {item.category.name}
+                    {item.sku ? ` · SKU ${item.sku}` : ''} · per {item.unit}
+                  </p>
+                </div>
+                <span className={`badge ${item.active ? 'b-ok' : 'b-mute'}`}>{item.active ? 'Active' : 'Archived'}</span>
+              </div>
+
+              {item.description && <p className="mini" style={{ color: 'var(--ink-2)', lineHeight: 1.7 }}>{item.description}</p>}
+
+              {(specs.length > 0 || item.seatingCapacity > 0) && (
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  {item.seatingCapacity > 0 && (
+                    <span className="badge b-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Armchair className="w-3 h-3" /> Seats {item.seatingCapacity} / {item.unit}
+                    </span>
+                  )}
+                  {specs.map(([k, v]) => (
+                    <span key={k} className="badge b-mute">{k}: {v}</span>
+                  ))}
+                </div>
+              )}
+
+              <div className="row mini dim" style={{ gap: 18, flexWrap: 'wrap', marginTop: 'auto', paddingTop: 6 }}>
+                <span>{item.bookingResources.length} reservation{item.bookingResources.length === 1 ? '' : 's'}</span>
+                <span>{item.transactions.length} movement{item.transactions.length === 1 ? '' : 's'}</span>
+                <span>Utilisation {utilisation}%</span>
+              </div>
+            </div>
+
+            {/* Right — headline numbers + availability bar */}
+            <div
+              className="stack"
+              style={{ gap: 18, padding: 28, background: 'var(--surface-2)', borderLeft: '1px solid var(--rule)' }}
+            >
+              <div className="grid g3" style={{ gap: 14 }}>
+                <div>
+                  <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Package className="w-3 h-3" /> Total
+                  </span>
+                  <span className="num" style={{ display: 'block', marginTop: 6, fontSize: 30, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    {total}
+                  </span>
+                </div>
+                <div>
+                  <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <CheckCircle2 className="w-3 h-3" /> Available
+                  </span>
+                  <span className="num" style={{ display: 'block', marginTop: 6, fontSize: 30, fontWeight: 600, color: 'var(--ok)', fontVariantNumeric: 'tabular-nums' }}>
+                    {available}
+                  </span>
+                </div>
+                <div>
+                  <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Boxes className="w-3 h-3" /> Reserved
+                  </span>
+                  <span className="num" style={{ display: 'block', marginTop: 6, fontSize: 30, fontWeight: 600, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+                    {reserved}
+                  </span>
+                </div>
+              </div>
+
               <div>
-                <h3 className="h-md">{item.name}</h3>
-                <p className="mini dim" style={{ marginTop: 4 }}>
-                  {item.category.name}{item.sku ? ` · SKU ${item.sku}` : ''} · unit: {item.unit}
-                </p>
-              </div>
-              <span className={`badge ${item.active ? 'b-ok' : 'b-mute'}`}>{item.active ? 'Active' : 'Archived'}</span>
-            </div>
-            {item.description && <p className="mini dim">{item.description}</p>}
-            {(variantDetails.length > 0 || item.seatingCapacity > 0) && (
-              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                {item.color && <span className="badge b-mute">Color: {item.color}</span>}
-                {item.material && <span className="badge b-mute">Material: {item.material}</span>}
-                {item.model && <span className="badge b-mute">Model: {item.model}</span>}
-                {item.size && <span className="badge b-mute">Size: {item.size}</span>}
-                {item.shape && <span className="badge b-mute">Shape: {item.shape}</span>}
-                {item.seatingCapacity > 0 && (
-                  <span className="badge b-mute">Seats {item.seatingCapacity}/unit</span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h4 className="label" style={{ marginBottom: 12 }}>Stock</h4>
-            <div className="grid g4">
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Package className="w-3 h-3" /> Total
-                </span>
-                <span className="val num">{stockSummary.totalQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Boxes className="w-3 h-3" /> Reserved
-                </span>
-                <span className="val num">{stockSummary.reservedQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle2 className="w-3 h-3" /> Available
-                </span>
-                <span className="val num">{stockSummary.availableQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Wrench className="w-3 h-3" /> Allocated
-                </span>
-                <span className="val num">{stockSummary.allocatedQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label">Issued</span>
-                <span className="val num">{stockSummary.issuedQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label">Used</span>
-                <span className="val num">{stockSummary.usedQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Undo2 className="w-3 h-3" /> Returned
-                </span>
-                <span className="val num">{stockSummary.returnedQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle className="w-3 h-3" /> Damaged
-                </span>
-                <span className="val num">{stockSummary.damagedQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label">Lost</span>
-                <span className="val num">{stockSummary.lostQuantity}</span>
-              </div>
-              <div className="card plain kpi">
-                <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle className="w-3 h-3" /> Missing
-                </span>
-                <span className="val num">{stockSummary.missingQuantity}</span>
+                <div
+                  style={{
+                    height: 10,
+                    borderRadius: 999,
+                    background: 'var(--rule)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                  }}
+                >
+                  <div style={{ width: `${reservedPct}%`, background: 'var(--accent)' }} />
+                </div>
+                <div className="between mini dim" style={{ marginTop: 6 }}>
+                  <span>{reserved} reserved</span>
+                  <span>{available} free</span>
+                </div>
               </div>
             </div>
           </div>
 
+          {/* STOCK FLOW — ledger-derived figures, tiled edge-to-edge */}
           <div>
-            <h4 className="label" style={{ marginBottom: 12 }}>Reservations</h4>
-            {item.bookingResources.length === 0 ? (
-              <p className="mini dim">No reservations yet.</p>
-            ) : (
-              <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
-                <div className="scrollx" style={{ padding: '0 22px 6px' }}>
-                  <table className="tbl">
-                    <thead>
-                      <tr>
-                        <th>For</th>
-                        <th className="r">Required</th>
-                        <th className="r">Reserved</th>
-                        <th>Window</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {item.bookingResources.map((r) => (
-                        <tr key={r.id}>
-                          <td>{resourceServiceLabel(r)}</td>
-                          <td className="r num">{r.requiredQuantity}</td>
-                          <td className="r num">{r.reservedQuantity}</td>
-                          <td className="mini dim">
-                            {new Date(r.startAt).toLocaleDateString()} – {new Date(r.endAt).toLocaleDateString()}
-                          </td>
-                          <td><span className={`badge ${STATUS_BADGE_CLASS[r.status] || 'b-mute'}`}>{r.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            <h4 className="label" style={{ marginBottom: 10 }}>Stock flow</h4>
+            <div
+              style={{
+                display: 'grid',
+                gap: 14,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              }}
+            >
+              <FlowTile icon={<Wrench className="w-3 h-3" />} label="Allocated" value={stockSummary.allocatedQuantity} hint="Allocated to a work order, not yet used or returned." />
+              <FlowTile icon={<Send className="w-3 h-3" />} label="Issued" value={stockSummary.issuedQuantity} hint="Physically dispatched from the store, not yet used or returned." />
+              <FlowTile icon={<CheckCircle2 className="w-3 h-3" />} label="Used" value={stockSummary.usedQuantity} hint="Marked in use at a venue." />
+              <FlowTile icon={<Undo2 className="w-3 h-3" />} label="Returned" value={stockSummary.returnedQuantity} hint="Came back after use." />
+              <FlowTile icon={<Hammer className="w-3 h-3" />} label="Damaged" value={stockSummary.damagedQuantity} hint="Returned damaged." tone="warn" />
+              <FlowTile icon={<CircleSlash className="w-3 h-3" />} label="Lost" value={stockSummary.lostQuantity} hint="Never came back." tone="bad" />
+              <FlowTile icon={<AlertTriangle className="w-3 h-3" />} label="Missing" value={stockSummary.missingQuantity} hint="Damaged + lost — units that didn't come back intact." tone="bad" />
+            </div>
           </div>
 
-          <div>
-            <h4 className="label" style={{ marginBottom: 12 }}>Movement History</h4>
-            {item.transactions.length === 0 ? (
-              <p className="mini dim">No movements recorded yet.</p>
-            ) : (
-              <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
-                <div className="scrollx" style={{ padding: '0 22px 6px' }}>
-                  <table className="tbl">
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th className="r">Quantity</th>
-                        <th>For</th>
-                        <th>When</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {item.transactions.map((t) => (
-                        <tr key={t.id}>
-                          <td>{TRANSACTION_LABEL[t.type] || t.type}</td>
-                          <td className="r num">{t.quantity}</td>
-                          <td>{t.bookingService ? serviceLabel(t) : (t.reference || '—')}</td>
-                          <td className="mini dim">{new Date(t.createdAt).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+          {/* RESERVATIONS + MOVEMENT HISTORY — side by side on wide screens */}
+          <div className="grid g2" style={{ gap: 22, alignItems: 'start' }}>
+            <section className="stack" style={{ gap: 10 }}>
+              <div className="between">
+                <h4 className="label">Reservations</h4>
+                <span className="mini dim">{item.bookingResources.length}</span>
               </div>
-            )}
+              {item.bookingResources.length === 0 ? (
+                <div className="card plain" style={{ padding: 22 }}>
+                  <p className="mini dim">No reservations yet.</p>
+                </div>
+              ) : (
+                <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
+                  <div className="scrollx" style={{ padding: '16px 22px 6px' }}>
+                    <table className="tbl">
+                      <thead>
+                        <tr>
+                          <th>For</th>
+                          <th className="r">Req.</th>
+                          <th className="r">Rsvd.</th>
+                          <th>Window</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.bookingResources.map((r) => (
+                          <tr key={r.id}>
+                            <td>{resourceServiceLabel(r)}</td>
+                            <td className="r num">{r.requiredQuantity}</td>
+                            <td className="r num">{r.reservedQuantity}</td>
+                            <td className="mini dim">
+                              {new Date(r.startAt).toLocaleDateString()} – {new Date(r.endAt).toLocaleDateString()}
+                            </td>
+                            <td><span className={`badge ${STATUS_BADGE_CLASS[r.status] || 'b-mute'}`}>{r.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="stack" style={{ gap: 10 }}>
+              <div className="between">
+                <h4 className="label">Movement history</h4>
+                <span className="mini dim">{item.transactions.length}</span>
+              </div>
+              {item.transactions.length === 0 ? (
+                <div className="card plain" style={{ padding: 22 }}>
+                  <p className="mini dim">No movements recorded yet.</p>
+                </div>
+              ) : (
+                <div className="card plain" style={{ padding: 0, overflow: 'hidden' }}>
+                  <div className="scrollx" style={{ padding: '16px 22px 6px' }}>
+                    <table className="tbl">
+                      <thead>
+                        <tr>
+                          <th>Type</th>
+                          <th className="r">Qty</th>
+                          <th>For</th>
+                          <th>When</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.transactions.map((t) => (
+                          <tr key={t.id}>
+                            <td>
+                              <span className={`badge ${TRANSACTION_TONE[t.type] || 'b-mute'}`}>
+                                {TRANSACTION_LABEL[t.type] || t.type}
+                              </span>
+                            </td>
+                            <td className="r num">{t.quantity}</td>
+                            <td>{t.bookingService ? serviceLabel(t) : (t.reference || '—')}</td>
+                            <td className="mini dim">{new Date(t.createdAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
           </div>
         </div>
       </div>

@@ -44,7 +44,7 @@ export default function CatalogServicesSection({
   packageCapacityWarnings,
 }: CatalogServicesSectionProps) {
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [viewMode, setViewMode] = React.useState<'services' | 'packages'>('services');
+  const [viewMode, setViewMode] = React.useState<'services' | 'packages'>('packages');
   const ITEMS_PER_PAGE = 5;
 
   // Reset page when filters change
