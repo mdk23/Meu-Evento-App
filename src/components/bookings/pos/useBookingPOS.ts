@@ -334,6 +334,18 @@ export function useBookingPOS({
     toast.info('Item removed.');
   };
 
+  // Manually set how many units of a fixed-price line the booking buys (e.g. "20 chairs"). PER_GUEST
+  // lines are excluded — their quantity always tracks the guest count.
+  const updateItemQuantity = (id: string, rawQuantity: number) => {
+    const quantity = Math.max(1, Math.floor(rawQuantity) || 1);
+    setSelectedItems(prev =>
+      prev.map(item => {
+        if (item.id !== id || item.priceType === 'PER_GUEST') return item;
+        return { ...item, quantity, totalPrice: item.price * quantity };
+      })
+    );
+  };
+
   // Warn (never auto-fix) when the booking's guest count exceeds an applied package's designed
   // capacity — the operator adds additional services to cover the gap, the package is left frozen.
   const packageCapacityWarnings = useMemo(() => {
@@ -675,6 +687,7 @@ export function useBookingPOS({
     applyPackage,
     isPackageApplied,
     removeItemFromCart,
+    updateItemQuantity,
     handleSubmitPOS,
     isEdit,
   };

@@ -6,6 +6,7 @@ import { DEPOSIT_PERCENT_OPTIONS, PAYMENT_PLAN_OPTIONS, MilestoneDraft, PaymentP
 interface POSExtractSummarySectionProps {
   selectedItems: CartItem[];
   removeItemFromCart: (id: string) => void;
+  updateItemQuantity: (id: string, quantity: number) => void;
   venueServicesTotal: number;
   eventServicesTotal: number;
   internalRevenue: number;
@@ -30,6 +31,7 @@ interface POSExtractSummarySectionProps {
 export default function POSExtractSummarySection({
   selectedItems,
   removeItemFromCart,
+  updateItemQuantity,
   venueServicesTotal,
   eventServicesTotal,
   internalRevenue,
@@ -88,9 +90,26 @@ export default function POSExtractSummarySection({
                       {item.category === 'VENUE' ? 'Venue' : 'Event'} • {item.providerName}
                     </span>
                     <h4 style={{ fontSize: 13, fontWeight: 600 }} className="truncate">{item.name}</h4>
-                    <p className="mini dim num" style={{ marginTop: 2 }}>
-                      {item.price.toLocaleString()} MT × {item.quantity} {item.priceType === 'PER_GUEST' ? 'guests' : 'units'}
-                    </p>
+                    {item.priceType === 'PER_GUEST' ? (
+                      <p className="mini dim num" style={{ marginTop: 2 }}>
+                        {item.price.toLocaleString()} MT × {item.quantity} guests
+                      </p>
+                    ) : (
+                      <div className="row" style={{ gap: 6, alignItems: 'center', marginTop: 4 }}>
+                        <span className="mini dim num">{item.price.toLocaleString()} MT ×</span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={item.quantity}
+                          onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value, 10) || 1)}
+                          className="input num"
+                          style={{ width: 62, padding: '4px 6px', textAlign: 'right', fontSize: 12 }}
+                          title="Units of this service"
+                        />
+                        <span className="mini dim">units</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="row" style={{ gap: 8, flexShrink: 0 }}>

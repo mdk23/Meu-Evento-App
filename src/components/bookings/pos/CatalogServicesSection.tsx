@@ -80,19 +80,19 @@ export default function CatalogServicesSection({
         <div className="row" style={{ gap: 4, flexShrink: 0 }}>
           <button
             type="button"
-            onClick={() => setViewMode('services')}
-            className={`pill${viewMode === 'services' ? ' active' : ''}`}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <ListChecks className="w-3 h-3" /> Services
-          </button>
-          <button
-            type="button"
             onClick={() => setViewMode('packages')}
             className={`pill${viewMode === 'packages' ? ' active' : ''}`}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <Boxes className="w-3 h-3" /> Packages
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('services')}
+            className={`pill${viewMode === 'services' ? ' active' : ''}`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <ListChecks className="w-3 h-3" /> Services
           </button>
         </div>
       </div>

@@ -48,6 +48,37 @@ interface ServicesClientProps {
 
 type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
 
+/** Plain-language reference for each quantity rule — shown as a legend in the Inventory Requirements
+ * section and as a live hint under the row that's being edited. `quantity` below is the number typed
+ * into the row's field. */
+const QUANTITY_RULE_HELP: Record<QuantityTypeOption, { label: string; blurb: string; example: string }> = {
+  FIXED: {
+    label: 'Fixed',
+    blurb: 'Always the same amount — the guest count and the line quantity are ignored.',
+    example: 'quantity 4 → every booking needs 4 (e.g. 4 AC units).',
+  },
+  PER_GUEST: {
+    label: 'Per guest',
+    blurb: "Multiplied by the booking's guest count.",
+    example: 'quantity 1, 120 guests → 120 (e.g. 1 chair per guest).',
+  },
+  PER_UNIT: {
+    label: 'Per unit',
+    blurb: "Multiplied by how many units of this service the booking buys.",
+    example: 'quantity 10, service sold as 6 → 60 (e.g. 10 napkins per table × 6 tables).',
+  },
+  GUESTS_PER_UNIT: {
+    label: 'Guests per unit',
+    blurb: 'Guest count ÷ this number, rounded up — the number is how many guests one unit covers.',
+    example: 'quantity 12, 100 guests → ⌈100 ÷ 12⌉ = 9 (e.g. 1 table per 12 guests).',
+  },
+  MANUAL: {
+    label: 'Manual',
+    blurb: 'Just a starting default — the operator sets the real number on each booking, and it never auto-recalculates.',
+    example: 'quantity 20 → the booking opens at 20, editable per booking.',
+  },
+};
+
 /** Editable row shape for the Inventory Requirements builder. `targetType` drives whether
  * `inventoryItemId` or `categoryId` is the active fulfillment target; the other stays populated
  * with whatever was last selected so switching back doesn't lose it. */
@@ -341,6 +372,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                     <th>Service Name</th>
                     <th>Category</th>
                     {!isScoped && <th>Workspace</th>}
+                    <th>Quantity Rule</th>
                     <th>Price Type</th>
                     <th className="r">Base Price</th>
                     <th>Execution Mode</th>
@@ -365,6 +397,17 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             </span>
                           </td>
                         )}
+                        <td>
+                          {s.inventoryRequirements.length === 0 ? (
+                            <span className="mini dim">—</span>
+                          ) : (
+                            <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+                              {Array.from(new Set(s.inventoryRequirements.map((r) => r.quantityType))).map((qt) => (
+                                <span key={qt} className="badge b-mute">{QUANTITY_RULE_HELP[qt].label}</span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge ${s.priceType === 'PER_GUEST' ? 'b-warn' : 'b-mute'}`}>
                             {s.priceType === 'PER_GUEST' ? 'Per Guest (Pax)' : 'Fixed Price'}
@@ -501,6 +544,14 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                 </div>
               </div>
 
+              <p className="mini dim" style={{ marginTop: -8 }}>
+                {priceType === 'PER_GUEST' ? (
+                  <><strong>Per Guest (Pax)</strong> — the base price is charged for each guest: base price × guest count (e.g. 450 MT × 120 guests = 54,000 MT). The line quantity tracks the guest count automatically.</>
+                ) : (
+                  <><strong>Fixed Amount (Total)</strong> — one flat price for the whole line, no matter how many guests (e.g. venue rental 60,000 MT). Multiply it yourself by setting the line quantity on the booking.</>
+                )}
+              </p>
+
               <div className="field">
                 <label className="label">Base Price (MT)</label>
                 <input
@@ -527,6 +578,21 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                   What this service normally needs from stock — a template only, never reserves anything.
                   Point at one specific item, or a whole category to let the variant be chosen per booking.
                 </p>
+
+                <details open style={{ border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', background: 'var(--surface-2)' }}>
+                  <summary className="mini" style={{ cursor: 'pointer', color: 'var(--ink-2)', fontWeight: 600 }}>
+                    Quantity rules explained
+                  </summary>
+                  <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+                    {(Object.keys(QUANTITY_RULE_HELP) as QuantityTypeOption[]).map((key) => (
+                      <div key={key} className="mini" style={{ lineHeight: 1.6 }}>
+                        <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{QUANTITY_RULE_HELP[key].label}</span>
+                        <span className="dim"> — {QUANTITY_RULE_HELP[key].blurb} </span>
+                        <span className="dim" style={{ fontStyle: 'italic' }}>{QUANTITY_RULE_HELP[key].example}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
 
                 {requirementRows.length > 0 && (
                   <div className="stack" style={{ gap: 8 }}>
@@ -607,6 +673,11 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             Optional
                           </label>
                         </div>
+                        <p className="mini dim" style={{ margin: 0, lineHeight: 1.6 }}>
+                          <span style={{ color: 'var(--ink-2)', fontWeight: 600 }}>{QUANTITY_RULE_HELP[row.quantityType].label}:</span>{' '}
+                          {QUANTITY_RULE_HELP[row.quantityType].blurb}{' '}
+                          <span style={{ fontStyle: 'italic' }}>{QUANTITY_RULE_HELP[row.quantityType].example}</span>
+                        </p>
                         <input
                           value={row.notes}
                           onChange={(e) => updateRequirementRow(index, { notes: e.target.value })}

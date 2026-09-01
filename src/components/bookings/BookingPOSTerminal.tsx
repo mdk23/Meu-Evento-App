@@ -101,6 +101,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
           <POSExtractSummarySection
             selectedItems={pos.selectedItems}
             removeItemFromCart={pos.removeItemFromCart}
+            updateItemQuantity={pos.updateItemQuantity}
             venueServicesTotal={pos.venueServicesTotal}
             eventServicesTotal={pos.eventServicesTotal}
             internalRevenue={pos.internalRevenue}
