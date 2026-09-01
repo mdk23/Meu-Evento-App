@@ -46,7 +46,7 @@ interface ServicesClientProps {
   serviceCategories: ServiceCategoryOption[];
 }
 
-type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
+type QuantityTypeOption = 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT';
 
 /** Plain-language reference for each quantity rule — shown as a legend in the Inventory Requirements
  * section and as a live hint under the row that's being edited. `quantity` below is the number typed
@@ -71,11 +71,6 @@ const QUANTITY_RULE_HELP: Record<QuantityTypeOption, { label: string; blurb: str
     label: 'Guests per unit',
     blurb: 'Guest count ÷ this number, rounded up — the number is how many guests one unit covers.',
     example: 'quantity 12, 100 guests → ⌈100 ÷ 12⌉ = 9 (e.g. 1 table per 12 guests).',
-  },
-  MANUAL: {
-    label: 'Manual',
-    blurb: 'Just a starting default — the operator sets the real number on each booking, and it never auto-recalculates.',
-    example: 'quantity 20 → the booking opens at 20, editable per booking.',
   },
 };
 
@@ -648,7 +643,6 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             <option value="PER_GUEST">Per guest</option>
                             <option value="PER_UNIT">Per unit</option>
                             <option value="GUESTS_PER_UNIT">Guests per unit (e.g. seats per table)</option>
-                            <option value="MANUAL">Manual — set on the booking</option>
                           </select>
                           <input
                             type="number"
@@ -656,11 +650,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             step="1"
                             value={row.quantity}
                             onChange={(e) => updateRequirementRow(index, { quantity: e.target.value.replace(/[^0-9]/g, '') })}
-                            placeholder={
-                              row.quantityType === 'GUESTS_PER_UNIT' ? 'Guests per unit'
-                              : row.quantityType === 'MANUAL' ? 'Default quantity'
-                              : 'Quantity'
-                            }
+                            placeholder={row.quantityType === 'GUESTS_PER_UNIT' ? 'Guests per unit' : 'Quantity'}
                             className="input"
                             style={{ padding: '8px 10px', fontSize: 12 }}
                           />

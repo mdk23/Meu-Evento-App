@@ -49,7 +49,9 @@ export class ServiceRepository {
         categoryId: r.categoryId,
         categoryName: r.category?.name || null,
         quantity: toDisplayNumber(r.quantity),
-        quantityType: r.quantityType,
+        // MANUAL was removed as an option — any legacy row still carrying it displays as Fixed
+        // until the service is re-saved (its stored behaviour is unchanged in the meantime).
+        quantityType: r.quantityType === 'MANUAL' ? 'FIXED' : r.quantityType,
         optional: r.optional,
         notes: r.notes,
       })),

@@ -14,10 +14,7 @@ function resolvePriceType(value: unknown): PriceType {
 }
 
 function resolveQuantityType(value: unknown): QuantityType {
-  return value === 'PER_GUEST' ||
-    value === 'PER_UNIT' ||
-    value === 'GUESTS_PER_UNIT' ||
-    value === 'MANUAL'
+  return value === 'PER_GUEST' || value === 'PER_UNIT' || value === 'GUESTS_PER_UNIT'
     ? (value as QuantityType)
     : QuantityType.FIXED;
 }

@@ -156,7 +156,7 @@ export interface ServiceInventoryRequirementDTO {
   categoryId: string | null;
   categoryName: string | null;
   quantity: number;
-  quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
+  quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT';
   optional: boolean;
   notes: string | null;
 }
