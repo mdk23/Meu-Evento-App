@@ -53,8 +53,17 @@ export default async function EditBookingPage({
       active: true,
       ...(initialBookingData.context === 'VENUE' ? { context: { in: ['VENUE', 'BOTH'] } } : {}),
     },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, category: true, context: true, defaultProviderType: true, defaultPrice: true, priceType: true },
+    orderBy: [{ featured: 'desc' }, { name: 'asc' }],
+    select: {
+      id: true, name: true, category: true, context: true, defaultProviderType: true,
+      defaultPrice: true, priceType: true, featured: true,
+      inventoryRequirements: {
+        select: {
+          quantity: true, quantityType: true, inventoryItemId: true,
+          inventoryItem: { select: { name: true, seatingCapacity: true } },
+        },
+      },
+    },
   });
   
   const venues = await prisma.venue.findMany({

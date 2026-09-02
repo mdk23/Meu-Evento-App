@@ -5,6 +5,16 @@ export interface Client {
   email?: string | null;
 }
 
+/** One of a service's inventory requirements that targets a concrete seating item (chair, table, …),
+ * carried onto cart lines so the POS can warn when the seats provided don't match the guest count. */
+export interface SeatingLineReq {
+  inventoryItemId: string;
+  itemLabel: string;
+  quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT' | 'MANUAL';
+  quantity: number;
+  seatingCapacity: number;
+}
+
 export interface ServiceItem {
   id: string;
   name: string;
@@ -14,6 +24,10 @@ export interface ServiceItem {
   priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR';
   price: number;
   description: string;
+  /** Pinned to the top of the catalog by the catalog owner. */
+  featured?: boolean;
+  /** Seating requirements (concrete item, seatingCapacity > 0) — drives the seats-vs-guests warning. */
+  seatingReqs?: SeatingLineReq[];
 }
 
 export interface VenueItem {
@@ -52,6 +66,8 @@ export interface CartItem {
   /** The existing `BookingPackage.id` this line already belongs to (edit hydration only). Lets the
    * diff keep that frozen package snapshot instead of creating a new one. */
   sourceBookingPackageId?: string;
+  /** Seating requirements copied from the catalog service — feeds the seats-vs-guests warning. */
+  seatingReqs?: SeatingLineReq[];
 }
 
 import React from 'react';
@@ -64,7 +80,16 @@ export type CatalogPackage = PackageCardDTO;
 // `Decimal` fields never survive the API/RSC boundary as `Decimal` — `src/lib/money.ts`'s
 // `serializeDecimals` converts every one to a plain number before this data reaches the client.
 export type CatalogService = DecimalToNumber<Prisma.ServiceGetPayload<{
-  select: { id: true; name: true; category: true; context: true; defaultProviderType: true; defaultPrice: true; priceType: true };
+  select: {
+    id: true; name: true; category: true; context: true; defaultProviderType: true;
+    defaultPrice: true; priceType: true; featured: true;
+    inventoryRequirements: {
+      select: {
+        quantity: true; quantityType: true; inventoryItemId: true;
+        inventoryItem: { select: { name: true; seatingCapacity: true } };
+      };
+    };
+  };
 }>>;
 
 export type CatalogVenue = Prisma.VenueGetPayload<{ select: { id: true; name: true; capacity: true; description: true } }>;

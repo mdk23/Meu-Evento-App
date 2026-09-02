@@ -27,7 +27,7 @@ export interface BookingResourceService {
 }
 
 interface BookingResourcesApiResponse {
-  booking: { id: string; bookingServices: BookingResourceService[] };
+  booking: { id: string; guestCount: number; bookingServices: BookingResourceService[] };
   resourceSummary: EventResourceSummaryRow[];
   inventoryItems: InventoryItem[];
 }

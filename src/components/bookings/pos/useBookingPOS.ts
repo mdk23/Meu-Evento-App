@@ -1,11 +1,36 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Client, ServiceItem, CartItem, CatalogPackage, BookingPOSTerminalProps } from './types';
+import { Client, ServiceItem, CartItem, CatalogPackage, BookingPOSTerminalProps, SeatingLineReq } from './types';
 import { defaultVenues, defaultCatalogServices } from './constants';
 import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId } from '@/lib/payment-plan';
 import { isOverCapacity } from '@/lib/capacity';
-import { computeBookingPackageCapacityGap } from '@/lib/seating';
+import { computeBookingPackageCapacityGap, computeBookingSeatingGaps, SeatingItemGap } from '@/lib/seating';
+import { resolveRequiredQuantity } from '@/lib/service-inventory-requirements';
+
+/** Pulls a service's concrete seating requirements (specific item, seatingCapacity > 0) out of the
+ * raw `inventoryRequirements` the page now selects. Category-only requirements are skipped — their
+ * seats can't be known until the booking picks a variant. Shape-tolerant so it can run against both
+ * the `initialServices` payload and anything else carrying `inventoryRequirements`. */
+function toSeatingReqs(
+  inventoryRequirements: Array<{
+    quantity: number | string;
+    quantityType: string;
+    inventoryItemId: string | null;
+    inventoryItem: { name: string; seatingCapacity: number } | null;
+  }> | null | undefined
+): SeatingLineReq[] {
+  if (!inventoryRequirements) return [];
+  return inventoryRequirements
+    .filter((r) => r.inventoryItemId && r.inventoryItem && r.inventoryItem.seatingCapacity > 0)
+    .map((r) => ({
+      inventoryItemId: r.inventoryItemId as string,
+      itemLabel: r.inventoryItem!.name,
+      quantityType: r.quantityType as SeatingLineReq['quantityType'],
+      quantity: Number(r.quantity),
+      seatingCapacity: r.inventoryItem!.seatingCapacity,
+    }));
+}
 
 /** Combines a `yyyy-mm-dd` date string with an `HH:mm` time string into a local `Date`. */
 function combineDateAndTime(dateStr: string, timeStr: string): Date {
@@ -157,6 +182,8 @@ export function useBookingPOS({
       priceType: (s.priceType === 'PER_GUEST' ? 'PER_GUEST' : s.priceType === 'PER_HOUR' ? 'PER_HOUR' : 'FIXED') as 'FIXED' | 'PER_GUEST' | 'PER_HOUR',
       price: s.defaultPrice || 15000,
       description: 'Specialized service for your event.',
+      featured: s.featured,
+      seatingReqs: toSeatingReqs(s.inventoryRequirements),
     }));
   }, [initialServices, initialKind]);
 
@@ -175,6 +202,11 @@ export function useBookingPOS({
     if (initialBookingData?.bookingServices) {
       const packagesById = new Map(
         (initialBookingData.bookingPackages || []).map((bp) => [bp.id, bp])
+      );
+      // Seating requirements come from the current catalog (built here from `initialServices`, since
+      // the `catalogServices` memo isn't available in this initializer) keyed by serviceId.
+      const seatingReqsByServiceId = new Map(
+        initialServices.map((s) => [s.id, toSeatingReqs(s.inventoryRequirements)])
       );
       return initialBookingData.bookingServices.map((es) => {
         const isPackageSourced = es.source === 'PACKAGE' || !!es.bookingPackageId;
@@ -203,6 +235,7 @@ export function useBookingPOS({
           sourceBookingPackageId: es.bookingPackageId || undefined,
           sourcePackageId: sourcePackage?.packageId,
           sourcePackageName: sourcePackage?.nameSnapshot,
+          seatingReqs: seatingReqsByServiceId.get(es.serviceId) || [],
         };
       });
     }
@@ -240,6 +273,7 @@ export function useBookingPOS({
         price: service.price,
         quantity: qty,
         totalPrice: service.price * qty,
+        seatingReqs: service.seatingReqs || [],
       };
       setSelectedItems(prev => [...prev, newItem]);
       toast.success(`Service "${service.name}" added!`);
@@ -302,6 +336,7 @@ export function useBookingPOS({
         sourcePackageId: pkg.id,
         sourcePackageName: pkg.name,
         packageApplicationKey,
+        seatingReqs: service.seatingReqs || [],
       };
     });
 
@@ -361,6 +396,28 @@ export function useBookingPOS({
       })
       .filter((v): v is NonNullable<typeof v> => v !== null);
   }, [selectedItems, initialPackages, guestCount]);
+
+  // Per seating item (chair, table, …): compare the seats the cart provides against the guest count
+  // and warn on either shortage or excess. Resolves each line's seating requirement against the line
+  // quantity / guest count, then sums units per inventory item across all lines.
+  const seatingGuestWarnings = useMemo<SeatingItemGap[]>(() => {
+    const byItem = new Map<string, { itemLabel: string; units: number; seatingCapacity: number }>();
+    for (const line of selectedItems) {
+      for (const req of line.seatingReqs ?? []) {
+        const units = resolveRequiredQuantity({
+          quantityType: req.quantityType,
+          quantity: req.quantity,
+          guestCount,
+          unitCount: line.quantity,
+        }).toNumber();
+        const existing = byItem.get(req.inventoryItemId);
+        if (existing) existing.units += units;
+        else byItem.set(req.inventoryItemId, { itemLabel: req.itemLabel, units, seatingCapacity: req.seatingCapacity });
+      }
+    }
+    const grouped = Array.from(byItem, ([inventoryItemId, v]) => ({ inventoryItemId, ...v }));
+    return computeBookingSeatingGaps(grouped, guestCount);
+  }, [selectedItems, guestCount]);
 
   // Calculations
   const venueServicesTotal = useMemo(() => {
@@ -435,15 +492,18 @@ export function useBookingPOS({
     setCustomMilestones((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Filter catalog
+  // Filter catalog — featured services float to the top (stable sort keeps the server's name order
+  // within each group).
   const filteredCatalog = useMemo(() => {
-    return catalogServices.filter(srv => {
-      const matchesSearch = srv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            srv.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = categoryFilter === 'ALL' || srv.category === categoryFilter;
-      const matchesOrigin = originFilter === 'ALL' || srv.providerType === originFilter;
-      return matchesSearch && matchesCategory && matchesOrigin;
-    });
+    return catalogServices
+      .filter(srv => {
+        const matchesSearch = srv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              srv.description.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = categoryFilter === 'ALL' || srv.category === categoryFilter;
+        const matchesOrigin = originFilter === 'ALL' || srv.providerType === originFilter;
+        return matchesSearch && matchesCategory && matchesOrigin;
+      })
+      .sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
   }, [catalogServices, searchTerm, categoryFilter, originFilter]);
 
   // Calendar math helpers
@@ -644,6 +704,7 @@ export function useBookingPOS({
     venueServices,
     packages: initialPackages,
     packageCapacityWarnings,
+    seatingGuestWarnings,
     searchTerm,
     setSearchTerm,
     categoryFilter,

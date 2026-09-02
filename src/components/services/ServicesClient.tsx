@@ -14,6 +14,7 @@ import {
   Save,
   Boxes,
   Package,
+  Star,
 } from 'lucide-react';
 import { ServiceCardDTO, ServiceInventoryRequirementDTO } from '@/types/dtos';
 import Topbar from '@/components/aurelia/Topbar';
@@ -260,6 +261,29 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     }
   };
 
+  const [featuringId, setFeaturingId] = useState<string | null>(null);
+  const handleToggleFeatured = async (service: ServiceCardDTO) => {
+    setFeaturingId(service.id);
+    try {
+      const res = await fetch(`/api/services/${service.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ featured: !service.featured }),
+      });
+      if (res.ok) {
+        toast.success(service.featured ? `"${service.name}" unpinned.` : `"${service.name}" pinned to the top.`);
+        router.refresh();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || 'Failed to update service.');
+      }
+    } catch {
+      toast.error('Connection error.');
+    } finally {
+      setFeaturingId(null);
+    }
+  };
+
   // Sonner Deactivate Prompt
   const handleDeletePrompt = (serviceId: string, serviceName: string) => {
     toast(`Deactivate service "${serviceName}"?`, {
@@ -381,7 +405,10 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
 
                     return (
                       <tr key={s.id}>
-                        <td style={{ fontWeight: 600 }}>{s.name}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {s.featured && <Star className="w-3.5 h-3.5" fill="currentColor" style={{ color: 'var(--warn)', display: 'inline', verticalAlign: 'text-bottom', marginRight: 6 }} />}
+                          {s.name}
+                        </td>
                         <td>
                           <span className="badge b-mute">{s.category}</span>
                         </td>
@@ -418,6 +445,19 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                         </td>
                         <td className="r">
                           <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                            <button
+                              disabled={featuringId === s.id}
+                              onClick={() => handleToggleFeatured(s)}
+                              className="icon-btn"
+                              style={{ width: 30, height: 30, color: s.featured ? 'var(--warn)' : undefined }}
+                              title={s.featured ? 'Unpin from top of picker' : 'Pin to top of picker'}
+                            >
+                              {featuringId === s.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Star className="w-3.5 h-3.5" fill={s.featured ? 'currentColor' : 'none'} />
+                              )}
+                            </button>
                             <button onClick={() => openEditModal(s)} className="icon-btn" style={{ width: 30, height: 30 }} title="Edit Service">
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>

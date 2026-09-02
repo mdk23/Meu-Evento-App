@@ -3,6 +3,7 @@
 import { Loader2, Package, AlertTriangle } from 'lucide-react';
 import { useBookingResources } from './useBookingResources';
 import BookingServiceResourcePanel from '@/components/resources/BookingServiceResourcePanel';
+import { computeBookingSeatingGaps } from '@/lib/seating';
 
 interface BookingResourcesTabProps {
   bookingId: string;
@@ -36,6 +37,21 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
   const internalServices = (data?.booking.bookingServices || []).filter((bs) => bs.providerType === 'INTERNAL');
   const resourceSummary = data?.resourceSummary || [];
 
+  // Per seating item: seats the booking's required chairs/tables provide vs the guest count.
+  const guestCount = data?.booking.guestCount ?? 0;
+  const seatByItemId = new Map((data?.inventoryItems || []).map((i) => [i.id, i.seatingCapacity]));
+  const seatingGaps = computeBookingSeatingGaps(
+    resourceSummary
+      .filter((row) => seatByItemId.get(row.key) && (seatByItemId.get(row.key) as number) > 0)
+      .map((row) => ({
+        inventoryItemId: row.key,
+        itemLabel: row.itemLabel,
+        units: row.required,
+        seatingCapacity: seatByItemId.get(row.key) as number,
+      })),
+    guestCount
+  );
+
   return (
     <div className="page stack" style={{ gap: 24 }}>
       <div>
@@ -45,6 +61,20 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
           this is a Venue booking or a full Event, no promotion required.
         </p>
       </div>
+
+      {seatingGaps.length > 0 && (
+        <div className="card plain stack" style={{ gap: 6, padding: 16, border: '1px solid var(--warn)' }}>
+          {seatingGaps.map((g) => (
+            <div key={g.inventoryItemId ?? g.itemLabel} className="row mini" style={{ gap: 8, alignItems: 'flex-start' }}>
+              <AlertTriangle className="w-4 h-4" style={{ color: 'var(--warn)', flexShrink: 0, marginTop: 1 }} />
+              <span>
+                {g.itemLabel}: {g.seatsProvided} seat{g.seatsProvided === 1 ? '' : 's'} for {g.guestCount} guest
+                {g.guestCount === 1 ? '' : 's'} &mdash; {Math.abs(g.delta)} {g.direction === 'UNDER' ? 'short' : 'over'}.
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {resourceSummary.length > 0 && (
         <div className="card plain stack" style={{ gap: 10, padding: 20 }}>

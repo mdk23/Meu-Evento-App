@@ -1,6 +1,7 @@
 import React from 'react';
-import { Plus, Search, Check, Boxes, ListChecks, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Check, Boxes, ListChecks, AlertTriangle, Star } from 'lucide-react';
 import { ServiceItem, CartItem, CatalogPackage } from './types';
+import { SeatingItemGap } from '@/lib/seating';
 
 export interface PackageCapacityWarning {
   packageId: string;
@@ -15,8 +16,6 @@ interface CatalogServicesSectionProps {
   setSearchTerm: (term: string) => void;
   categoryFilter: 'ALL' | 'VENUE' | 'EVENT';
   setCategoryFilter: (cat: 'ALL' | 'VENUE' | 'EVENT') => void;
-  originFilter: 'ALL' | 'INTERNAL' | 'EXTERNAL';
-  setOriginFilter: (origin: 'ALL' | 'INTERNAL' | 'EXTERNAL') => void;
   catalogServices: ServiceItem[];
   filteredCatalog: ServiceItem[];
   selectedItems: CartItem[];
@@ -25,6 +24,7 @@ interface CatalogServicesSectionProps {
   onApplyPackage: (pkg: CatalogPackage) => void;
   isPackageApplied: (pkg: CatalogPackage) => boolean;
   packageCapacityWarnings: PackageCapacityWarning[];
+  seatingGuestWarnings: SeatingItemGap[];
 }
 
 export default function CatalogServicesSection({
@@ -32,8 +32,6 @@ export default function CatalogServicesSection({
   setSearchTerm,
   categoryFilter,
   setCategoryFilter,
-  originFilter,
-  setOriginFilter,
   catalogServices,
   filteredCatalog,
   selectedItems,
@@ -42,15 +40,16 @@ export default function CatalogServicesSection({
   onApplyPackage,
   isPackageApplied,
   packageCapacityWarnings,
+  seatingGuestWarnings,
 }: CatalogServicesSectionProps) {
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [viewMode, setViewMode] = React.useState<'services' | 'packages'>('packages');
+  const [viewMode, setViewMode] = React.useState<'services' | 'packages'>('services');
   const ITEMS_PER_PAGE = 5;
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, categoryFilter, originFilter]);
+  }, [searchTerm, categoryFilter]);
 
   const totalPages = Math.ceil(filteredCatalog.length / ITEMS_PER_PAGE);
   const paginatedCatalog = filteredCatalog.slice(
@@ -80,19 +79,19 @@ export default function CatalogServicesSection({
         <div className="row" style={{ gap: 4, flexShrink: 0 }}>
           <button
             type="button"
-            onClick={() => setViewMode('packages')}
-            className={`pill${viewMode === 'packages' ? ' active' : ''}`}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Boxes className="w-3 h-3" /> Packages
-          </button>
-          <button
-            type="button"
             onClick={() => setViewMode('services')}
             className={`pill${viewMode === 'services' ? ' active' : ''}`}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <ListChecks className="w-3 h-3" /> Services
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('packages')}
+            className={`pill${viewMode === 'packages' ? ' active' : ''}`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Boxes className="w-3 h-3" /> Packages
           </button>
         </div>
       </div>
@@ -108,6 +107,23 @@ export default function CatalogServicesSection({
               <span>
                 Booking exceeds &ldquo;{w.packageName}&rdquo; capacity. Guests {w.guestCount}, package {w.packageCapacity}
                 {' '}&mdash; add services for {w.additionalCapacityRequired} more. The package is not changed.
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {seatingGuestWarnings.length > 0 && (
+        <div
+          className="stack"
+          style={{ gap: 6, padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--warn)', background: 'var(--warn-bg, var(--surface-2))', flexShrink: 0 }}
+        >
+          {seatingGuestWarnings.map((g) => (
+            <div key={g.inventoryItemId ?? g.itemLabel} className="row mini" style={{ gap: 8, alignItems: 'flex-start' }}>
+              <AlertTriangle className="w-4 h-4" style={{ color: 'var(--warn)', flexShrink: 0, marginTop: 1 }} />
+              <span>
+                {g.itemLabel}: {g.seatsProvided} seat{g.seatsProvided === 1 ? '' : 's'} for {g.guestCount} guest
+                {g.guestCount === 1 ? '' : 's'} &mdash; {Math.abs(g.delta)} {g.direction === 'UNDER' ? 'short' : 'over'}.
               </span>
             </div>
           ))}
@@ -161,22 +177,6 @@ export default function CatalogServicesSection({
 
         {viewMode === 'services' ? (
           <>
-            {/* ORIGIN SUB-FILTERS */}
-            <div className="row mini dim" style={{ gap: 8, flexShrink: 0 }}>
-              <span className="label" style={{ flexShrink: 0 }}>Source:</span>
-              <div className="row" style={{ gap: 6, overflowX: 'auto' }}>
-                <button type="button" onClick={() => setOriginFilter('ALL')} className={`pill${originFilter === 'ALL' ? ' active' : ''}`}>
-                  All
-                </button>
-                <button type="button" onClick={() => setOriginFilter('INTERNAL')} className={`pill${originFilter === 'INTERNAL' ? ' active' : ''}`}>
-                  Internal
-                </button>
-                <button type="button" onClick={() => setOriginFilter('EXTERNAL')} className={`pill${originFilter === 'EXTERNAL' ? ' active' : ''}`}>
-                  External Partners
-                </button>
-              </div>
-            </div>
-
             {/* SERVICES SCROLLABLE CARDS */}
             <div className="flex-1 overflow-y-auto stack" style={{ gap: 10, paddingRight: 4 }}>
               {paginatedCatalog.length === 0 ? (
@@ -200,11 +200,13 @@ export default function CatalogServicesSection({
                       }}
                     >
                       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {service.featured && (
+                          <span className="badge b-warn" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Star className="w-3 h-3" /> Featured
+                          </span>
+                        )}
                         <span className="badge b-accent">
                           {service.category === 'VENUE' ? 'Venue Service' : 'Event Service'}
-                        </span>
-                        <span className={`badge ${service.providerType === 'INTERNAL' ? 'b-ok' : 'b-info'}`}>
-                          {service.providerType === 'INTERNAL' ? 'Internal' : service.providerName || 'External Partner'}
                         </span>
                       </div>
 

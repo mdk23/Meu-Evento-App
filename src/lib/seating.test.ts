@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { computePackageSeating, computeBookingPackageCapacityGap, SeatingReq } from './seating';
+import {
+  computePackageSeating,
+  computeBookingPackageCapacityGap,
+  computeBookingSeatingGaps,
+  SeatingReq,
+  SeatingGapItem,
+} from './seating';
 
 describe('computePackageSeating', () => {
   it('adds up resolved-quantity x seatingCapacity across seating requirements', () => {
@@ -65,5 +71,36 @@ describe('computeBookingPackageCapacityGap', () => {
   it('returns null when the package has no declared capacity', () => {
     expect(computeBookingPackageCapacityGap(120, null)).toBeNull();
     expect(computeBookingPackageCapacityGap(120, 0)).toBeNull();
+  });
+});
+
+describe('computeBookingSeatingGaps', () => {
+  const chair = (units: number): SeatingGapItem => ({ inventoryItemId: 'chair', itemLabel: 'Tiffany Chair', units, seatingCapacity: 1 });
+  const table = (units: number): SeatingGapItem => ({ inventoryItemId: 'table', itemLabel: 'Round Table 1.8m', units, seatingCapacity: 12 });
+
+  it('returns no gap when seats exactly match the guest count', () => {
+    expect(computeBookingSeatingGaps([chair(120)], 120)).toEqual([]);
+    expect(computeBookingSeatingGaps([table(10)], 120)).toEqual([]); // 10 × 12 = 120
+  });
+
+  it('flags a shortage (UNDER) with a negative delta', () => {
+    expect(computeBookingSeatingGaps([chair(100)], 120)).toEqual([
+      { inventoryItemId: 'chair', itemLabel: 'Tiffany Chair', units: 100, seatsProvided: 100, guestCount: 120, delta: -20, direction: 'UNDER' },
+    ]);
+    expect(computeBookingSeatingGaps([table(8)], 120)[0]).toMatchObject({ seatsProvided: 96, delta: -24, direction: 'UNDER' });
+  });
+
+  it('flags an excess (OVER) with a positive delta', () => {
+    expect(computeBookingSeatingGaps([chair(150)], 120)[0]).toMatchObject({ seatsProvided: 150, delta: 30, direction: 'OVER' });
+    expect(computeBookingSeatingGaps([table(11)], 130)[0]).toMatchObject({ seatsProvided: 132, delta: 2, direction: 'OVER' });
+  });
+
+  it('ignores non-seating items (seatingCapacity 0)', () => {
+    expect(computeBookingSeatingGaps([{ inventoryItemId: 'ac', itemLabel: 'AC Unit', units: 4, seatingCapacity: 0 }], 120)).toEqual([]);
+  });
+
+  it('reports one gap per item — a short chair line and an over table line together', () => {
+    const gaps = computeBookingSeatingGaps([chair(100), table(11)], 120);
+    expect(gaps.map((g) => g.direction)).toEqual(['UNDER', 'OVER']);
   });
 });

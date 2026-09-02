@@ -97,3 +97,51 @@ export function computeBookingPackageCapacityGap(
     additionalCapacityRequired: guestCount - packageCapacity,
   };
 }
+
+export interface SeatingGapItem {
+  inventoryItemId: string | null;
+  itemLabel: string;
+  /** Resolved count of this seating item on the booking (chairs, tables, …). */
+  units: number;
+  /** `InventoryItem.seatingCapacity` — seats per unit. */
+  seatingCapacity: number;
+}
+
+export interface SeatingItemGap {
+  inventoryItemId: string | null;
+  itemLabel: string;
+  units: number;
+  /** `units × seatingCapacity`. */
+  seatsProvided: number;
+  guestCount: number;
+  /** `seatsProvided − guestCount` — negative = short, positive = excess. */
+  delta: number;
+  direction: 'UNDER' | 'OVER';
+}
+
+/**
+ * Per-seating-item comparison of the seats a booking's chairs/tables provide against its guest count.
+ * One `SeatingItemGap` per already-grouped seating item (`seatingCapacity > 0`) whose seats don't
+ * exactly match the guest count — under *or* over. Non-seating items and exact matches are omitted.
+ * Combined across chairs + tables would be meaningless (a guest needs both), so callers group by
+ * item first and this stays per-item. Pure — no DB access.
+ */
+export function computeBookingSeatingGaps(items: SeatingGapItem[], guestCount: number): SeatingItemGap[] {
+  const gaps: SeatingItemGap[] = [];
+  for (const it of items) {
+    if (it.seatingCapacity <= 0) continue;
+    const seatsProvided = it.units * it.seatingCapacity;
+    const delta = seatsProvided - guestCount;
+    if (delta === 0) continue;
+    gaps.push({
+      inventoryItemId: it.inventoryItemId,
+      itemLabel: it.itemLabel,
+      units: it.units,
+      seatsProvided,
+      guestCount,
+      delta,
+      direction: delta < 0 ? 'UNDER' : 'OVER',
+    });
+  }
+  return gaps;
+}

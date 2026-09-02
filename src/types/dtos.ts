@@ -170,6 +170,8 @@ export interface ServiceCardDTO {
   defaultExecutionType: 'INTERNAL' | 'EXTERNAL';
   priceType: 'FIXED' | 'PER_GUEST' | 'PER_HOUR' | 'PER_UNIT';
   defaultPrice: number;
+  /** Pinned to the top of the service picker. */
+  featured: boolean;
   inventoryRequirements: ServiceInventoryRequirementDTO[];
 }
 

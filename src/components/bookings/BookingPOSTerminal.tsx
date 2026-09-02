@@ -85,8 +85,6 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             setSearchTerm={pos.setSearchTerm}
             categoryFilter={pos.categoryFilter}
             setCategoryFilter={pos.setCategoryFilter}
-            originFilter={pos.originFilter}
-            setOriginFilter={pos.setOriginFilter}
             catalogServices={pos.catalogServices}
             filteredCatalog={pos.filteredCatalog}
             selectedItems={pos.selectedItems}
@@ -95,6 +93,7 @@ export default function BookingPOSTerminal(props: BookingPOSTerminalProps) {
             onApplyPackage={pos.applyPackage}
             isPackageApplied={pos.isPackageApplied}
             packageCapacityWarnings={pos.packageCapacityWarnings}
+            seatingGuestWarnings={pos.seatingGuestWarnings}
           />
 
           {/* COLUMN 3: POS CASH EXTRACT & SUMMARY */}

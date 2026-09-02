@@ -8,7 +8,7 @@ export class ServiceRepository {
   static async getServiceCatalog(tenantId?: string): Promise<ServiceCardDTO[]> {
     const services = await prisma.service.findMany({
       where: { active: true, ...(tenantId ? { tenantId } : {}) },
-      orderBy: { name: 'asc' },
+      orderBy: [{ featured: 'desc' }, { name: 'asc' }],
       select: {
         id: true,
         name: true,
@@ -17,6 +17,7 @@ export class ServiceRepository {
         defaultProviderType: true,
         priceType: true,
         defaultPrice: true,
+        featured: true,
         inventoryRequirements: {
           orderBy: { sortOrder: 'asc' },
           select: {
@@ -42,6 +43,7 @@ export class ServiceRepository {
       defaultExecutionType: s.defaultProviderType,
       priceType: s.priceType,
       defaultPrice: toDisplayNumber(s.defaultPrice),
+      featured: s.featured,
       inventoryRequirements: s.inventoryRequirements.map((r) => ({
         id: r.id,
         inventoryItemId: r.inventoryItemId,
