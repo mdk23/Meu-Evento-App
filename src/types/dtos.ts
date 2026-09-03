@@ -146,19 +146,64 @@ export interface ClientListPageDTO {
   totalPages: number;
 }
 
-/** Catalog template row — "this service normally requires X" (Phase 14). Either `inventoryItemId` is
- * set (a hard-linked specific variant) or `categoryId` is set (any item in that category qualifies) —
- * never both null. See `ServiceInventoryRequirement` in schema.prisma for the full design reasoning. */
+/** Catalog template row — "this service normally requires X". Either `inventoryItemId` is set (Mode
+ * A — a hard-linked specific variant) or `inventoryTypeId` is set (Mode B — any item of that type
+ * whose attributes satisfy `matchCriteria`) — never both null. */
 export interface ServiceInventoryRequirementDTO {
   id: string;
   inventoryItemId: string | null;
   inventoryItemName: string | null;
+  inventoryTypeId: string | null;
+  inventoryTypeName: string | null;
+  matchCriteria: Record<string, unknown> | null;
+  /** @deprecated superseded by `inventoryTypeId` — still populated during the Category→Type migration. */
   categoryId: string | null;
+  /** @deprecated superseded by `inventoryTypeName`. */
   categoryName: string | null;
   quantity: number;
   quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT';
   optional: boolean;
   notes: string | null;
+}
+
+/** One dynamic attribute definition on an `InventoryType.attributeDefs` (§15). */
+export interface InventoryAttributeDefinitionDTO {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date';
+  required: boolean;
+  options?: string[];
+  min?: number;
+  max?: number;
+}
+
+export interface InventoryCategoryDTO {
+  id: string;
+  name: string;
+  description?: string | null;
+  active: boolean;
+}
+
+export interface InventoryTypeDTO {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  name: string;
+  code: string;
+  attributeDefs: InventoryAttributeDefinitionDTO[];
+  active: boolean;
+}
+
+export interface InventoryItemDTO {
+  id: string;
+  name: string;
+  sku?: string | null;
+  quantity: number;
+  trackingMode: 'QUANTITY';
+  active: boolean;
+  category: { id: string; name: string };
+  type: { id: string; name: string; code: string };
+  attributes: Record<string, unknown>;
 }
 
 export interface ServiceCardDTO {

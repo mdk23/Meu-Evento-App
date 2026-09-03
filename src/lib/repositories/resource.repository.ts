@@ -1,15 +1,36 @@
 import { prisma } from '@/lib/prisma';
+import { InventoryTypeRepository } from '@/lib/repositories/inventory-type.repository';
 
 export class ResourceRepository {
   static async getResourcesData() {
-    const [venue, inventory, staff, suppliers, inventoryCategories] = await Promise.all([
+    const [venue, inventory, staff, suppliers, inventoryCategories, inventoryTypes] = await Promise.all([
       prisma.venue.findFirst({
         select: { id: true, name: true, capacity: true, address: true, description: true },
       }),
       prisma.inventoryItem.findMany({
         where: { active: true },
         orderBy: { name: 'asc' },
-        select: { id: true, name: true, totalQuantity: true, seatingCapacity: true, categoryId: true, category: { select: { name: true } } },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          totalQuantity: true,
+          unit: true,
+          attributes: true,
+          seatingCapacity: true,
+          categoryId: true,
+          category: { select: { name: true } },
+          inventoryTypeId: true,
+          inventoryType: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              attributeDefs: true,
+              category: { select: { id: true, name: true } },
+            },
+          },
+        },
       }),
       prisma.staff.findMany({
         orderBy: { name: 'asc' },
@@ -24,8 +45,9 @@ export class ResourceRepository {
         orderBy: { name: 'asc' },
         select: { id: true, name: true },
       }),
+      InventoryTypeRepository.getTypes(),
     ]);
 
-    return { venue, inventory, staff, suppliers, inventoryCategories };
+    return { venue, inventory, staff, suppliers, inventoryCategories, inventoryTypes };
   }
 }

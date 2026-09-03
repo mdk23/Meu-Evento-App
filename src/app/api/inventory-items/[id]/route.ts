@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { serializeDecimals } from '@/lib/money';
 import { computeInventoryStockSummary } from '@/lib/inventory-accounting';
 import { InventoryItemRepository } from '@/lib/repositories/inventory-item.repository';
+import { resolveItemWrite } from '@/lib/inventory-item-write';
 
 export async function GET(
   request: Request,
@@ -32,34 +34,43 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, categoryId, quantity, seatingCapacity } = body;
+    const { name, sku, inventoryTypeId, quantity, unit, description, attributes } = body;
 
     const existing = await prisma.inventoryItem.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 });
     }
 
-    if (categoryId) {
-      const category = await prisma.inventoryCategory.findUnique({ where: { id: categoryId } });
-      if (!category) {
-        return NextResponse.json({ error: 'Category not found' }, { status: 400 });
-      }
+    const data: Prisma.InventoryItemUpdateInput = {};
+    if (name !== undefined) data.name = String(name).trim();
+    if (sku !== undefined) data.sku = sku && String(sku).trim() ? String(sku).trim() : null;
+    if (quantity !== undefined) data.totalQuantity = parseInt(String(quantity), 10) || 0;
+    if (unit !== undefined && String(unit).trim()) data.unit = String(unit).trim();
+    if (description !== undefined) data.description = description && String(description).trim() ? String(description).trim() : null;
+
+    // Re-resolve the type-governed parts whenever the type or the attribute values change.
+    if (inventoryTypeId !== undefined || attributes !== undefined) {
+      const targetTypeId = inventoryTypeId ?? existing.inventoryTypeId;
+      const rawAttrs = attributes !== undefined ? attributes : existing.attributes;
+      const w = await resolveItemWrite(existing.tenantId, targetTypeId, rawAttrs);
+      if (!w.ok) return NextResponse.json({ error: w.error }, { status: w.status });
+      data.inventoryType = { connect: { id: targetTypeId } };
+      data.category = { connect: { id: w.categoryId } };
+      data.attributes = w.attributes as unknown as Prisma.InputJsonValue;
+      data.seatingCapacity = w.seatingCapacity;
     }
 
     const item = await prisma.inventoryItem.update({
       where: { id },
-      data: {
-        name: name !== undefined ? name.trim() : existing.name,
-        categoryId: categoryId !== undefined ? categoryId : existing.categoryId,
-        totalQuantity: quantity !== undefined ? parseInt(quantity, 10) : existing.totalQuantity,
-        seatingCapacity:
-          seatingCapacity !== undefined ? parseInt(seatingCapacity, 10) || 0 : existing.seatingCapacity,
-      },
-      include: { category: true },
+      data,
+      include: { inventoryType: { include: { category: true } } },
     });
 
     return NextResponse.json({ success: true, item });
   } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'An item with this SKU already exists.' }, { status: 409 });
+    }
     console.error('Failed to update inventory item:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

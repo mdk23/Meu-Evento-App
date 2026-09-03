@@ -113,23 +113,81 @@ export async function POST() {
       ),
     });
 
-    // 7. Create Inventory Categories + Items
+    // 7. Create Inventory Categories → Types → Items
     const [categoryFurniture, categoryAudioVisual, categoryKitchen] = await Promise.all([
       prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Furniture' } }),
       prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Audio Visual' } }),
       prisma.inventoryCategory.create({ data: { tenantId: tenant.id, name: 'Kitchen' } }),
     ]);
+    const [typeChair, typeTable, typeAV, typeKitchen] = await Promise.all([
+      prisma.inventoryType.create({
+        data: {
+          tenantId: tenant.id, categoryId: categoryFurniture.id, name: 'Chair', code: 'CHAIR',
+          attributeDefs: [
+            { key: 'color', label: 'Color', type: 'select', required: false, options: ['Gold', 'White', 'Black', 'Silver'] },
+            { key: 'material', label: 'Material', type: 'select', required: false, options: ['Wood', 'Metal', 'Plastic'] },
+            { key: 'style', label: 'Style', type: 'text', required: false },
+            { key: 'seatingCapacity', label: 'Seating Capacity', type: 'number', required: true, min: 0 },
+            { key: 'stackable', label: 'Stackable', type: 'boolean', required: false },
+          ],
+        },
+      }),
+      prisma.inventoryType.create({
+        data: {
+          tenantId: tenant.id, categoryId: categoryFurniture.id, name: 'Table', code: 'TABLE',
+          attributeDefs: [
+            { key: 'shape', label: 'Shape', type: 'select', required: true, options: ['ROUND', 'RECTANGULAR', 'SQUARE'] },
+            { key: 'diameter', label: 'Diameter (m)', type: 'number', required: false, min: 0 },
+            { key: 'length', label: 'Length (m)', type: 'number', required: false, min: 0 },
+            { key: 'width', label: 'Width (m)', type: 'number', required: false, min: 0 },
+            { key: 'seatingCapacity', label: 'Seating Capacity', type: 'number', required: true, min: 1 },
+            { key: 'foldable', label: 'Foldable', type: 'boolean', required: false },
+          ],
+        },
+      }),
+      prisma.inventoryType.create({
+        data: {
+          tenantId: tenant.id, categoryId: categoryAudioVisual.id, name: 'AV Equipment', code: 'AV_EQUIPMENT',
+          attributeDefs: [
+            { key: 'power', label: 'Power (W)', type: 'number', required: false, min: 0 },
+            { key: 'notes', label: 'Notes', type: 'textarea', required: false },
+          ],
+        },
+      }),
+      prisma.inventoryType.create({
+        data: {
+          tenantId: tenant.id, categoryId: categoryKitchen.id, name: 'Kitchen Equipment', code: 'KITCHEN_EQUIPMENT',
+          attributeDefs: [{ key: 'material', label: 'Material', type: 'text', required: false }],
+        },
+      }),
+    ]);
     const itemChairs = await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Banquet Chairs', totalQuantity: 500, categoryId: categoryFurniture.id },
+      data: {
+        tenantId: tenant.id, name: 'Banquet Chairs', totalQuantity: 500,
+        categoryId: categoryFurniture.id, inventoryTypeId: typeChair.id,
+        attributes: { color: 'Gold', material: 'Metal', seatingCapacity: 1, stackable: true },
+        seatingCapacity: 1,
+      },
     });
     const itemTables = await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Round Tables (8-Seater)', totalQuantity: 60, categoryId: categoryFurniture.id },
+      data: {
+        tenantId: tenant.id, name: 'Round Tables (8-Seater)', totalQuantity: 60,
+        categoryId: categoryFurniture.id, inventoryTypeId: typeTable.id,
+        attributes: { shape: 'ROUND', diameter: 1.5, seatingCapacity: 8 },
+        seatingCapacity: 8,
+      },
     });
     await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Stage Intelligent Lights', totalQuantity: 12, categoryId: categoryAudioVisual.id },
+      data: {
+        tenantId: tenant.id, name: 'Stage Intelligent Lights', totalQuantity: 12,
+        categoryId: categoryAudioVisual.id, inventoryTypeId: typeAV.id, attributes: { power: 300 },
+      },
     });
     const itemChafingDishes = await prisma.inventoryItem.create({
-      data: { tenantId: tenant.id, name: 'Stainless Chafing Dishes', totalQuantity: 24, categoryId: categoryKitchen.id },
+      data: {
+        tenantId: tenant.id, name: 'Stainless Chafing Dishes', totalQuantity: 24,
+        categoryId: categoryKitchen.id, inventoryTypeId: typeKitchen.id, attributes: { material: 'Stainless steel' },
+      },
     });
 
     // 7. Create Services Catalog

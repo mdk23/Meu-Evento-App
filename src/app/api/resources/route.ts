@@ -67,6 +67,29 @@ export async function POST(request: Request) {
         update: {},
         create: { tenantId: tenant.id, name: categoryName },
       });
+      // Category → Type → Item refactor (transitional): an item must belong to an InventoryType.
+      // Until the dedicated item form sends a chosen type, fall back to the category's "Unclassified"
+      // type (creating it if the category was just made), and surface those for manual reclassification.
+      let inventoryTypeId: string = data.inventoryTypeId;
+      if (!inventoryTypeId) {
+        const fallback = await prisma.inventoryType.findFirst({
+          where: { tenantId: tenant.id, categoryId: category.id, name: 'Unclassified' },
+          select: { id: true },
+        });
+        inventoryTypeId =
+          fallback?.id ??
+          (
+            await prisma.inventoryType.create({
+              data: {
+                tenantId: tenant.id,
+                categoryId: category.id,
+                name: 'Unclassified',
+                code: `UNCLASSIFIED_${category.id.slice(0, 8).toUpperCase()}`,
+              },
+              select: { id: true },
+            })
+          ).id;
+      }
       const item = await prisma.inventoryItem.create({
         data: {
           tenantId: tenant.id,
@@ -74,6 +97,7 @@ export async function POST(request: Request) {
           totalQuantity: parseInt(data.quantity || '0', 10),
           seatingCapacity: parseInt(data.seatingCapacity || '0', 10) || 0,
           categoryId: category.id,
+          inventoryTypeId,
         },
       });
       return NextResponse.json({ success: true, item }, { status: 201 });

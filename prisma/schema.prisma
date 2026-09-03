@@ -139,6 +139,13 @@ enum ResourceAllocationStatus {
   RELEASED
 }
 
+/// How an `InventoryItem`'s stock is tracked. Only `QUANTITY` today (a bulk count); the enum exists
+/// so future individually-tracked assets (`SERIALIZED`, `UNIQUE_ASSET`) can be added without a
+/// schema-shape change.
+enum InventoryTrackingMode {
+  QUANTITY
+}
+
 /// The inventory movement ledger's event types — "what physically happened," independent of a
 /// reservation's commitment status. Never rewritten to hide history; corrections are new rows.
 enum InventoryTransactionType {
@@ -176,6 +183,7 @@ model Tenant {
   suppliers           Supplier[]
   inventoryItems      InventoryItem[]
   inventoryCategories InventoryCategory[]
+  inventoryTypes      InventoryType[]
   staff               Staff[]
   scheduledPayments   ScheduledPayment[]
   paymentTransactions PaymentTransaction[]
@@ -580,23 +588,23 @@ model BookingService {
 /// `bookingPackageId` set) stay fully independent afterward — deleting this snapshot (which the app
 /// never does) would only lose the "which package" attribution, not the sold lines themselves.
 model BookingPackage {
-  id           String         @id @default(cuid())
+  id             String         @id @default(cuid())
   /// Denormalized from the parent `Booking` for tenant-scoped queries and consistency with every
   /// other tenant-owned model. Always equals `booking.tenantId`.
-  tenantId     String
-  bookingId    String
-  packageId    String
-  nameSnapshot String
+  tenantId       String
+  bookingId      String
+  packageId      String
+  nameSnapshot   String
   /// Snapshot of the source `Package.context` at the moment this was applied — protects this
   /// record from changing meaning if the catalog package's context is edited afterward.
-  context      PackageContext
+  context        PackageContext
   /// Snapshot of the source `Package.price`, only when its `pricingMode` was `FIXED` at application
   /// time. Null when it was `COMPUTED` — the total is (and was) derived from the exploded lines.
-  price        Decimal?       @db.Decimal(12, 2)
+  price          Decimal?       @db.Decimal(12, 2)
   /// Snapshot of the source `Package.version` at application time — lets the booking show "sold from
   /// version 3 of this package" even after the catalog package is edited further.
-  packageVersion Int          @default(1)
-  createdAt    DateTime       @default(now())
+  packageVersion Int            @default(1)
+  createdAt      DateTime       @default(now())
 
   tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking         Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -709,46 +717,82 @@ model InventoryCategory {
   updatedAt   DateTime @updatedAt
 
   tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  types        InventoryType[]
+  /// Legacy direct links — kept until the Category→Type→Item refactor's final phase drops
+  /// `InventoryItem.categoryId` / `ServiceInventoryRequirement.categoryId`.
   items        InventoryItem[]
   requirements ServiceInventoryRequirement[]
 
   @@unique([tenantId, name])
-  @@index([tenantId])
+  @@index([tenantId, active])
   @@map("inventory_categories")
 }
 
-model InventoryItem {
+/// The middle tier of the inventory hierarchy: "what kind of physical resource is this?" (Chair,
+/// Table, Napkin, AC Unit). A type belongs to one category and owns the `attributeDefs` JSON schema
+/// that governs which characteristics its items carry (a Chair defines color/material/seatingCapacity;
+/// a Table defines shape/diameter/seatingCapacity). `code` is the stable machine identifier
+/// (`CHAIR`, `TABLE`); business logic keys off `code`, never the display `name`.
+model InventoryType {
   id            String   @id @default(cuid())
   tenantId      String
-  name          String
-  /// Renamed from `quantity` — this is the master physical stock count, kept Int since venue
-  /// furniture/equipment is whole-unit; every *flow* quantity elsewhere (requirements, reservations,
-  /// transactions) is Decimal to allow fractional operational units later.
-  totalQuantity Int      @default(0)
-  /// How many guests one unit of this item seats — 1 for a chair, 12 for a round table, 0 for a
-  /// non-seating item (AC unit, tablecloth). `seatingCapacity > 0` is the only signal used to decide
-  /// whether an item counts toward a package's provided-seats total; a category flag would be wrong
-  /// (a "Tables" category can hold a console table that seats nobody).
-  seatingCapacity Int    @default(0)
   categoryId    String
-  sku           String?
-  unit          String   @default("unit")
-  description   String?
-  /// Common variant characteristics as real, queryable/filterable/displayable columns — not buried in
-  /// JSON. Each is nullable since not every category uses every field (an AC unit has no color).
-  color         String?
-  material      String?
-  model         String?
-  size          String?
-  shape         String?
-  /// Extension-only overflow for category-specific or future attributes that don't earn their own
-  /// column — never the primary home for color/material/model/size/shape above.
-  attributes    Json?
+  name          String
+  code          String
+  /// JSON array of attribute definitions — see `src/lib/inventory-attributes.ts` for the validated
+  /// shape (`{ key, label, type, required, options?, min?, max? }`).
+  attributeDefs Json?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category     InventoryCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  items        InventoryItem[]
+  requirements ServiceInventoryRequirement[]
+
+  @@unique([tenantId, code])
+  @@unique([categoryId, name])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, active])
+  @@map("inventory_types")
+}
+
+model InventoryItem {
+  id              String                @id @default(cuid())
+  tenantId        String
+  /// The item's type — the source of truth for what this resource is and which characteristics
+  /// (`attributes`) it carries.
+  inventoryTypeId String
+  trackingMode    InventoryTrackingMode @default(QUANTITY)
+  name            String
+  /// Renamed from `quantity` — this is the master physical stock count, kept Int since venue
+  /// furniture/equipment is whole-unit; every *flow* quantity elsewhere (requirements, reservations,
+  /// transactions) is Decimal to allow fractional operational units later.
+  totalQuantity   Int                   @default(0)
+  sku             String?
+  unit            String                @default("unit")
+  description     String?
+  /// Structured characteristic values, keyed by the item's `InventoryType.attributeDefs`. This is the
+  /// canonical home for seatingCapacity/color/material/etc. — `getSeatingCapacity` reads it only when
+  /// the type defines a numeric `seatingCapacity`.
+  attributes      Json?
+  active          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  /// LEGACY (dropped in the refactor's final phase): pre-Type columns, still present so the migration
+  /// can fold their values into `attributes` before removal.
+  seatingCapacity Int     @default(0)
+  categoryId      String
+  color           String?
+  material        String?
+  model           String?
+  size            String?
+  shape           String?
+
   tenant              Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryType       InventoryType                 @relation(fields: [inventoryTypeId], references: [id], onDelete: Restrict)
   category            InventoryCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   serviceRequirements ServiceInventoryRequirement[]
   bookingResources    BookingServiceResource[]
@@ -757,6 +801,7 @@ model InventoryItem {
   @@index([tenantId])
   @@index([active])
   @@index([categoryId])
+  @@index([tenantId, inventoryTypeId])
   @@map("inventory_items")
 }
 
@@ -770,6 +815,10 @@ model ServiceInventoryRequirement {
   tenantId        String
   serviceId       String
   inventoryItemId String?
+  /// Mode B: a generic requirement resolved to a concrete item at booking time — this type plus the
+  /// optional `matchCriteria` (e.g. `{ "shape": "ROUND", "seatingCapacity": { "gte": 10 } }`).
+  inventoryTypeId String?
+  matchCriteria   Json?
   categoryId      String?
   quantity        Decimal      @db.Decimal(12, 2)
   quantityType    QuantityType @default(FIXED)
@@ -781,12 +830,15 @@ model ServiceInventoryRequirement {
 
   service         Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   inventoryItem   InventoryItem?           @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  inventoryType   InventoryType?           @relation(fields: [inventoryTypeId], references: [id], onDelete: Restrict)
+  /// LEGACY (dropped in the refactor's final phase) — superseded by `inventoryTypeId`.
   category        InventoryCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Every per-booking resource row seeded from this template across every booking it's been applied to.
   seededResources BookingServiceResource[]
 
   @@unique([serviceId, inventoryItemId])
   @@index([inventoryItemId])
+  @@index([inventoryTypeId])
   @@index([categoryId])
   @@map("service_inventory_requirements")
 }

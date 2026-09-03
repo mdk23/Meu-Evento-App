@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { PackageCardDTO } from '@/types/dtos';
 import { toDisplayNumber } from '@/lib/money';
 import { computePackageSeating, SeatingReq } from '@/lib/seating';
+import { getSeatingCapacity, readAttributeDefs } from '@/lib/inventory-attributes';
 
 export class PackageRepository {
   /** `tenantId` is optional — omitted today (single-tenant, no identity layer); wired through so a
@@ -19,10 +20,12 @@ export class PackageRepository {
                 inventoryRequirements: {
                   select: {
                     inventoryItemId: true,
-                    categoryId: true,
+                    inventoryTypeId: true,
                     quantity: true,
                     quantityType: true,
-                    inventoryItem: { select: { seatingCapacity: true } },
+                    inventoryItem: {
+                      select: { attributes: true, inventoryType: { select: { attributeDefs: true } } },
+                    },
                   },
                 },
               },
@@ -40,8 +43,10 @@ export class PackageRepository {
           quantityType: r.quantityType,
           quantity: toDisplayNumber(r.quantity),
           unitCount: toDisplayNumber(pi.quantity),
-          seatingCapacity: r.inventoryItem?.seatingCapacity ?? 0,
-          isCategoryOnly: !r.inventoryItemId && !!r.categoryId,
+          seatingCapacity: r.inventoryItem
+            ? getSeatingCapacity(r.inventoryItem.attributes, readAttributeDefs(r.inventoryItem.inventoryType.attributeDefs))
+            : 0,
+          isCategoryOnly: !r.inventoryItemId && !!r.inventoryTypeId,
         }))
       );
 
