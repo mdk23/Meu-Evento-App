@@ -48,3 +48,18 @@ export async function assertNoBookingConflict(
     );
   }
 }
+
+/**
+ * True when `error` is the database rejecting an insert/update via `bookings_no_venue_overlap` (the
+ * EXCLUDE constraint backing this same rule at the engine level — see migration
+ * `20260904000000_add_booking_venue_overlap_guard`). `assertNoBookingConflict`'s check-then-insert
+ * is a normal READ COMMITTED transaction, so two near-simultaneous requests can both pass it before
+ * either commits; the constraint is what actually stops the second one, surfaced by Prisma as a
+ * generic P2004 "constraint failed" error. Route handlers use this to turn that rare race into the
+ * same friendly 409 `assertNoBookingConflict` gives the common case, instead of a raw 500.
+ */
+export function isVenueOverlapConstraintError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const e = error as { code?: unknown; meta?: { database_error?: unknown } };
+  return e.code === 'P2004' && typeof e.meta?.database_error === 'string' && e.meta.database_error.includes('bookings_no_venue_overlap');
+}

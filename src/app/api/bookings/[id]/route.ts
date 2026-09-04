@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma, prismaTransaction } from '@/lib/prisma';
 import { BookingStatus, EventStatus, BookingType, Prisma } from '@prisma/client';
-import { assertNoBookingConflict, BookingConflictError } from '@/lib/booking-conflict';
+import { assertNoBookingConflict, BookingConflictError, isVenueOverlapConstraintError } from '@/lib/booking-conflict';
 import { assertCapacityForConfirmation, CapacityExceededError } from '@/lib/capacity';
 import { serializeDecimals } from '@/lib/money';
 import { deriveEventStatus } from '@/lib/event-progress';
@@ -535,6 +535,12 @@ export async function PATCH(
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (isVenueOverlapConstraintError(error)) {
+      return NextResponse.json(
+        { error: 'This venue was just booked for that time by another request. Choose a different date/time, or submit this booking to the waiting list.' },
+        { status: 409 }
+      );
     }
     if (error instanceof BookingEditRefusedError) {
       return NextResponse.json({ error: error.message }, { status: 409 });

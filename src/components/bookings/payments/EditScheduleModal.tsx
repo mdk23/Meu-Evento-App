@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Check, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScheduleFormItem, SerializedSchedule } from './types';
@@ -14,17 +14,16 @@ interface EditScheduleModalProps {
   onSuccess: () => void;
 }
 
-export default function EditScheduleModal({ isOpen, onClose, bookingId, totalContractAmount, initialSchedules, onSuccess }: EditScheduleModalProps) {
-  const [schedules, setSchedules] = useState<ScheduleFormItem[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setSchedules([...initialSchedules]);
-    }
-  }, [isOpen, initialSchedules]);
-
+// Split so the form only exists while open — mounting fresh each time initializes `schedules`
+// straight from `initialSchedules` with no effect needed to "reset" it after the fact.
+export default function EditScheduleModal({ isOpen, ...rest }: EditScheduleModalProps) {
   if (!isOpen) return null;
+  return <EditScheduleModalForm {...rest} />;
+}
+
+function EditScheduleModalForm({ onClose, bookingId, totalContractAmount, initialSchedules, onSuccess }: Omit<EditScheduleModalProps, 'isOpen'>) {
+  const [schedules, setSchedules] = useState<ScheduleFormItem[]>(() => [...initialSchedules]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentTotal = schedules.reduce((acc, curr) => acc + (parseFloat(String(curr.amount)) || 0), 0);
   const difference = totalContractAmount - currentTotal;

@@ -230,6 +230,11 @@ model Client {
   @@map("clients")
 }
 
+/// The database also enforces "no two active bookings overlap on the same venue" directly, via the
+/// `bookings_no_venue_overlap` EXCLUDE constraint added in migration `20260904000000_add_booking_
+/// venue_overlap_guard` — Prisma has no schema-level construct for EXCLUDE, so it isn't (and can't
+/// be) represented here. See `src/lib/booking-conflict.ts` for the equivalent app-level check that
+/// produces the friendly pre-flight error; the DB constraint is the concurrency-safe backstop.
 model Booking {
   id                     String         @id @default(cuid())
   tenantId               String

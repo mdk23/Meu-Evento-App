@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { computeEventResourceSummary } from './event-resource-summary';
+import { computeResourceSummary } from './event-resource-summary';
 
 const labels = { 'venue-service': 'Venue Rental', 'event-service': 'Decoration' };
 
-describe('computeEventResourceSummary', () => {
+describe('computeResourceSummary', () => {
   it("aggregates two services' resources for the same item into one row", () => {
     const resources = [
       { bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 300, reservedQuantity: 300, status: 'RESERVED' as const, reusedFromResourceId: null },
       { bookingServiceId: 'event-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 100, reservedQuantity: 100, status: 'RESERVED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 200 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 200 }, labels);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ required: 400, provided: 400, additional: 0, reserved: 400, sources: ['Venue Rental', 'Decoration'] });
   });
@@ -18,7 +18,7 @@ describe('computeEventResourceSummary', () => {
     const resources = [
       { bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 300, reservedQuantity: 300, status: 'RESERVED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 0 }, labels);
     expect(rows[0].status).toBe('FULFILLED');
     expect(rows[0].additional).toBe(0);
   });
@@ -27,7 +27,7 @@ describe('computeEventResourceSummary', () => {
     const resources = [
       { bookingServiceId: 'event-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 100, reservedQuantity: 0, status: 'PLANNED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 150 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 150 }, labels);
     expect(rows[0]).toMatchObject({ additional: 100, available: 150, status: 'PENDING' });
   });
 
@@ -35,7 +35,7 @@ describe('computeEventResourceSummary', () => {
     const resources = [
       { bookingServiceId: 'event-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 100, reservedQuantity: 0, status: 'PLANNED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 20 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 20 }, labels);
     expect(rows[0]).toMatchObject({ additional: 100, available: 20, status: 'SHORTAGE' });
   });
 
@@ -43,7 +43,7 @@ describe('computeEventResourceSummary', () => {
     const resources = [
       { bookingServiceId: 'event-service', inventoryItemId: null, itemNameSnapshot: null, typeName: 'Round Table', requiredQuantity: 20, reservedQuantity: 0, status: 'PLANNED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, {}, labels);
+    const rows = computeResourceSummary(resources, {}, labels);
     expect(rows[0]).toMatchObject({ itemLabel: 'Any Round Table', available: null, status: 'UNRESOLVED', reserved: 0 });
   });
 
@@ -52,7 +52,7 @@ describe('computeEventResourceSummary', () => {
       { bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 50, reservedQuantity: 50, status: 'RESERVED' as const, reusedFromResourceId: null },
       { bookingServiceId: 'other-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 0, reservedQuantity: 999, status: 'RELEASED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 0 }, labels);
     expect(rows[0].reserved).toBe(50);
   });
 
@@ -61,7 +61,7 @@ describe('computeEventResourceSummary', () => {
       { bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 300, reservedQuantity: 300, status: 'RESERVED' as const, reusedFromResourceId: null },
       { bookingServiceId: 'event-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 100, reservedQuantity: 100, status: 'RESERVED' as const, reusedFromResourceId: 'res-1' },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 0 }, labels);
     expect(rows[0]).toMatchObject({ required: 400, provided: 400, reserved: 300 });
   });
 
@@ -69,7 +69,7 @@ describe('computeEventResourceSummary', () => {
     const resources = [
       { bookingServiceId: 'venue-service', inventoryItemId: 'chair', itemNameSnapshot: 'Chair', typeName: null, requiredQuantity: 120, reservedQuantity: 120, status: 'CONFIRMED' as const, reusedFromResourceId: null },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 0 }, labels);
     expect(rows[0]).toMatchObject({ reserved: 120, status: 'FULFILLED' });
   });
 
@@ -86,7 +86,7 @@ describe('computeEventResourceSummary', () => {
         ],
       },
     ];
-    const rows = computeEventResourceSummary(resources, { chair: 0 }, labels);
+    const rows = computeResourceSummary(resources, { chair: 0 }, labels);
     expect(rows[0]).toMatchObject({ returned: 118, missing: 2 });
   });
 });

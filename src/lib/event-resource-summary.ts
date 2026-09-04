@@ -38,9 +38,6 @@ export interface EventResourceSummaryRow {
   status: ResourceRowStatus;
 }
 
-/** @deprecated Use `ResourceSummaryRow` — the summary is booking-scoped, not Event-specific. */
-export type ResourceSummaryRow = EventResourceSummaryRow;
-
 /**
  * The event-wide "operational loading list" — every resource requirement across every service on
  * the event (Venue, Event, direct, or package-sourced — this doesn't care which), grouped by the
@@ -105,7 +102,3 @@ export function computeResourceSummary(
 
   return rows;
 }
-
-/** @deprecated Renamed to `computeResourceSummary` (the summary is not Event-specific). Kept as an
- * alias so existing Event callers don't break. */
-export const computeEventResourceSummary = computeResourceSummary;

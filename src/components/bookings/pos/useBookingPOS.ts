@@ -353,22 +353,25 @@ export function useBookingPOS({
   // Update item quantity on guest count changes — DIRECT (catalog-added) PER_GUEST lines only.
   // Package-sourced lines are frozen at the quantities they were applied with (§2/§24/§34); a
   // guest-count change over an applied package's capacity surfaces as `packageCapacityWarnings`
-  // below, and the operator covers the gap with a separate additional service.
-  React.useEffect(() => {
+  // below, and the operator covers the gap with a separate additional service. Folded into the one
+  // event handler that changes `guestCount` (rather than an effect reacting to it afterward) — the
+  // cart resync is part of the same user action, not a separate synchronization concern.
+  const updateGuestCount = React.useCallback((count: number) => {
+    setGuestCount(count);
     setSelectedItems(prev =>
       prev.map(item => {
         if (item.sourcePackageId) return item;
         if (item.priceType === 'PER_GUEST') {
           return {
             ...item,
-            quantity: guestCount,
-            totalPrice: item.price * guestCount,
+            quantity: count,
+            totalPrice: item.price * count,
           };
         }
         return item;
       })
     );
-  }, [guestCount]);
+  }, []);
 
   const removeItemFromCart = (id: string) => {
     setSelectedItems(prev => prev.filter(i => i.id !== id));
@@ -685,7 +688,7 @@ export function useBookingPOS({
     eventType,
     setEventType,
     guestCount,
-    setGuestCount,
+    setGuestCount: updateGuestCount,
     eventDate,
     setEventDate,
     depositDueDate,

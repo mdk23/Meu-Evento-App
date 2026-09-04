@@ -46,10 +46,14 @@ export default function CatalogServicesSection({
   const [viewMode, setViewMode] = React.useState<'services' | 'packages'>('services');
   const ITEMS_PER_PAGE = 5;
 
-  // Reset page when filters change
-  React.useEffect(() => {
+  // Reset to page 1 when the filters change — adjusted during render (React's recommended
+  // alternative to an effect for this exact case) rather than after the fact, so there's no
+  // one-frame flash of the old page's results under the new filter.
+  const [prevFilters, setPrevFilters] = React.useState({ searchTerm, categoryFilter });
+  if (prevFilters.searchTerm !== searchTerm || prevFilters.categoryFilter !== categoryFilter) {
+    setPrevFilters({ searchTerm, categoryFilter });
     setCurrentPage(1);
-  }, [searchTerm, categoryFilter]);
+  }
 
   const totalPages = Math.ceil(filteredCatalog.length / ITEMS_PER_PAGE);
   const paginatedCatalog = filteredCatalog.slice(

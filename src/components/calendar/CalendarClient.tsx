@@ -26,6 +26,9 @@ export default function CalendarClient({
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
   useEffect(() => {
+    // One-time client-only read of localStorage on mount (can't run during SSR) — same accepted
+    // exception as Sidebar's identical read, not a case of synchronizing derived state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWorkspace(getActiveWorkspace() ?? 'EVENT');
   }, []);
 

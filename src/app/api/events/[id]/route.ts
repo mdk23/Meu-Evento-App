@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { serializeDecimals } from '@/lib/money';
 import { computeReuseCandidatesForRequirement } from '@/lib/reuse-candidates';
-import { computeEventResourceSummary } from '@/lib/event-resource-summary';
+import { computeResourceSummary } from '@/lib/event-resource-summary';
 import { ACTIVE_RESOURCE_STATUSES } from '@/lib/resource-conflict';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -96,7 +96,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       availableByItemId[item.id] = Math.max(item.totalQuantity - reservedElsewhere, 0);
     }
 
-    const resourceSummary = computeEventResourceSummary(allResources, availableByItemId, serviceLabels);
+    const resourceSummary = computeResourceSummary(allResources, availableByItemId, serviceLabels);
 
     const eventWithReuseCandidates = {
       ...event,
