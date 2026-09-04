@@ -60,7 +60,7 @@ export default async function EditBookingPage({
       inventoryRequirements: {
         select: {
           quantity: true, quantityType: true, inventoryItemId: true,
-          inventoryItem: { select: { name: true, seatingCapacity: true } },
+          inventoryItem: { select: { name: true, attributes: true, inventoryType: { select: { attributeDefs: true } } } },
         },
       },
     },

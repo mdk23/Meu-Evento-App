@@ -6,7 +6,7 @@ export class InventoryItemRepository {
     return prisma.inventoryItem.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, inventoryTypeId: true, categoryId: true, attributes: true },
+      select: { id: true, name: true, inventoryTypeId: true, attributes: true },
     });
   }
 
@@ -16,7 +16,6 @@ export class InventoryItemRepository {
     return prisma.inventoryItem.findUnique({
       where: { id },
       include: {
-        category: true,
         inventoryType: { include: { category: true } },
         bookingResources: {
           orderBy: { startAt: 'desc' },

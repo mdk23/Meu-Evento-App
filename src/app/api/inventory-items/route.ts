@@ -23,12 +23,10 @@ export async function POST(request: Request) {
         name: String(name).trim(),
         sku: sku && String(sku).trim() ? String(sku).trim() : null,
         inventoryTypeId,
-        categoryId: w.categoryId,
         totalQuantity: parseInt(String(quantity ?? '0'), 10) || 0,
         unit: unit && String(unit).trim() ? String(unit).trim() : undefined,
         description: description && String(description).trim() ? String(description).trim() : null,
         attributes: w.attributes as unknown as Prisma.InputJsonValue,
-        seatingCapacity: w.seatingCapacity,
       },
       include: { inventoryType: { include: { category: true } } },
     });

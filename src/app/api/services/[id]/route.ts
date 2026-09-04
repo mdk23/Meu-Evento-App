@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { ExecutionType, QuantityType, PriceType } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
+import { resolveServiceRequirements } from '@/lib/service-requirement-write';
 
 function resolveQuantityType(value: unknown): QuantityType {
   return value === 'PER_GUEST' || value === 'PER_UNIT' || value === 'GUESTS_PER_UNIT'
@@ -11,15 +13,6 @@ function resolveQuantityType(value: unknown): QuantityType {
 
 function isPriceType(value: unknown): value is PriceType {
   return value === 'FIXED' || value === 'PER_GUEST' || value === 'PER_HOUR' || value === 'PER_UNIT';
-}
-
-interface InventoryRequirementInput {
-  inventoryItemId?: string | null;
-  categoryId?: string | null;
-  quantity?: number | string;
-  quantityType?: string;
-  optional?: boolean;
-  notes?: string | null;
 }
 
 export async function PATCH(
@@ -39,21 +32,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Service not found' }, { status: 404 });
     }
 
-    if (Array.isArray(inventoryRequirements)) {
-      for (const r of inventoryRequirements as InventoryRequirementInput[]) {
-        if (!r.inventoryItemId && !r.categoryId) {
-          return NextResponse.json(
-            { error: 'Each inventory requirement needs either a specific item or a category.' },
-            { status: 400 }
-          );
-        }
-        if (r.quantityType === 'GUESTS_PER_UNIT' && !(parseFloat(String(r.quantity ?? 0)) > 0)) {
-          return NextResponse.json(
-            { error: 'Guests-per-unit requirements need a seats-per-unit value greater than zero.' },
-            { status: 400 }
-          );
-        }
-      }
+    const resolved = await resolveServiceRequirements(existingService.tenantId, inventoryRequirements);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
 
     // Replacing the requirement list wholesale (delete-then-recreate), same pattern used for
@@ -61,16 +42,17 @@ export async function PATCH(
     const updatedService = await prisma.$transaction(async (tx) => {
       if (Array.isArray(inventoryRequirements)) {
         await tx.serviceInventoryRequirement.deleteMany({ where: { serviceId: id } });
-        if (inventoryRequirements.length > 0) {
+        if (resolved.rows.length > 0) {
           await tx.serviceInventoryRequirement.createMany({
-            data: (inventoryRequirements as InventoryRequirementInput[]).map((r, index) => ({
+            data: resolved.rows.map((r, index) => ({
               tenantId: existingService.tenantId,
               serviceId: id,
-              inventoryItemId: r.inventoryItemId || null,
-              categoryId: r.categoryId || null,
+              inventoryItemId: r.inventoryItemId,
+              inventoryTypeId: r.inventoryTypeId,
+              matchCriteria: r.matchCriteria === null ? Prisma.DbNull : (r.matchCriteria as unknown as Prisma.InputJsonValue),
               quantity: parseInt(String(r.quantity ?? 1), 10) || 1,
               quantityType: resolveQuantityType(r.quantityType),
-              optional: !!r.optional,
+              optional: r.optional,
               notes: r.notes || null,
               sortOrder: index,
             })),

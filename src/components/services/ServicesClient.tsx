@@ -16,19 +16,13 @@ import {
   Package,
   Star,
 } from 'lucide-react';
-import { ServiceCardDTO, ServiceInventoryRequirementDTO } from '@/types/dtos';
+import { ServiceCardDTO, ServiceInventoryRequirementDTO, InventoryTypeDTO, InventoryAttributeDefinitionDTO } from '@/types/dtos';
 import Topbar from '@/components/aurelia/Topbar';
 
 interface InventoryItemOption {
   id: string;
   name: string;
-  categoryId: string;
-}
-
-interface InventoryCategoryOption {
-  id: string;
-  name: string;
-  description: string | null;
+  inventoryTypeId: string;
 }
 
 interface ServiceCategoryOption {
@@ -42,7 +36,7 @@ interface ServicesClientProps {
   /** Deep-linked from the Venue/Event workspace nav via `?scope=` — defaults to showing everything. */
   initialScopeFilter?: 'ALL' | 'VENUE' | 'EVENT';
   inventoryItems: InventoryItemOption[];
-  inventoryCategories: InventoryCategoryOption[];
+  inventoryTypes: InventoryTypeDTO[];
   /** Managed on the Settings page — the "Category" picker options for a new Service. */
   serviceCategories: ServiceCategoryOption[];
 }
@@ -75,13 +69,77 @@ const QUANTITY_RULE_HELP: Record<QuantityTypeOption, { label: string; blurb: str
   },
 };
 
-/** Editable row shape for the Inventory Requirements builder. `targetType` drives whether
- * `inventoryItemId` or `categoryId` is the active fulfillment target; the other stays populated
- * with whatever was last selected so switching back doesn't lose it. */
+type CriteriaOp = '=' | '>=' | '<=' | 'in';
+
+/** One editable "attribute must satisfy…" line in a TYPE requirement's match criteria. `value` is
+ * always held as a string while editing; it's coerced on payload build using the attribute's type. */
+interface CriteriaRow {
+  key: string;
+  op: CriteriaOp;
+  value: string;
+}
+
+/** Which operators make sense for an attribute of this type. */
+function opsFor(type: InventoryAttributeDefinitionDTO['type']): CriteriaOp[] {
+  if (type === 'number') return ['=', '>=', '<='];
+  if (type === 'select' || type === 'multiselect') return ['=', 'in'];
+  return ['='];
+}
+
+function coerceScalar(type: InventoryAttributeDefinitionDTO['type'], v: string): string | number | boolean {
+  if (type === 'number') return Number(v);
+  if (type === 'boolean') return v === 'true';
+  return v;
+}
+
+/** Rows → the `matchCriteria` JSON the API expects (range ops on the same key merge into one
+ * `{ gte, lte }` object). Returns `null` when nothing usable was entered. */
+function toMatchCriteria(rows: CriteriaRow[], defs: InventoryAttributeDefinitionDTO[]): Record<string, unknown> | null {
+  const out: Record<string, unknown> = {};
+  for (const r of rows) {
+    const def = defs.find((d) => d.key === r.key);
+    if (!def) continue;
+    if (r.op === '>=' || r.op === '<=') {
+      const n = Number(r.value);
+      if (r.value.trim() === '' || Number.isNaN(n)) continue;
+      const cur = (out[r.key] && typeof out[r.key] === 'object' ? out[r.key] : {}) as Record<string, number>;
+      cur[r.op === '>=' ? 'gte' : 'lte'] = n;
+      out[r.key] = cur;
+    } else if (r.op === 'in') {
+      const arr = r.value.split(',').map((s) => s.trim()).filter(Boolean);
+      if (arr.length > 0) out[r.key] = { in: arr };
+    } else {
+      if (r.value.trim() === '') continue;
+      out[r.key] = coerceScalar(def.type, r.value);
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function fromMatchCriteria(criteria: Record<string, unknown> | null): CriteriaRow[] {
+  if (!criteria) return [];
+  const rows: CriteriaRow[] = [];
+  for (const [key, val] of Object.entries(criteria)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const o = val as { gte?: number; lte?: number; in?: string[] };
+      if (o.gte !== undefined) rows.push({ key, op: '>=', value: String(o.gte) });
+      if (o.lte !== undefined) rows.push({ key, op: '<=', value: String(o.lte) });
+      if (Array.isArray(o.in)) rows.push({ key, op: 'in', value: o.in.join(', ') });
+    } else {
+      rows.push({ key, op: '=', value: String(val) });
+    }
+  }
+  return rows;
+}
+
+/** Editable row shape for the Inventory Requirements builder. `targetType` drives whether the exact
+ * `inventoryItemId` or the `inventoryTypeId` (+ optional `criteria`) is the fulfillment target; the
+ * other stays populated with whatever was last selected so switching back doesn't lose it. */
 interface RequirementRow {
-  targetType: 'ITEM' | 'CATEGORY';
+  targetType: 'ITEM' | 'TYPE';
   inventoryItemId: string;
-  categoryId: string;
+  inventoryTypeId: string;
+  criteria: CriteriaRow[];
   quantity: string;
   quantityType: QuantityTypeOption;
   optional: boolean;
@@ -90,9 +148,10 @@ interface RequirementRow {
 
 function toRequirementRows(requirements: ServiceInventoryRequirementDTO[]): RequirementRow[] {
   return requirements.map((r) => ({
-    targetType: r.categoryId ? 'CATEGORY' : 'ITEM',
+    targetType: r.inventoryTypeId ? 'TYPE' : 'ITEM',
     inventoryItemId: r.inventoryItemId || '',
-    categoryId: r.categoryId || '',
+    inventoryTypeId: r.inventoryTypeId || '',
+    criteria: fromMatchCriteria(r.matchCriteria),
     quantity: String(r.quantity),
     quantityType: r.quantityType,
     optional: r.optional,
@@ -100,22 +159,39 @@ function toRequirementRows(requirements: ServiceInventoryRequirementDTO[]): Requ
   }));
 }
 
-function toRequirementPayload(rows: RequirementRow[]) {
+function toRequirementPayload(rows: RequirementRow[], inventoryTypes: InventoryTypeDTO[]) {
   return rows
-    .filter((r) => (r.targetType === 'ITEM' ? r.inventoryItemId : r.categoryId))
-    .map((r) => ({
-      inventoryItemId: r.targetType === 'ITEM' ? r.inventoryItemId : null,
-      categoryId: r.targetType === 'CATEGORY' ? r.categoryId : null,
-      quantity: parseInt(r.quantity || '1', 10) || 1,
-      quantityType: r.quantityType,
-      optional: r.optional,
-      notes: r.notes.trim() || undefined,
-    }));
+    .filter((r) => (r.targetType === 'ITEM' ? r.inventoryItemId : r.inventoryTypeId))
+    .map((r) => {
+      const defs = inventoryTypes.find((t) => t.id === r.inventoryTypeId)?.attributeDefs ?? [];
+      return {
+        inventoryItemId: r.targetType === 'ITEM' ? r.inventoryItemId : null,
+        inventoryTypeId: r.targetType === 'TYPE' ? r.inventoryTypeId : null,
+        matchCriteria: r.targetType === 'TYPE' ? toMatchCriteria(r.criteria, defs) : null,
+        quantity: parseInt(r.quantity || '1', 10) || 1,
+        quantityType: r.quantityType,
+        optional: r.optional,
+        notes: r.notes.trim() || undefined,
+      };
+    });
 }
 
-export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL', inventoryItems, inventoryCategories, serviceCategories }: ServicesClientProps) {
+export default function ServicesClient({ initialServices, initialScopeFilter = 'ALL', inventoryItems, inventoryTypes, serviceCategories }: ServicesClientProps) {
   const router = useRouter();
   const defaultCategory = serviceCategories[0]?.name || '';
+
+  /** Types grouped by their category name, for the `<optgroup>`-ed Type picker. */
+  const typesByCategory = React.useMemo(() => {
+    const m = new Map<string, InventoryTypeDTO[]>();
+    for (const t of inventoryTypes) {
+      if (!m.has(t.categoryName)) m.set(t.categoryName, []);
+      m.get(t.categoryName)!.push(t);
+    }
+    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [inventoryTypes]);
+
+  const defsForType = (typeId: string): InventoryAttributeDefinitionDTO[] =>
+    inventoryTypes.find((t) => t.id === typeId)?.attributeDefs ?? [];
 
   // Filter state: 'ALL', 'INTERNAL', 'EXTERNAL'
   const [executionFilter, setExecutionFilter] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
@@ -165,15 +241,42 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
     setRequirementRows((prev) => [
       ...prev,
       {
-        targetType: inventoryCategories.length > 0 ? 'CATEGORY' : 'ITEM',
+        targetType: inventoryTypes.length > 0 ? 'TYPE' : 'ITEM',
         inventoryItemId: inventoryItems[0]?.id || '',
-        categoryId: inventoryCategories[0]?.id || '',
+        inventoryTypeId: inventoryTypes[0]?.id || '',
+        criteria: [],
         quantity: '1',
         quantityType: 'FIXED',
         optional: false,
         notes: '',
       },
     ]);
+  };
+
+  const addCriteriaRow = (rowIndex: number) => {
+    setRequirementRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== rowIndex) return r;
+        const firstKey = defsForType(r.inventoryTypeId)[0]?.key || '';
+        return { ...r, criteria: [...r.criteria, { key: firstKey, op: '=', value: '' }] };
+      }),
+    );
+  };
+
+  const updateCriteriaRow = (rowIndex: number, critIndex: number, patch: Partial<CriteriaRow>) => {
+    setRequirementRows((prev) =>
+      prev.map((r, i) =>
+        i === rowIndex
+          ? { ...r, criteria: r.criteria.map((c, j) => (j === critIndex ? { ...c, ...patch } : c)) }
+          : r,
+      ),
+    );
+  };
+
+  const removeCriteriaRow = (rowIndex: number, critIndex: number) => {
+    setRequirementRows((prev) =>
+      prev.map((r, i) => (i === rowIndex ? { ...r, criteria: r.criteria.filter((_, j) => j !== critIndex) } : r)),
+    );
   };
 
   const updateRequirementRow = (index: number, patch: Partial<RequirementRow>) => {
@@ -203,7 +306,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
-          inventoryRequirements: toRequirementPayload(requirementRows),
+          inventoryRequirements: toRequirementPayload(requirementRows, inventoryTypes),
         }),
       });
       if (res.ok) {
@@ -242,7 +345,7 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
           defaultExecutionType: executionType,
           priceType,
           defaultPrice: parseFloat(defaultPrice || '0'),
-          inventoryRequirements: toRequirementPayload(requirementRows),
+          inventoryRequirements: toRequirementPayload(requirementRows, inventoryTypes),
         }),
       });
       if (res.ok) {
@@ -611,7 +714,8 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                 </div>
                 <p className="mini dim">
                   What this service normally needs from stock — a template only, never reserves anything.
-                  Point at one specific item, or a whole category to let the variant be chosen per booking.
+                  Point at one specific item, or a type (optionally narrowed by characteristics) to let
+                  the exact item be chosen per booking.
                 </p>
 
                 <details open style={{ border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', background: 'var(--surface-2)' }}>
@@ -636,12 +740,12 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                         <div className="grid" style={{ gridTemplateColumns: '110px 1fr auto', gap: 8, alignItems: 'start' }}>
                           <select
                             value={row.targetType}
-                            onChange={(e) => updateRequirementRow(index, { targetType: e.target.value as 'ITEM' | 'CATEGORY' })}
+                            onChange={(e) => updateRequirementRow(index, { targetType: e.target.value as 'ITEM' | 'TYPE' })}
                             className="input"
                             style={{ padding: '8px 10px', fontSize: 12 }}
                           >
                             <option value="ITEM">Specific item</option>
-                            <option value="CATEGORY">Any in category</option>
+                            <option value="TYPE">Any of type</option>
                           </select>
                           {row.targetType === 'ITEM' ? (
                             <select
@@ -657,14 +761,18 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             </select>
                           ) : (
                             <select
-                              value={row.categoryId}
-                              onChange={(e) => updateRequirementRow(index, { categoryId: e.target.value })}
+                              value={row.inventoryTypeId}
+                              onChange={(e) => updateRequirementRow(index, { inventoryTypeId: e.target.value, criteria: [] })}
                               className="input"
                               style={{ padding: '8px 10px', fontSize: 12 }}
                             >
-                              <option value="">-- Select category --</option>
-                              {inventoryCategories.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
+                              <option value="">-- Select type --</option>
+                              {typesByCategory.map(([catName, types]) => (
+                                <optgroup key={catName} label={catName}>
+                                  {types.map((t) => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                  ))}
+                                </optgroup>
                               ))}
                             </select>
                           )}
@@ -672,6 +780,93 @@ export default function ServicesClient({ initialServices, initialScopeFilter = '
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
+
+                        {row.targetType === 'TYPE' && row.inventoryTypeId && (
+                          <div className="stack" style={{ gap: 6, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--rule)' }}>
+                            <div className="between">
+                              <span className="mini dim">
+                                Match characteristics {row.criteria.length === 0 && '(optional — any item of this type otherwise)'}
+                              </span>
+                              {defsForType(row.inventoryTypeId).length > 0 && (
+                                <button type="button" onClick={() => addCriteriaRow(index)} className="btn ghost sm" style={{ padding: '2px 8px' }}>
+                                  <Plus className="w-3 h-3" /> Criterion
+                                </button>
+                              )}
+                            </div>
+                            {row.criteria.map((c, cIndex) => {
+                              const defs = defsForType(row.inventoryTypeId);
+                              const def = defs.find((d) => d.key === c.key);
+                              const ops = def ? opsFor(def.type) : (['='] as CriteriaOp[]);
+                              return (
+                                <div key={cIndex} className="grid" style={{ gridTemplateColumns: '1fr 70px 1fr auto', gap: 6, alignItems: 'center' }}>
+                                  <select
+                                    value={c.key}
+                                    onChange={(e) => {
+                                      const nextDef = defs.find((d) => d.key === e.target.value);
+                                      const nextOps = nextDef ? opsFor(nextDef.type) : (['='] as CriteriaOp[]);
+                                      updateCriteriaRow(index, cIndex, {
+                                        key: e.target.value,
+                                        op: nextOps.includes(c.op) ? c.op : nextOps[0],
+                                        value: '',
+                                      });
+                                    }}
+                                    className="input"
+                                    style={{ padding: '6px 8px', fontSize: 12 }}
+                                  >
+                                    {defs.map((d) => (
+                                      <option key={d.key} value={d.key}>{d.label}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={c.op}
+                                    onChange={(e) => updateCriteriaRow(index, cIndex, { op: e.target.value as CriteriaOp, value: '' })}
+                                    className="input"
+                                    style={{ padding: '6px 8px', fontSize: 12 }}
+                                  >
+                                    {ops.map((o) => (
+                                      <option key={o} value={o}>{o}</option>
+                                    ))}
+                                  </select>
+                                  {def?.type === 'select' && c.op === '=' ? (
+                                    <select
+                                      value={c.value}
+                                      onChange={(e) => updateCriteriaRow(index, cIndex, { value: e.target.value })}
+                                      className="input"
+                                      style={{ padding: '6px 8px', fontSize: 12 }}
+                                    >
+                                      <option value="">—</option>
+                                      {(def.options ?? []).map((o) => (
+                                        <option key={o} value={o}>{o}</option>
+                                      ))}
+                                    </select>
+                                  ) : def?.type === 'boolean' ? (
+                                    <select
+                                      value={c.value}
+                                      onChange={(e) => updateCriteriaRow(index, cIndex, { value: e.target.value })}
+                                      className="input"
+                                      style={{ padding: '6px 8px', fontSize: 12 }}
+                                    >
+                                      <option value="">—</option>
+                                      <option value="true">true</option>
+                                      <option value="false">false</option>
+                                    </select>
+                                  ) : (
+                                    <input
+                                      value={c.value}
+                                      onChange={(e) => updateCriteriaRow(index, cIndex, { value: e.target.value })}
+                                      placeholder={c.op === 'in' ? 'a, b, c' : def?.type === 'number' ? 'number' : 'value'}
+                                      className="input"
+                                      style={{ padding: '6px 8px', fontSize: 12 }}
+                                    />
+                                  )}
+                                  <button type="button" onClick={() => removeCriteriaRow(index, cIndex)} className="icon-btn" style={{ width: 26, height: 26 }}>
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
                           <select
                             value={row.quantityType}

@@ -5,7 +5,10 @@ export interface ResourceForSummary {
   bookingServiceId: string;
   inventoryItemId: string | null;
   itemNameSnapshot: string | null;
-  categoryName: string | null;
+  /** The requirement's `InventoryType` name when this row is still an unresolved type-based
+   * requirement (Mode B) — used to label and group it ("Any Round Table"). Null for a resolved
+   * item row. */
+  typeName: string | null;
   requiredQuantity: number;
   reservedQuantity: number;
   status: ResourceAllocationStatus;
@@ -57,11 +60,11 @@ export function computeResourceSummary(
   const groups = new Map<string, { itemId: string | null; label: string; rows: ResourceForSummary[] }>();
 
   for (const r of resources) {
-    const key = r.inventoryItemId || (r.categoryName ? `category:${r.categoryName}` : 'unresolved');
+    const key = r.inventoryItemId || (r.typeName ? `type:${r.typeName}` : 'unresolved');
     if (!groups.has(key)) {
       groups.set(key, {
         itemId: r.inventoryItemId,
-        label: r.itemNameSnapshot || (r.categoryName ? `Any ${r.categoryName}` : 'Unresolved item'),
+        label: r.itemNameSnapshot || (r.typeName ? `Any ${r.typeName}` : 'Unresolved item'),
         rows: [],
       });
     }

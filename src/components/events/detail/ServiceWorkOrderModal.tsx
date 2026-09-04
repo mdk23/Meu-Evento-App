@@ -1,7 +1,7 @@
 import { X, Loader2, Users, Package, AlertTriangle } from 'lucide-react';
-import { Staff, Supplier, InventoryItem } from '@prisma/client';
+import { Staff, Supplier } from '@prisma/client';
 import { EventServiceWithRelations } from './types';
-import BookingServiceResourcePanel from '@/components/resources/BookingServiceResourcePanel';
+import BookingServiceResourcePanel, { type ResourcePanelInventoryItem } from '@/components/resources/BookingServiceResourcePanel';
 
 interface ServiceWorkOrderModalProps {
   selectedService: EventServiceWithRelations;
@@ -30,7 +30,7 @@ interface ServiceWorkOrderModalProps {
   setSelectedStaffId: (id: string) => void;
   onAssignStaff: () => void;
   onUnassignStaff: (assignmentId: string) => void;
-  inventoryItems: InventoryItem[];
+  inventoryItems: ResourcePanelInventoryItem[];
   onReserveInventory: (options: { inventoryItemId: string; quantity: number; resourceRequirementId?: string }) => void;
   onRemoveReservedInventory: (resourceId: string) => void;
   onReservationAction: (resourceId: string, action: string, quantity?: number) => void;

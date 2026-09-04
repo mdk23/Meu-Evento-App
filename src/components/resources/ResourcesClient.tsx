@@ -7,11 +7,33 @@ import { toast } from 'sonner';
 import { Building2, Package, Users, Truck, Plus, Loader2, X, Edit3, Trash2, Save, ChevronDown, ChevronRight } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 import Topbar from '@/components/aurelia/Topbar';
+import { readAttributeDefs, getSeatingCapacity } from '@/lib/inventory-attributes';
+import type { InventoryTypeDTO, InventoryAttributeDefinitionDTO } from '@/types/dtos';
 
 type ResourceVenue = Prisma.VenueGetPayload<{ select: { id: true; name: true; capacity: true; address: true; description: true } }>;
-type ResourceInventoryItem = Prisma.InventoryItemGetPayload<{ select: { id: true; name: true; totalQuantity: true; seatingCapacity: true; categoryId: true; category: { select: { name: true } } } }>;
 type ResourceStaff = Prisma.StaffGetPayload<{ select: { id: true; name: true; role: true; email: true; phone: true } }>;
 type ResourceSupplier = Prisma.SupplierGetPayload<{ select: { id: true; name: true; category: true; email: true; phone: true } }>;
+
+/** Hand-written to mirror `ResourceRepository.getResourcesData()`'s inventory select. The item now
+ * carries its `InventoryType` (and, through it, the owning category) plus a free-form `attributes`
+ * bag whose shape is governed by the type's `attributeDefs`. Seats-per-unit is derived from
+ * `attributes` via `getSeatingCapacity` — there is no longer a `seatingCapacity` column. */
+interface ResourceInventoryItem {
+  id: string;
+  name: string;
+  sku: string | null;
+  totalQuantity: number;
+  unit: string | null;
+  attributes: Prisma.JsonValue;
+  inventoryTypeId: string;
+  inventoryType: {
+    id: string;
+    name: string;
+    code: string;
+    attributeDefs: Prisma.JsonValue;
+    category: { id: string; name: string };
+  };
+}
 
 interface InventoryCategoryOption {
   id: string;
@@ -25,32 +47,162 @@ interface ResourcesClientProps {
     staff: ResourceStaff[];
     suppliers: ResourceSupplier[];
     inventoryCategories: InventoryCategoryOption[];
+    inventoryTypes: InventoryTypeDTO[];
   };
+}
+
+const isUnclassified = (code: string) => code === 'UNCLASSIFIED' || code.startsWith('UNCLASSIFIED_');
+
+/** Strip the raw per-field state down to a JSON `attributes` payload the API will accept:
+ * booleans always sent, multiselect only when non-empty, everything else dropped when blank. */
+function cleanAttributes(defs: InventoryAttributeDefinitionDTO[], values: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const d of defs) {
+    const v = values[d.key];
+    if (d.type === 'boolean') {
+      out[d.key] = v === true;
+      continue;
+    }
+    if (d.type === 'multiselect') {
+      if (Array.isArray(v) && v.length > 0) out[d.key] = v;
+      continue;
+    }
+    if (v === undefined || v === null || v === '') continue;
+    out[d.key] = v;
+  }
+  return out;
+}
+
+function AttributeFields({
+  defs,
+  values,
+  setValue,
+}: {
+  defs: InventoryAttributeDefinitionDTO[];
+  values: Record<string, unknown>;
+  setValue: (key: string, v: unknown) => void;
+}) {
+  if (defs.length === 0) {
+    return <p className="mini dim">This type has no characteristics defined — add some in Settings → Inventory Types.</p>;
+  }
+  return (
+    <>
+      {defs.map((d) => {
+        const v = values[d.key];
+        return (
+          <div className="field" key={d.key}>
+            <label className="label">{d.label}{d.required ? ' *' : ''}</label>
+
+            {d.type === 'text' && (
+              <input className="input" value={typeof v === 'string' ? v : ''} onChange={(e) => setValue(d.key, e.target.value)} />
+            )}
+
+            {d.type === 'textarea' && (
+              <textarea className="input" rows={2} value={typeof v === 'string' ? v : ''} onChange={(e) => setValue(d.key, e.target.value)} />
+            )}
+
+            {d.type === 'number' && (
+              <input
+                className="input"
+                type="number"
+                min={d.min}
+                max={d.max}
+                value={v === undefined || v === null || v === '' ? '' : String(v)}
+                onChange={(e) => setValue(d.key, e.target.value === '' ? undefined : Number(e.target.value))}
+              />
+            )}
+
+            {d.type === 'select' && (
+              <select className="input" value={typeof v === 'string' ? v : ''} onChange={(e) => setValue(d.key, e.target.value || undefined)}>
+                <option value="">—</option>
+                {(d.options ?? []).map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            )}
+
+            {d.type === 'multiselect' && (
+              <div className="row" style={{ flexWrap: 'wrap', gap: 10 }}>
+                {(d.options ?? []).map((o) => {
+                  const arr = Array.isArray(v) ? (v as string[]) : [];
+                  return (
+                    <label key={o} className="mini row" style={{ gap: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={arr.includes(o)}
+                        onChange={(e) => setValue(d.key, e.target.checked ? [...arr, o] : arr.filter((x) => x !== o))}
+                      />
+                      {o}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
+            {d.type === 'boolean' && (
+              <label className="mini row" style={{ gap: 6 }}>
+                <input type="checkbox" checked={v === true} onChange={(e) => setValue(d.key, e.target.checked)} />
+                Yes
+              </label>
+            )}
+
+            {d.type === 'date' && (
+              <input className="input" type="date" value={typeof v === 'string' ? v : ''} onChange={(e) => setValue(d.key, e.target.value || undefined)} />
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
 }
 
 export default function ResourcesClient({ initialData }: ResourcesClientProps) {
   const router = useRouter();
+  const { venue, inventory, staff, suppliers, inventoryCategories, inventoryTypes } = initialData;
+
   const [activeTab, setActiveTab] = useState('venue');
+
+  // Generic create-modal (venue / staff / suppliers). Inventory items have their own modal below.
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState(initialData.inventoryCategories[0]?.name || '');
-  const [quantity, setQuantity] = useState('50');
-  const [seatingCapacity, setSeatingCapacity] = useState('0');
+  const [category, setCategory] = useState('');
   const [role, setRole] = useState('Chef');
   const [capacity, setCapacity] = useState('500');
   const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Inventory item edit/delete — separate from the generic create-modal state above, since editing
-  // targets one specific existing item regardless of which tab is active.
-  const [editingItem, setEditingItem] = useState<ResourceInventoryItem | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editCategoryId, setEditCategoryId] = useState('');
-  const [editQuantity, setEditQuantity] = useState('');
-  const [editSeatingCapacity, setEditSeatingCapacity] = useState('');
-  const [editSubmitting, setEditSubmitting] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+  // Inventory list filters (client-side over the already-loaded set).
+  const [filterCategoryId, setFilterCategoryId] = useState('');
+  const [filterTypeId, setFilterTypeId] = useState('');
+  const [unclassifiedOnly, setUnclassifiedOnly] = useState(false);
+
+  // Inventory item create/edit modal — one form, two modes.
+  const [itemModal, setItemModal] = useState<{ mode: 'create' } | { mode: 'edit'; item: ResourceInventoryItem } | null>(null);
+  const [itemName, setItemName] = useState('');
+  const [itemSku, setItemSku] = useState('');
+  const [itemQuantity, setItemQuantity] = useState('0');
+  const [itemUnit, setItemUnit] = useState('');
+  const [itemCategoryId, setItemCategoryId] = useState('');
+  const [itemTypeId, setItemTypeId] = useState('');
+  const [itemAttrs, setItemAttrs] = useState<Record<string, unknown>>({});
+  const [itemSubmitting, setItemSubmitting] = useState(false);
+
+  const typesForCategory = (categoryId: string) => inventoryTypes.filter((t) => t.categoryId === categoryId);
+  const selectedType = inventoryTypes.find((t) => t.id === itemTypeId) || null;
+  const activeDefs: InventoryAttributeDefinitionDTO[] =
+    selectedType?.attributeDefs ??
+    (itemModal?.mode === 'edit' ? (readAttributeDefs(itemModal.item.inventoryType.attributeDefs) as InventoryAttributeDefinitionDTO[]) : []);
+
+  const setAttrValue = (key: string, v: unknown) =>
+    setItemAttrs((prev) => {
+      const next = { ...prev };
+      if (v === undefined) delete next[key];
+      else next[key] = v;
+      return next;
+    });
 
   const toggleCategory = (categoryName: string) => {
     setCollapsedCategories((prev) => {
@@ -61,37 +213,81 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
     });
   };
 
-  const openEditItem = (item: ResourceInventoryItem) => {
-    setEditingItem(item);
-    setEditName(item.name);
-    setEditCategoryId(item.categoryId);
-    setEditQuantity(String(item.totalQuantity));
-    setEditSeatingCapacity(String(item.seatingCapacity));
+  const openCreateItem = () => {
+    const c0 = inventoryCategories[0]?.id || '';
+    const t0 = typesForCategory(c0)[0]?.id || '';
+    setItemModal({ mode: 'create' });
+    setItemName('');
+    setItemSku('');
+    setItemQuantity('0');
+    setItemUnit('');
+    setItemCategoryId(c0);
+    setItemTypeId(t0);
+    setItemAttrs({});
   };
 
-  const handleUpdateItem = async (e: React.FormEvent) => {
+  const openEditItem = (item: ResourceInventoryItem) => {
+    setItemModal({ mode: 'edit', item });
+    setItemName(item.name);
+    setItemSku(item.sku || '');
+    setItemQuantity(String(item.totalQuantity));
+    setItemUnit(item.unit || '');
+    setItemCategoryId(item.inventoryType.category.id);
+    setItemTypeId(item.inventoryTypeId);
+    setItemAttrs(item.attributes && typeof item.attributes === 'object' && !Array.isArray(item.attributes)
+      ? { ...(item.attributes as Record<string, unknown>) }
+      : {});
+  };
+
+  const closeItemModal = () => setItemModal(null);
+
+  const onItemCategoryChange = (categoryId: string) => {
+    setItemCategoryId(categoryId);
+    const t0 = typesForCategory(categoryId)[0]?.id || '';
+    setItemTypeId(t0);
+    setItemAttrs({});
+  };
+
+  const onItemTypeChange = (typeId: string) => {
+    setItemTypeId(typeId);
+    setItemAttrs({});
+  };
+
+  const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingItem) return;
-    setEditSubmitting(true);
+    if (!itemModal) return;
+    if (!itemName.trim()) return toast.error('Item name is required.');
+    if (!itemTypeId) return toast.error('Pick a type.');
+
+    setItemSubmitting(true);
     try {
-      const res = await fetch(`/api/inventory-items/${editingItem.id}`, {
-        method: 'PATCH',
+      const payload = {
+        name: itemName.trim(),
+        sku: itemSku.trim() || null,
+        inventoryTypeId: itemTypeId,
+        quantity: itemQuantity,
+        unit: itemUnit.trim() || undefined,
+        attributes: cleanAttributes(activeDefs, itemAttrs),
+      };
+      const url = itemModal.mode === 'edit' ? `/api/inventory-items/${itemModal.item.id}` : '/api/inventory-items';
+      const method = itemModal.mode === 'edit' ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, categoryId: editCategoryId, quantity: editQuantity, seatingCapacity: editSeatingCapacity }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        toast.success('Inventory item updated!');
-        setEditingItem(null);
+        toast.success(itemModal.mode === 'edit' ? 'Inventory item updated!' : `Inventory item "${itemName.trim()}" added!`);
+        closeItemModal();
         router.refresh();
       } else {
-        const errData = await res.json();
-        toast.error(errData.error || 'Failed to update item.');
+        toast.error((await res.json()).error || 'Failed to save item.');
       }
     } catch (err) {
       console.error(err);
       toast.error('Connection error.');
     } finally {
-      setEditSubmitting(false);
+      setItemSubmitting(false);
     }
   };
 
@@ -131,16 +327,7 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
       const res = await fetch('/api/resources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resourceType,
-          name,
-          category,
-          quantity,
-          seatingCapacity,
-          role,
-          capacity,
-          address,
-        }),
+        body: JSON.stringify({ resourceType, name, category, role, capacity, address }),
       });
       if (res.ok) {
         setIsModalOpen(false);
@@ -154,25 +341,39 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
     }
   };
 
-  const { venue, inventory, staff, suppliers, inventoryCategories } = initialData;
+  const onAddClick = () => {
+    if (activeTab === 'inventory') openCreateItem();
+    else setIsModalOpen(true);
+  };
 
-  // Grouped by category, both the group order and the items within each group alphabetical —
-  // `inventory` already arrives name-sorted from the repository, so grouping preserves that order.
+  // Apply the filter bar, then group by the type's owning category — both group order and the
+  // items within each group stay alphabetical (`inventory` arrives name-sorted from the repo).
   const groupedInventory = useMemo(() => {
+    const filtered = inventory.filter((item) => {
+      if (filterCategoryId && item.inventoryType.category.id !== filterCategoryId) return false;
+      if (filterTypeId && item.inventoryTypeId !== filterTypeId) return false;
+      if (unclassifiedOnly && !isUnclassified(item.inventoryType.code)) return false;
+      return true;
+    });
     const groups = new Map<string, ResourceInventoryItem[]>();
-    for (const item of inventory) {
-      const key = item.category.name;
+    for (const item of filtered) {
+      const key = item.inventoryType.category.name;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(item);
     }
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [inventory]);
+  }, [inventory, filterCategoryId, filterTypeId, unclassifiedOnly]);
+
+  const unclassifiedCount = useMemo(
+    () => inventory.filter((i) => isUnclassified(i.inventoryType.code)).length,
+    [inventory],
+  );
 
   return (
     <>
       <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
         <Topbar crumb="Resource Operations Portal" note="Manage main Venue, Inventory, Staff team, and Supplier partners.">
-          <button onClick={() => setIsModalOpen(true)} className="btn primary sm">
+          <button onClick={onAddClick} className="btn primary sm">
             <Plus className="w-3.5 h-3.5" /> Add {activeTab.slice(0, 1).toUpperCase() + activeTab.slice(1)}
           </button>
         </Topbar>
@@ -232,14 +433,54 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
             </div>
           )}
 
-          {/* TAB 2: INVENTORY — grouped by category, both groups and items within alphabetical */}
+          {/* TAB 2: INVENTORY — grouped by the type's category, groups + items alphabetical */}
           {activeTab === 'inventory' && (
-            <div className="stack" style={{ gap: 28 }}>
+            <div className="stack" style={{ gap: 20 }}>
+              {/* FILTER BAR */}
+              {inventory.length > 0 && (
+                <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div className="field" style={{ minWidth: 180 }}>
+                    <label className="label">Category</label>
+                    <select
+                      value={filterCategoryId}
+                      onChange={(e) => { setFilterCategoryId(e.target.value); setFilterTypeId(''); }}
+                      className="input"
+                    >
+                      <option value="">All categories</option>
+                      {inventoryCategories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field" style={{ minWidth: 180 }}>
+                    <label className="label">Type</label>
+                    <select value={filterTypeId} onChange={(e) => setFilterTypeId(e.target.value)} className="input">
+                      <option value="">All types</option>
+                      {inventoryTypes
+                        .filter((t) => !filterCategoryId || t.categoryId === filterCategoryId)
+                        .map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                    </select>
+                  </div>
+                  {unclassifiedCount > 0 && (
+                    <label className="mini row" style={{ gap: 6, paddingBottom: 10 }}>
+                      <input type="checkbox" checked={unclassifiedOnly} onChange={(e) => setUnclassifiedOnly(e.target.checked)} />
+                      Needs classifying ({unclassifiedCount})
+                    </label>
+                  )}
+                </div>
+              )}
+
               {groupedInventory.length === 0 ? (
                 <div className="empty">
                   <Package className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.3 }} />
-                  <h3 className="h-sm">No Inventory Items Yet</h3>
-                  <p className="mini dim" style={{ marginTop: 4 }}>Click &ldquo;Add Inventory&rdquo; to register your first item.</p>
+                  <h3 className="h-sm">{inventory.length === 0 ? 'No Inventory Items Yet' : 'No Items Match These Filters'}</h3>
+                  <p className="mini dim" style={{ marginTop: 4 }}>
+                    {inventory.length === 0
+                      ? 'Click “Add Inventory” to register your first item.'
+                      : 'Adjust the category / type filters above.'}
+                  </p>
                 </div>
               ) : (
                 groupedInventory.map(([categoryName, items]) => {
@@ -269,10 +510,14 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                       </button>
                       {!isCollapsed && (
                         <div className="grid g4">
-                          {items.map((item, i) => (
+                          {items.map((item, i) => {
+                            const seats = getSeatingCapacity(item.attributes, readAttributeDefs(item.inventoryType.attributeDefs));
+                            return (
                             <div key={item.id} className={`card plain f-in d${(i % 4) + 1} stack`} style={{ padding: 24 }}>
                               <div className="between">
-                                <span className="badge b-ok">In Stock</span>
+                                {isUnclassified(item.inventoryType.code)
+                                  ? <span className="badge b-warn">Needs classifying</span>
+                                  : <span className="badge b-info">{item.inventoryType.name}</span>}
                                 <div className="row" style={{ gap: 5 }}>
                                   <button onClick={() => openEditItem(item)} className="icon-btn" style={{ width: 30, height: 30 }} title="Edit item">
                                     <Edit3 className="w-4 h-4" />
@@ -293,13 +538,14 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                               </Link>
                               <div className="between mini" style={{ padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--rule)', background: 'var(--surface-2)' }}>
                                 <span className="dim">Available Quantity</span>
-                                <strong className="num" style={{ fontSize: 18, color: 'var(--ink)' }}>{item.totalQuantity} pcs</strong>
+                                <strong className="num" style={{ fontSize: 18, color: 'var(--ink)' }}>{item.totalQuantity} {item.unit || 'pcs'}</strong>
                               </div>
-                              {item.seatingCapacity > 0 && (
-                                <p className="mini dim">Seats {item.seatingCapacity} {item.seatingCapacity === 1 ? 'guest' : 'guests'} per unit</p>
+                              {seats > 0 && (
+                                <p className="mini dim">Seats {seats} {seats === 1 ? 'guest' : 'guests'} per unit</p>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -349,8 +595,8 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         </div>
       </main>
 
-      {/* CREATE RESOURCE MODAL */}
-      {isModalOpen && (
+      {/* CREATE RESOURCE MODAL (venue / staff / suppliers) */}
+      {isModalOpen && activeTab !== 'inventory' && (
         <div className="modal-scrim">
           <div className="modal">
             <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
@@ -376,36 +622,6 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
                   <div className="field">
                     <label className="label">Address</label>
                     <input value={address} onChange={e => setAddress(e.target.value)} placeholder="100 Grand Boulevard..." className="input" />
-                  </div>
-                </>
-              ) : activeTab === 'inventory' ? (
-                <>
-                  <div className="field">
-                    <label className="label">Item Name</label>
-                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Banquet Chairs" className="input" />
-                  </div>
-                  <div className="field">
-                    <label className="label">Category</label>
-                    {inventoryCategories.length > 0 ? (
-                      <select required value={category} onChange={e => setCategory(e.target.value)} className="input">
-                        {inventoryCategories.map((c) => (
-                          <option key={c.id} value={c.name}>{c.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="mini dim">
-                        No inventory categories defined yet — add one in <strong>Settings</strong> first.
-                      </p>
-                    )}
-                  </div>
-                  <div className="field">
-                    <label className="label">Quantity</label>
-                    <input type="number" required value={quantity} onChange={e => setQuantity(e.target.value)} className="input" />
-                  </div>
-                  <div className="field">
-                    <label className="label">Seats per unit</label>
-                    <input type="number" min={0} value={seatingCapacity} onChange={e => setSeatingCapacity(e.target.value)} className="input" />
-                    <p className="mini dim">How many guests one unit seats — 1 for a chair, 12 for a round table, 0 if it isn&apos;t seating.</p>
                   </div>
                 </>
               ) : activeTab === 'staff' ? (
@@ -445,51 +661,88 @@ export default function ResourcesClient({ initialData }: ResourcesClientProps) {
         </div>
       )}
 
-      {/* EDIT INVENTORY ITEM MODAL */}
-      {editingItem && (
+      {/* INVENTORY ITEM CREATE / EDIT MODAL — Category → Type cascade → dynamic characteristics */}
+      {itemModal && (
         <div className="modal-scrim">
-          <div className="modal">
+          <div className="modal" style={{ maxWidth: 560 }}>
             <div className="card-h" style={{ borderBottom: '1px solid var(--rule)', paddingBottom: 16 }}>
               <h3 className="h-md" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Edit3 className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Edit Inventory Item
+                {itemModal.mode === 'edit'
+                  ? <><Edit3 className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Edit Inventory Item</>
+                  : <><Plus className="w-5 h-5" style={{ color: 'var(--accent)' }} /> Add Inventory Item</>}
               </h3>
-              <button onClick={() => setEditingItem(null)} className="icon-btn">
+              <button onClick={closeItemModal} className="icon-btn">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateItem} className="stack" style={{ marginTop: 20 }}>
-              <div className="field">
-                <label className="label">Item Name</label>
-                <input required value={editName} onChange={e => setEditName(e.target.value)} className="input" />
-              </div>
-              <div className="field">
-                <label className="label">Category</label>
-                <select required value={editCategoryId} onChange={e => setEditCategoryId(e.target.value)} className="input">
-                  {inventoryCategories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label className="label">Quantity</label>
-                <input type="number" required value={editQuantity} onChange={e => setEditQuantity(e.target.value)} className="input" />
-              </div>
-              <div className="field">
-                <label className="label">Seats per unit</label>
-                <input type="number" min={0} value={editSeatingCapacity} onChange={e => setEditSeatingCapacity(e.target.value)} className="input" />
-                <p className="mini dim">How many guests one unit seats — 1 for a chair, 12 for a round table, 0 if it isn&apos;t seating.</p>
-              </div>
+            {inventoryTypes.length === 0 ? (
+              <p className="mini dim" style={{ marginTop: 20 }}>
+                No inventory types defined yet — add a category and a type in <strong>Settings</strong> first.
+              </p>
+            ) : (
+              <form onSubmit={handleSaveItem} className="stack" style={{ marginTop: 20, maxHeight: '70vh', overflowY: 'auto' }}>
+                <div className="field">
+                  <label className="label">Item Name</label>
+                  <input required autoFocus value={itemName} onChange={e => setItemName(e.target.value)} placeholder="e.g. Gold Chiavari Chair" className="input" />
+                </div>
 
-              <div className="row" style={{ justifyContent: 'flex-end', gap: 12 }}>
-                <button type="button" onClick={() => setEditingItem(null)} className="btn ghost">
-                  Cancel
-                </button>
-                <button type="submit" disabled={editSubmitting} className="btn primary">
-                  {editSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
-                </button>
-              </div>
-            </form>
+                <div className="grid g2">
+                  <div className="field">
+                    <label className="label">Category</label>
+                    <select value={itemCategoryId} onChange={e => onItemCategoryChange(e.target.value)} className="input" required>
+                      {inventoryCategories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Type</label>
+                    {typesForCategory(itemCategoryId).length > 0 ? (
+                      <select value={itemTypeId} onChange={e => onItemTypeChange(e.target.value)} className="input" required>
+                        {typesForCategory(itemCategoryId).map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="mini dim">No types in this category — add one in Settings.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid g2">
+                  <div className="field">
+                    <label className="label">Quantity</label>
+                    <input type="number" required value={itemQuantity} onChange={e => setItemQuantity(e.target.value)} className="input" />
+                  </div>
+                  <div className="field">
+                    <label className="label">Unit <span className="mini dim">(optional)</span></label>
+                    <input value={itemUnit} onChange={e => setItemUnit(e.target.value)} placeholder="pcs" className="input" />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label className="label">SKU <span className="mini dim">(optional)</span></label>
+                  <input value={itemSku} onChange={e => setItemSku(e.target.value)} placeholder="CHR-GLD-001" className="input" />
+                </div>
+
+                {itemTypeId && (
+                  <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 14 }} className="stack">
+                    <p className="label">{selectedType?.name || 'Type'} characteristics</p>
+                    <AttributeFields defs={activeDefs} values={itemAttrs} setValue={setAttrValue} />
+                  </div>
+                )}
+
+                <div className="row" style={{ justifyContent: 'flex-end', gap: 12 }}>
+                  <button type="button" onClick={closeItemModal} className="btn ghost">Cancel</button>
+                  <button type="submit" disabled={itemSubmitting || !itemTypeId} className="btn primary">
+                    {itemSubmitting
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <><Save className="w-4 h-4" /> {itemModal.mode === 'edit' ? 'Save Changes' : 'Save Item'}</>}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

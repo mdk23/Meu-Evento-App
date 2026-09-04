@@ -17,11 +17,12 @@ import {
   Armchair,
 } from 'lucide-react';
 import { DecimalToNumber } from '@/lib/money';
+import { readAttributeDefs, getSeatingCapacity } from '@/lib/inventory-attributes';
 import Topbar from '@/components/aurelia/Topbar';
 
 type ItemDetail = DecimalToNumber<Prisma.InventoryItemGetPayload<{
   include: {
-    category: true;
+    inventoryType: { include: { category: true } };
     bookingResources: {
       include: {
         bookingService: {
@@ -110,6 +111,14 @@ function resourceServiceLabel(row: {
   return row.bookingService?.event ? `${service} — ${row.bookingService.event.name}` : service;
 }
 
+/** Render one stored attribute value for display — never raw JSON (§7). */
+function formatAttrValue(v: unknown): string {
+  if (v === undefined || v === null || v === '') return '';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (Array.isArray(v)) return v.join(', ');
+  return String(v);
+}
+
 /** One derived stock figure shown as a compact tile. `tone` shifts the value colour for the
  * outcomes that matter operationally (missing stock). */
 function FlowTile({
@@ -139,14 +148,19 @@ function FlowTile({
 }
 
 export default function InventoryItemDetailClient({ item, stockSummary }: InventoryItemDetailClientProps) {
-  const variantDetails: Array<[string, string | null]> = [
-    ['Color', item.color],
-    ['Material', item.material],
-    ['Model', item.model],
-    ['Size', item.size],
-    ['Shape', item.shape],
-  ];
-  const specs = variantDetails.filter(([, v]) => v);
+  const attributeDefs = readAttributeDefs(item.inventoryType.attributeDefs);
+  const attrs: Record<string, unknown> =
+    item.attributes && typeof item.attributes === 'object' && !Array.isArray(item.attributes)
+      ? (item.attributes as Record<string, unknown>)
+      : {};
+  const seatingCapacity = getSeatingCapacity(item.attributes, attributeDefs);
+
+  // Characteristics come from the type's schema, in its declared order — the seating figure has its
+  // own dedicated chip, so it's excluded here to avoid showing twice.
+  const specs: Array<[string, string]> = attributeDefs
+    .filter((d) => d.key !== 'seatingCapacity')
+    .map((d) => [d.label, formatAttrValue(attrs[d.key])] as [string, string])
+    .filter(([, v]) => v !== '');
 
   const total = Math.max(stockSummary.totalQuantity, 0);
   const reserved = Math.max(stockSummary.reservedQuantity, 0);
@@ -156,7 +170,7 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
 
   return (
     <main className="aurelia-shell flex-1 flex flex-col h-screen overflow-hidden">
-      <Topbar crumb={item.name} note={item.category.name}>
+      <Topbar crumb={item.name} note={`${item.inventoryType.category.name} · ${item.inventoryType.name}`}>
         <Link href="/resources" className="btn ghost sm">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Resources
         </Link>
@@ -182,7 +196,7 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
                 <div>
                   <h3 className="h-md">{item.name}</h3>
                   <p className="mini dim" style={{ marginTop: 6 }}>
-                    {item.category.name}
+                    {item.inventoryType.category.name} · {item.inventoryType.name}
                     {item.sku ? ` · SKU ${item.sku}` : ''} · per {item.unit}
                   </p>
                 </div>
@@ -191,11 +205,11 @@ export default function InventoryItemDetailClient({ item, stockSummary }: Invent
 
               {item.description && <p className="mini" style={{ color: 'var(--ink-2)', lineHeight: 1.7 }}>{item.description}</p>}
 
-              {(specs.length > 0 || item.seatingCapacity > 0) && (
+              {(specs.length > 0 || seatingCapacity > 0) && (
                 <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                  {item.seatingCapacity > 0 && (
+                  {seatingCapacity > 0 && (
                     <span className="badge b-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <Armchair className="w-3 h-3" /> Seats {item.seatingCapacity} / {item.unit}
+                      <Armchair className="w-3 h-3" /> Seats {seatingCapacity} / {item.unit}
                     </span>
                   )}
                   {specs.map(([k, v]) => (

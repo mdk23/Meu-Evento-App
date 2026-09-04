@@ -4,6 +4,7 @@ import { Loader2, Package, AlertTriangle } from 'lucide-react';
 import { useBookingResources } from './useBookingResources';
 import BookingServiceResourcePanel from '@/components/resources/BookingServiceResourcePanel';
 import { computeBookingSeatingGaps } from '@/lib/seating';
+import { getSeatingCapacity, readAttributeDefs } from '@/lib/inventory-attributes';
 
 interface BookingResourcesTabProps {
   bookingId: string;
@@ -39,7 +40,12 @@ export default function BookingResourcesTab({ bookingId }: BookingResourcesTabPr
 
   // Per seating item: seats the booking's required chairs/tables provide vs the guest count.
   const guestCount = data?.booking.guestCount ?? 0;
-  const seatByItemId = new Map((data?.inventoryItems || []).map((i) => [i.id, i.seatingCapacity]));
+  const seatByItemId = new Map(
+    (data?.inventoryItems || []).map((i) => [
+      i.id,
+      getSeatingCapacity(i.attributes, readAttributeDefs(i.inventoryType?.attributeDefs)),
+    ]),
+  );
   const seatingGaps = computeBookingSeatingGaps(
     resourceSummary
       .filter((row) => seatByItemId.get(row.key) && (seatByItemId.get(row.key) as number) > 0)

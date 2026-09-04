@@ -55,9 +55,7 @@ export async function PATCH(
       const w = await resolveItemWrite(existing.tenantId, targetTypeId, rawAttrs);
       if (!w.ok) return NextResponse.json({ error: w.error }, { status: w.status });
       data.inventoryType = { connect: { id: targetTypeId } };
-      data.category = { connect: { id: w.categoryId } };
       data.attributes = w.attributes as unknown as Prisma.InputJsonValue;
-      data.seatingCapacity = w.seatingCapacity;
     }
 
     const item = await prisma.inventoryItem.update({

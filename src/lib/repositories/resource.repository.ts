@@ -17,9 +17,6 @@ export class ResourceRepository {
           totalQuantity: true,
           unit: true,
           attributes: true,
-          seatingCapacity: true,
-          categoryId: true,
-          category: { select: { name: true } },
           inventoryTypeId: true,
           inventoryType: {
             select: {

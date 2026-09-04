@@ -27,8 +27,6 @@ export class ServiceRepository {
             inventoryTypeId: true,
             inventoryType: { select: { name: true } },
             matchCriteria: true,
-            categoryId: true,
-            category: { select: { name: true } },
             quantity: true,
             quantityType: true,
             optional: true,
@@ -54,8 +52,6 @@ export class ServiceRepository {
         inventoryTypeId: r.inventoryTypeId,
         inventoryTypeName: r.inventoryType?.name || null,
         matchCriteria: (r.matchCriteria ?? null) as Record<string, unknown> | null,
-        categoryId: r.categoryId,
-        categoryName: r.category?.name || null,
         quantity: toDisplayNumber(r.quantity),
         // MANUAL was removed as an option — any legacy row still carrying it displays as Fixed
         // until the service is re-saved (its stored behaviour is unchanged in the meantime).

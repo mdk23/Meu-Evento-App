@@ -1,7 +1,8 @@
-import { Prisma, Venue, Supplier, Staff, Service, InventoryItem } from '@prisma/client';
+import { Prisma, Venue, Supplier, Staff, Service } from '@prisma/client';
 import { DecimalToNumber } from '@/lib/money';
 import { ReuseCandidate } from '@/lib/reuse-candidates';
 import { EventResourceSummaryRow } from '@/lib/event-resource-summary';
+import type { ResourcePanelInventoryItem } from '@/components/resources/BookingServiceResourcePanel';
 
 // `Decimal` fields never survive the API boundary as `Decimal` — `src/lib/money.ts`'s `serializeDecimals`
 // converts every one to a plain number before `GET /api/events/[id]`'s response is sent.
@@ -20,7 +21,7 @@ type RawEventDetailPayload = DecimalToNumber<Prisma.EventGetPayload<{
           include: {
             inventoryItem: true;
             transactions: true;
-            sourceRequirement: { select: { categoryId: true; category: { select: { name: true } } } };
+            sourceRequirement: { select: { inventoryTypeId: true; inventoryType: { select: { name: true } }; matchCriteria: true } };
           };
         };
       };
@@ -57,7 +58,7 @@ export interface EventDetailApiResponse {
   suppliers?: Supplier[];
   staff?: Staff[];
   catalogServices?: SerializedService[];
-  inventoryItems?: InventoryItem[];
+  inventoryItems?: ResourcePanelInventoryItem[];
 }
 
 export type TabId = 'overview' | 'services' | 'tasks' | 'guests' | 'resources' | 'suppliers' | 'payments' | 'execution';

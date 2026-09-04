@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
               include: {
                 inventoryItem: true,
                 transactions: true,
-                sourceRequirement: { select: { categoryId: true, category: { select: { name: true } } } },
+                sourceRequirement: { select: { inventoryTypeId: true, inventoryType: { select: { name: true } }, matchCriteria: true } },
               },
             },
           },
@@ -61,7 +61,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         bookingServiceId: r.bookingServiceId,
         inventoryItemId: r.inventoryItemId,
         itemNameSnapshot: r.itemNameSnapshot,
-        categoryName: r.sourceRequirement?.category?.name ?? null,
+        typeName: r.sourceRequirement?.inventoryType?.name ?? null,
         requiredQuantity: Number(r.requiredQuantity),
         reservedQuantity: Number(r.reservedQuantity),
         status: r.status,
@@ -129,7 +129,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         venue: true,
         suppliers: { where: { active: true } },
         staff: { where: { active: true } },
-        inventoryItems: { where: { active: true } },
+        inventoryItems: {
+          where: { active: true },
+          include: { inventoryType: { select: { attributeDefs: true } } },
+        },
         services: { where: { active: true } },
       },
     });

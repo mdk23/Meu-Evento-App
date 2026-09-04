@@ -716,12 +716,8 @@ model InventoryCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  types        InventoryType[]
-  /// Legacy direct links — kept until the Category→Type→Item refactor's final phase drops
-  /// `InventoryItem.categoryId` / `ServiceInventoryRequirement.categoryId`.
-  items        InventoryItem[]
-  requirements ServiceInventoryRequirement[]
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  types  InventoryType[]
 
   @@unique([tenantId, name])
   @@index([tenantId, active])
@@ -781,35 +777,23 @@ model InventoryItem {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  /// LEGACY (dropped in the refactor's final phase): pre-Type columns, still present so the migration
-  /// can fold their values into `attributes` before removal.
-  seatingCapacity Int     @default(0)
-  categoryId      String
-  color           String?
-  material        String?
-  model           String?
-  size            String?
-  shape           String?
-
   tenant              Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   inventoryType       InventoryType                 @relation(fields: [inventoryTypeId], references: [id], onDelete: Restrict)
-  category            InventoryCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   serviceRequirements ServiceInventoryRequirement[]
   bookingResources    BookingServiceResource[]
   transactions        InventoryTransaction[]
 
   @@index([tenantId])
   @@index([active])
-  @@index([categoryId])
   @@index([tenantId, inventoryTypeId])
   @@map("inventory_items")
 }
 
 /// Catalog template — "this Service normally requires X." Never reserves inventory by itself (§16); it
-/// only informs what a `BookingServiceResourceRequirement` gets seeded with once a later phase wires up
-/// the auto-seed write path. Either hard-links one specific `InventoryItem`, or names a `category` so any
-/// item within it qualifies (e.g. "needs 100 Chairs," not "needs 100 Gold Chiavari Chairs specifically") —
-/// the concrete variant is chosen per booking, never baked into the catalog.
+/// only informs what a `BookingServiceResource` gets seeded with. Either hard-links one specific
+/// `InventoryItem` (Mode A), or names an `InventoryType` + optional `matchCriteria` (Mode B) so any
+/// matching item qualifies (e.g. "needs 100 Chairs," not "needs 100 Gold Chiavari Chairs
+/// specifically") — the concrete variant is chosen per booking, never baked into the catalog.
 model ServiceInventoryRequirement {
   id              String       @id @default(cuid())
   tenantId        String
@@ -819,7 +803,6 @@ model ServiceInventoryRequirement {
   /// optional `matchCriteria` (e.g. `{ "shape": "ROUND", "seatingCapacity": { "gte": 10 } }`).
   inventoryTypeId String?
   matchCriteria   Json?
-  categoryId      String?
   quantity        Decimal      @db.Decimal(12, 2)
   quantityType    QuantityType @default(FIXED)
   optional        Boolean      @default(false)
@@ -831,15 +814,12 @@ model ServiceInventoryRequirement {
   service         Service                  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   inventoryItem   InventoryItem?           @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
   inventoryType   InventoryType?           @relation(fields: [inventoryTypeId], references: [id], onDelete: Restrict)
-  /// LEGACY (dropped in the refactor's final phase) — superseded by `inventoryTypeId`.
-  category        InventoryCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Every per-booking resource row seeded from this template across every booking it's been applied to.
   seededResources BookingServiceResource[]
 
   @@unique([serviceId, inventoryItemId])
   @@index([inventoryItemId])
   @@index([inventoryTypeId])
-  @@index([categoryId])
   @@map("service_inventory_requirements")
 }
 

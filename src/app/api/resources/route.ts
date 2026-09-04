@@ -6,7 +6,11 @@ export async function GET() {
     const tenant = await prisma.tenant.findFirst({
       include: {
         venue: true,
-        inventoryItems: { where: { active: true }, orderBy: { name: 'asc' }, include: { category: true } },
+        inventoryItems: {
+          where: { active: true },
+          orderBy: { name: 'asc' },
+          include: { inventoryType: { include: { category: true } } },
+        },
         staff: { orderBy: { name: 'asc' } },
         suppliers: { orderBy: { name: 'asc' } },
       },
@@ -14,7 +18,7 @@ export async function GET() {
 
     return NextResponse.json({
       venue: tenant?.venue,
-      inventoryItems: (tenant?.inventoryItems || []).map((item) => ({ ...item, category: item.category.name })),
+      inventoryItems: (tenant?.inventoryItems || []).map((item) => ({ ...item, category: item.inventoryType.category.name })),
       staff: tenant?.staff || [],
       suppliers: tenant?.suppliers || [],
     });
@@ -60,48 +64,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, venue });
     }
 
-    if (resourceType === 'INVENTORY') {
-      const categoryName = data.category || 'General Equipment';
-      const category = await prisma.inventoryCategory.upsert({
-        where: { tenantId_name: { tenantId: tenant.id, name: categoryName } },
-        update: {},
-        create: { tenantId: tenant.id, name: categoryName },
-      });
-      // Category → Type → Item refactor (transitional): an item must belong to an InventoryType.
-      // Until the dedicated item form sends a chosen type, fall back to the category's "Unclassified"
-      // type (creating it if the category was just made), and surface those for manual reclassification.
-      let inventoryTypeId: string = data.inventoryTypeId;
-      if (!inventoryTypeId) {
-        const fallback = await prisma.inventoryType.findFirst({
-          where: { tenantId: tenant.id, categoryId: category.id, name: 'Unclassified' },
-          select: { id: true },
-        });
-        inventoryTypeId =
-          fallback?.id ??
-          (
-            await prisma.inventoryType.create({
-              data: {
-                tenantId: tenant.id,
-                categoryId: category.id,
-                name: 'Unclassified',
-                code: `UNCLASSIFIED_${category.id.slice(0, 8).toUpperCase()}`,
-              },
-              select: { id: true },
-            })
-          ).id;
-      }
-      const item = await prisma.inventoryItem.create({
-        data: {
-          tenantId: tenant.id,
-          name: data.name,
-          totalQuantity: parseInt(data.quantity || '0', 10),
-          seatingCapacity: parseInt(data.seatingCapacity || '0', 10) || 0,
-          categoryId: category.id,
-          inventoryTypeId,
-        },
-      });
-      return NextResponse.json({ success: true, item }, { status: 201 });
-    }
+    // Inventory items are created through `POST /api/inventory-items` (Category → Type → dynamic
+    // attributes), not this generic endpoint.
 
     if (resourceType === 'STAFF') {
       const staffMember = await prisma.staff.create({

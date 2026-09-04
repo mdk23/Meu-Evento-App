@@ -7,29 +7,35 @@ import { generateMilestones, validatePaymentPlan, MilestoneDraft, PaymentPlanId 
 import { isOverCapacity } from '@/lib/capacity';
 import { computeBookingPackageCapacityGap, computeBookingSeatingGaps, SeatingItemGap } from '@/lib/seating';
 import { resolveRequiredQuantity } from '@/lib/service-inventory-requirements';
+import { getSeatingCapacity, readAttributeDefs } from '@/lib/inventory-attributes';
 
-/** Pulls a service's concrete seating requirements (specific item, seatingCapacity > 0) out of the
- * raw `inventoryRequirements` the page now selects. Category-only requirements are skipped — their
- * seats can't be known until the booking picks a variant. Shape-tolerant so it can run against both
- * the `initialServices` payload and anything else carrying `inventoryRequirements`. */
+/** Pulls a service's concrete seating requirements (specific item whose type defines a numeric
+ * `seatingCapacity`) out of the raw `inventoryRequirements` the page now selects. Type-only
+ * requirements are skipped — their seats can't be known until the booking picks a variant.
+ * Shape-tolerant so it can run against both the `initialServices` payload and anything else
+ * carrying `inventoryRequirements`. */
 function toSeatingReqs(
   inventoryRequirements: Array<{
     quantity: number | string;
     quantityType: string;
     inventoryItemId: string | null;
-    inventoryItem: { name: string; seatingCapacity: number } | null;
+    inventoryItem: { name: string; attributes: unknown; inventoryType: { attributeDefs: unknown } } | null;
   }> | null | undefined
 ): SeatingLineReq[] {
   if (!inventoryRequirements) return [];
   return inventoryRequirements
-    .filter((r) => r.inventoryItemId && r.inventoryItem && r.inventoryItem.seatingCapacity > 0)
+    .filter((r) => r.inventoryItemId && r.inventoryItem)
     .map((r) => ({
       inventoryItemId: r.inventoryItemId as string,
       itemLabel: r.inventoryItem!.name,
       quantityType: r.quantityType as SeatingLineReq['quantityType'],
       quantity: Number(r.quantity),
-      seatingCapacity: r.inventoryItem!.seatingCapacity,
-    }));
+      seatingCapacity: getSeatingCapacity(
+        r.inventoryItem!.attributes,
+        readAttributeDefs(r.inventoryItem!.inventoryType.attributeDefs),
+      ),
+    }))
+    .filter((r) => r.seatingCapacity > 0);
 }
 
 /** Combines a `yyyy-mm-dd` date string with an `HH:mm` time string into a local `Date`. */

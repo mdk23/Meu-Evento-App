@@ -3,8 +3,8 @@ import { QuantityTypeLike, resolveRequiredQuantity } from './service-inventory-r
 
 /**
  * One inventory requirement of a package's services, flattened for the seating-sufficiency preview.
- * `seatingCapacity` is the resolved `InventoryItem.seatingCapacity` (seats per unit); it is only
- * meaningful when the requirement targets a concrete item (`isCategoryOnly` false).
+ * `seatingCapacity` is the item's seats-per-unit, read via `getSeatingCapacity(attributes, defs)`;
+ * it is only meaningful when the requirement targets a concrete item (`isCategoryOnly` false).
  */
 export interface SeatingReq {
   quantityType: QuantityTypeLike;
@@ -12,7 +12,7 @@ export interface SeatingReq {
   quantity: number | Prisma.Decimal;
   /** The parent PackageItem's own unit count — drives PER_UNIT requirements. */
   unitCount: number;
-  /** Resolved `InventoryItem.seatingCapacity`; 0 for a non-seating item or an unresolved category. */
+  /** Seats per unit (from `getSeatingCapacity`); 0 for a non-seating item or an unresolved type. */
   seatingCapacity: number;
   /** True when the requirement names only a category (no specific variant chosen at catalog level),
    * so its real seating contribution can't be known until the booking picks an item. */
@@ -103,7 +103,7 @@ export interface SeatingGapItem {
   itemLabel: string;
   /** Resolved count of this seating item on the booking (chairs, tables, …). */
   units: number;
-  /** `InventoryItem.seatingCapacity` — seats per unit. */
+  /** Seats per unit (from `getSeatingCapacity`). */
   seatingCapacity: number;
 }
 

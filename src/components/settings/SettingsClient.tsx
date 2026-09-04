@@ -1,22 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { Sliders, Layers, Tags, Sparkles, ShieldCheck } from 'lucide-react';
+import { Sliders, Layers, Tags, Boxes, Sparkles, ShieldCheck } from 'lucide-react';
 import Topbar from '@/components/aurelia/Topbar';
 import ServiceCategoriesSection, { ServiceCategoryRow } from '@/components/settings/ServiceCategoriesSection';
 import InventoryCategoriesSection, { InventoryCategoryRow } from '@/components/settings/InventoryCategoriesSection';
+import InventoryTypesSection from '@/components/settings/InventoryTypesSection';
+import type { InventoryTypeDTO } from '@/types/dtos';
 
-type TabId = 'general' | 'service-categories' | 'inventory-categories';
+type TabId = 'general' | 'service-categories' | 'inventory-categories' | 'inventory-types';
 
 const TABS: { id: TabId; label: string; icon: typeof Sliders; hint: string }[] = [
   { id: 'general', label: 'General', icon: Sliders, hint: 'Organization & engine preferences' },
   { id: 'service-categories', label: 'Service Categories', icon: Layers, hint: 'The "Category" picker on the Services page' },
   { id: 'inventory-categories', label: 'Inventory Categories', icon: Tags, hint: 'Groups for physical stock variants' },
+  { id: 'inventory-types', label: 'Inventory Types', icon: Boxes, hint: 'What kind of resource an item is + its characteristics' },
 ];
 
 interface SettingsClientProps {
   serviceCategories: ServiceCategoryRow[];
   inventoryCategories: InventoryCategoryRow[];
+  inventoryTypes: InventoryTypeDTO[];
 }
 
 function GeneralPanel() {
@@ -62,7 +66,7 @@ function GeneralPanel() {
   );
 }
 
-export default function SettingsClient({ serviceCategories, inventoryCategories }: SettingsClientProps) {
+export default function SettingsClient({ serviceCategories, inventoryCategories, inventoryTypes }: SettingsClientProps) {
   const [active, setActive] = useState<TabId>('general');
   const activeTab = TABS.find((t) => t.id === active)!;
 
@@ -110,6 +114,9 @@ export default function SettingsClient({ serviceCategories, inventoryCategories 
             {active === 'general' && <GeneralPanel />}
             {active === 'service-categories' && <ServiceCategoriesSection initialCategories={serviceCategories} />}
             {active === 'inventory-categories' && <InventoryCategoriesSection initialCategories={inventoryCategories} />}
+            {active === 'inventory-types' && (
+              <InventoryTypesSection initialTypes={inventoryTypes} categories={inventoryCategories} />
+            )}
           </div>
         </div>
       </div>

@@ -164,29 +164,27 @@ export async function POST() {
     const itemChairs = await prisma.inventoryItem.create({
       data: {
         tenantId: tenant.id, name: 'Banquet Chairs', totalQuantity: 500,
-        categoryId: categoryFurniture.id, inventoryTypeId: typeChair.id,
+        inventoryTypeId: typeChair.id,
         attributes: { color: 'Gold', material: 'Metal', seatingCapacity: 1, stackable: true },
-        seatingCapacity: 1,
       },
     });
     const itemTables = await prisma.inventoryItem.create({
       data: {
         tenantId: tenant.id, name: 'Round Tables (8-Seater)', totalQuantity: 60,
-        categoryId: categoryFurniture.id, inventoryTypeId: typeTable.id,
+        inventoryTypeId: typeTable.id,
         attributes: { shape: 'ROUND', diameter: 1.5, seatingCapacity: 8 },
-        seatingCapacity: 8,
       },
     });
     await prisma.inventoryItem.create({
       data: {
         tenantId: tenant.id, name: 'Stage Intelligent Lights', totalQuantity: 12,
-        categoryId: categoryAudioVisual.id, inventoryTypeId: typeAV.id, attributes: { power: 300 },
+        inventoryTypeId: typeAV.id, attributes: { power: 300 },
       },
     });
     const itemChafingDishes = await prisma.inventoryItem.create({
       data: {
         tenantId: tenant.id, name: 'Stainless Chafing Dishes', totalQuantity: 24,
-        categoryId: categoryKitchen.id, inventoryTypeId: typeKitchen.id, attributes: { material: 'Stainless steel' },
+        inventoryTypeId: typeKitchen.id, attributes: { material: 'Stainless steel' },
       },
     });
 

@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { X, Recycle } from 'lucide-react';
-import { InventoryItem } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import { itemMatchesCriteria, type MatchCriteria } from '@/lib/inventory-type-match';
+
+/** An active inventory item as sent to the resource pickers — carries its type's `attributeDefs`
+ * so eligibility for a Mode-B (type + `matchCriteria`) requirement can be checked client-side. */
+export type ResourcePanelInventoryItem = Prisma.InventoryItemGetPayload<{
+  include: { inventoryType: { select: { attributeDefs: true } } };
+}>;
 
 export const RESERVATION_ACTIONS: Record<string, { label: string; action: string }[]> = {
   PLANNED: [],
@@ -65,7 +72,9 @@ export interface BookingServiceResourceLike {
   requiredQuantity: number;
   reservedQuantity: number;
   status: string;
-  sourceRequirement: { categoryId: string | null; category: { name: string } | null } | null;
+  sourceRequirement:
+    | { inventoryTypeId: string | null; inventoryType: { name: string } | null; matchCriteria: unknown }
+    | null;
   reuseCandidates: ResourceReuseCandidate[];
 }
 
@@ -125,16 +134,17 @@ function ResourceReserveRow({
   onResolveVariant,
 }: {
   resource: BookingServiceResourceLike;
-  inventoryItems: InventoryItem[];
+  inventoryItems: ResourcePanelInventoryItem[];
   onReserve: (inventoryItemId: string, quantity: number, resourceId: string) => void;
   onReuse: (reuseFromResourceId: string, quantity: number, resourceId: string) => void;
   onResolveVariant: (inventoryItemId: string, resourceId: string) => void;
 }) {
-  const categoryId = resource.sourceRequirement?.categoryId;
+  const reqTypeId = resource.sourceRequirement?.inventoryTypeId ?? null;
+  const reqCriteria = (resource.sourceRequirement?.matchCriteria ?? null) as MatchCriteria | null;
   const eligibleItems = resource.inventoryItemId
     ? inventoryItems.filter((i) => i.id === resource.inventoryItemId)
-    : categoryId
-    ? inventoryItems.filter((i) => i.categoryId === categoryId)
+    : reqTypeId
+    ? inventoryItems.filter((i) => i.inventoryTypeId === reqTypeId && itemMatchesCriteria(i.attributes, reqCriteria))
     : inventoryItems;
 
   const [pickedItemId, setPickedItemId] = useState(resource.inventoryItemId || eligibleItems[0]?.id || '');
@@ -161,7 +171,7 @@ function ResourceReserveRow({
             ))}
           </select>
         )}
-        {!resource.inventoryItemId && resource.sourceRequirement?.categoryId && (
+        {!resource.inventoryItemId && resource.sourceRequirement?.inventoryTypeId && (
           <button
             type="button"
             onClick={() => pickedItemId && onResolveVariant(pickedItemId, resource.id)}
@@ -195,7 +205,7 @@ function ResourceReserveRow({
 
 interface BookingServiceResourcePanelProps {
   resources: BookingServiceResourceLike[];
-  inventoryItems: InventoryItem[];
+  inventoryItems: ResourcePanelInventoryItem[];
   onReserveInventory: (options: { inventoryItemId: string; quantity: number; resourceRequirementId?: string }) => void;
   onRemoveReservedInventory: (resourceId: string) => void;
   onReservationAction: (resourceId: string, action: string, quantity?: number) => void;
@@ -295,7 +305,7 @@ export default function BookingServiceResourcePanel({
           <p className="mini dim">What this service needs — reserve against a row to fulfill it, then advance it through Allocate/Use/Return.</p>
           <div className="stack" style={{ gap: 8, padding: 8, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-deep)' }}>
             {resources.map((r) => {
-              const label = r.itemNameSnapshot || (r.sourceRequirement?.category?.name ? `Any ${r.sourceRequirement.category.name}` : 'Unresolved item');
+              const label = r.itemNameSnapshot || (r.sourceRequirement?.inventoryType?.name ? `Any ${r.sourceRequirement.inventoryType.name}` : 'Unresolved item');
               return (
                 <div key={r.id} className="stack" style={{ gap: 6, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--surface-solid)' }}>
                   <div className="between">

@@ -156,10 +156,6 @@ export interface ServiceInventoryRequirementDTO {
   inventoryTypeId: string | null;
   inventoryTypeName: string | null;
   matchCriteria: Record<string, unknown> | null;
-  /** @deprecated superseded by `inventoryTypeId` — still populated during the Category→Type migration. */
-  categoryId: string | null;
-  /** @deprecated superseded by `inventoryTypeName`. */
-  categoryName: string | null;
   quantity: number;
   quantityType: 'FIXED' | 'PER_GUEST' | 'PER_UNIT' | 'GUESTS_PER_UNIT';
   optional: boolean;

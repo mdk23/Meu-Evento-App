@@ -1,7 +1,7 @@
 import ServicesClient from '@/components/services/ServicesClient';
 import { ServiceService } from '@/lib/services/service.service';
 import { InventoryItemRepository } from '@/lib/repositories/inventory-item.repository';
-import { InventoryCategoryRepository } from '@/lib/repositories/inventory-category.repository';
+import { InventoryTypeRepository } from '@/lib/repositories/inventory-type.repository';
 import { ServiceCategoryRepository } from '@/lib/repositories/service-category.repository';
 
 export const dynamic = 'force-dynamic';
@@ -14,10 +14,10 @@ export default async function ServicesCatalogPage({ searchParams }: ServicesPage
   const params = await searchParams;
   const scope = params.scope?.toUpperCase();
 
-  const [services, inventoryItems, inventoryCategories, serviceCategories] = await Promise.all([
+  const [services, inventoryItems, inventoryTypes, serviceCategories] = await Promise.all([
     ServiceService.getCatalog(),
     InventoryItemRepository.getItemOptions(),
-    InventoryCategoryRepository.getCategories(),
+    InventoryTypeRepository.getTypes(),
     ServiceCategoryRepository.getCategories(),
   ]);
 
@@ -26,7 +26,7 @@ export default async function ServicesCatalogPage({ searchParams }: ServicesPage
       initialServices={services}
       initialScopeFilter={scope === 'VENUE' || scope === 'EVENT' ? scope : 'ALL'}
       inventoryItems={inventoryItems}
-      inventoryCategories={inventoryCategories}
+      inventoryTypes={inventoryTypes}
       serviceCategories={serviceCategories}
     />
   );

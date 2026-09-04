@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { ExecutionType, ServiceContext, PriceType, QuantityType } from '@prisma/client';
 import { serializeDecimals } from '@/lib/money';
+import { resolveServiceRequirements } from '@/lib/service-requirement-write';
 
 function resolveContext(value: unknown): ServiceContext {
   return value === 'VENUE' || value === 'EVENT' ? (value as ServiceContext) : ServiceContext.BOTH;
@@ -17,30 +19,6 @@ function resolveQuantityType(value: unknown): QuantityType {
   return value === 'PER_GUEST' || value === 'PER_UNIT' || value === 'GUESTS_PER_UNIT'
     ? (value as QuantityType)
     : QuantityType.FIXED;
-}
-
-interface InventoryRequirementInput {
-  inventoryItemId?: string | null;
-  categoryId?: string | null;
-  quantity?: number | string;
-  quantityType?: string;
-  optional?: boolean;
-  notes?: string | null;
-}
-
-/** Validates each requirement names a fulfillment target (item or category — matches the DB CHECK
- * constraint on `service_inventory_requirements`) before it ever reaches a write. */
-function validateRequirements(requirements: unknown): { error: string } | { rows: InventoryRequirementInput[] } {
-  if (!Array.isArray(requirements)) return { rows: [] };
-  for (const r of requirements as InventoryRequirementInput[]) {
-    if (!r.inventoryItemId && !r.categoryId) {
-      return { error: 'Each inventory requirement needs either a specific item or a category.' };
-    }
-    if (r.quantityType === 'GUESTS_PER_UNIT' && !(parseFloat(String(r.quantity ?? 0)) > 0)) {
-      return { error: 'Guests-per-unit requirements need a seats-per-unit value greater than zero.' };
-    }
-  }
-  return { rows: requirements as InventoryRequirementInput[] };
 }
 
 export async function GET() {
@@ -69,9 +47,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name and Category are required' }, { status: 400 });
     }
 
-    const validated = validateRequirements(inventoryRequirements);
-    if ('error' in validated) {
-      return NextResponse.json({ error: validated.error }, { status: 400 });
+    const resolved = await resolveServiceRequirements(tenant.id, inventoryRequirements);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
 
     const service = await prisma.service.create({
@@ -84,13 +62,14 @@ export async function POST(request: Request) {
         priceType: resolvePriceType(priceType),
         defaultPrice: parseFloat(defaultPrice || 0),
         inventoryRequirements: {
-          create: validated.rows.map((r, index) => ({
+          create: resolved.rows.map((r, index) => ({
             tenantId: tenant.id,
-            inventoryItemId: r.inventoryItemId || null,
-            categoryId: r.categoryId || null,
+            inventoryItemId: r.inventoryItemId,
+            inventoryTypeId: r.inventoryTypeId,
+            matchCriteria: r.matchCriteria === null ? Prisma.DbNull : (r.matchCriteria as unknown as Prisma.InputJsonValue),
             quantity: parseInt(String(r.quantity ?? 1), 10) || 1,
             quantityType: resolveQuantityType(r.quantityType),
-            optional: !!r.optional,
+            optional: r.optional,
             notes: r.notes || null,
             sortOrder: index,
           })),

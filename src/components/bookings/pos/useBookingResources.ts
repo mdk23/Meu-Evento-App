@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { InventoryItem } from '@prisma/client';
-import { ResourceReuseCandidate } from '@/components/resources/BookingServiceResourcePanel';
+import type { ResourceReuseCandidate, ResourcePanelInventoryItem } from '@/components/resources/BookingServiceResourcePanel';
 import type { EventResourceSummaryRow } from '@/lib/event-resource-summary';
 
 export interface BookingResourceRow {
@@ -14,7 +13,9 @@ export interface BookingResourceRow {
   status: string;
   startAt: string;
   endAt: string;
-  sourceRequirement: { categoryId: string | null; category: { name: string } | null } | null;
+  sourceRequirement:
+    | { inventoryTypeId: string | null; inventoryType: { name: string } | null; matchCriteria: unknown }
+    | null;
   reuseCandidates: ResourceReuseCandidate[];
 }
 
@@ -29,7 +30,7 @@ export interface BookingResourceService {
 interface BookingResourcesApiResponse {
   booking: { id: string; guestCount: number; bookingServices: BookingResourceService[] };
   resourceSummary: EventResourceSummaryRow[];
-  inventoryItems: InventoryItem[];
+  inventoryItems: ResourcePanelInventoryItem[];
 }
 
 /** Booking-scoped resource management — the same booking-scoped API the Event work-order modal
