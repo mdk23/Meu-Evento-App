@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Cormorant_Garamond, Jost, Cinzel, Lora } from "next/
 import "./globals.css";
 import Providers from "./providers";
 import { AppShell } from "@/components/AppShell";
+import { InlineScript } from "@/components/InlineScript";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,7 +75,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <InlineScript html={themeBootstrapScript} />
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>

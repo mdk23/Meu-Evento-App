@@ -25,7 +25,7 @@ export async function GET() {
       },
     });
 
-    const clients = await prisma.client.findMany({ orderBy: { name: 'asc' } });
+    const clients = await prisma.client.findMany({ where: { active: true }, orderBy: { name: 'asc' } });
     const services = await prisma.service.findMany({ orderBy: { name: 'asc' } });
     const venues = await prisma.venue.findMany({ orderBy: { name: 'asc' } });
 

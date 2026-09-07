@@ -12,8 +12,12 @@ export class ClientRepository {
   static async getClientList({ page, pageSize }: GetClientListParams = {}): Promise<ClientListPageDTO> {
     const { page: resolvedPage, pageSize: resolvedPageSize, skip, take } = resolvePagination({ page, pageSize });
 
+    // Deleting a client is a soft delete (`active: false`, see DELETE /api/clients/[id]) so booking
+    // history is never destroyed — the directory must therefore only list active clients, or a
+    // "deleted" client keeps showing up. Same filter every other soft-deletable list uses.
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
+        where: { active: true },
         orderBy: { name: 'asc' },
         skip,
         take,
@@ -37,7 +41,7 @@ export class ClientRepository {
           },
         },
       }),
-      prisma.client.count(),
+      prisma.client.count({ where: { active: true } }),
     ]);
 
     const items: ClientCardDTO[] = clients.map((c) => {
